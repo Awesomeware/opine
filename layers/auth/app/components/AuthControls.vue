@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { authClient } from '../auth-client'
 
 const session = authClient.useSession()
+const route = useRoute()
 const busy = ref(false)
 const errorMessage = ref('')
 
@@ -12,7 +13,7 @@ async function signIn() {
   try {
     const { error } = await authClient.signIn.social({
       provider: 'discord',
-      callbackURL: '/',
+      callbackURL: route.path === '/feedback/new' ? '/feedback/new' : '/',
       errorCallbackURL: '/sign-in',
     })
     if (error) errorMessage.value = 'Unable to start Discord sign-in. Please try again.'
@@ -50,7 +51,7 @@ async function retrySession() {
 </script>
 
 <template>
-  <div aria-label="Account">
+  <div class="account-controls" aria-label="Account">
     <p v-if="session.isPending" role="status">Checking your session…</p>
     <template v-else-if="session.error">
       <p role="alert">Unable to check your session.</p>

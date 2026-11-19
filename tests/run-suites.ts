@@ -1,4 +1,4 @@
-export type TestSuite = { name: string; files: string[] }
+export type TestSuite = { name: string; files: string[]; restartFiles?: string[] }
 
 export async function runSuites(
   suites: TestSuite[],

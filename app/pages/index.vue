@@ -1,10 +1,7 @@
 <script setup lang="ts">
-useHead({ title: 'Opine' })
+await navigateTo('/feedback', { replace: true })
 </script>
 
 <template>
-  <main>
-    <h1>Hello, world!</h1>
-    <p>Opine</p>
-  </main>
+  <main id="main-content"><NuxtLink to="/feedback">Explore feedback</NuxtLink></main>
 </template>

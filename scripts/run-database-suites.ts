@@ -2,6 +2,9 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { createServer } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { PostgreSqlContainer } from '@testcontainers/postgresql'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
@@ -68,6 +71,7 @@ async function runSuite(suite: TestSuite) {
   checkInterrupted()
   console.log(`Starting isolated ${kind} suite: ${suite.name}`)
   const postgres = await new PostgreSqlContainer('postgres:18').withDatabase('opine_test').start()
+  let artifacts: string | undefined
 
   try {
     checkInterrupted()
@@ -98,13 +102,47 @@ async function runSuite(suite: TestSuite) {
       await runTests(['--test', '--test-concurrency=1', ...suite.files], env)
     } else {
       const baseURL = `http://127.0.0.1:${await availablePort()}`
+      artifacts = await mkdtemp(join(tmpdir(), 'opine-e2e-'))
+      const browserEnv = {
+        ...env,
+        OPINE_TEST_BASE_URL: baseURL,
+        BETTER_AUTH_URL: baseURL,
+        OPINE_TEST_ARTIFACT_DIR: artifacts,
+        OPINE_TEST_PHASE: 'main',
+      }
       await runTests(
         [fileURLToPath(import.meta.resolve('@playwright/test/cli')), 'test', ...suite.files],
-        { ...env, OPINE_TEST_BASE_URL: baseURL, BETTER_AUTH_URL: baseURL },
+        browserEnv,
       )
+      if (suite.restartFiles?.length) {
+        // Playwright has stopped the first application process. Restart the same
+        // database container, then serve the saved link from a fresh app process.
+        checkInterrupted()
+        await postgres.restart()
+        // Docker may assign a new host port when restarting an ephemeral mapping.
+        const restartedDatabaseUrl = postgres.getConnectionUri()
+        console.log(`Verifying persistence after database and app restart: ${suite.name}`)
+        await runTests(
+          [
+            fileURLToPath(import.meta.resolve('@playwright/test/cli')),
+            'test',
+            ...suite.restartFiles,
+          ],
+          {
+            ...browserEnv,
+            DATABASE_URL: restartedDatabaseUrl,
+            OPINE_TEST_DATABASE_URL: restartedDatabaseUrl,
+            OPINE_TEST_PHASE: 'restart',
+          },
+        )
+      }
     }
   } finally {
-    await postgres.stop()
+    try {
+      await postgres.stop()
+    } finally {
+      if (artifacts) await rm(artifacts, { recursive: true, force: true })
+    }
     console.log(`Stopped database for suite: ${suite.name}`)
   }
 }

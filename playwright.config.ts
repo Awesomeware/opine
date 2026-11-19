@@ -14,7 +14,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  outputDir: `test-results/${suiteName}`,
+  outputDir: `test-results/${suiteName}/${process.env.OPINE_TEST_PHASE ?? 'main'}`,
   use: {
     baseURL,
     browserName: 'chromium',
