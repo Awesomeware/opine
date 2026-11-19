@@ -4,6 +4,7 @@ export const suites = {
   integration: [
     { name: 'database', files: ['server/db/db.integration.ts'] },
     { name: 'authentication', files: ['layers/auth/server/auth.integration.ts'] },
+    { name: 'feedback', files: ['layers/feedback/server/posts.integration.ts'] },
   ],
   e2e: [
     {

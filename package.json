@@ -18,6 +18,7 @@
     "test:e2e": "pnpm build && node scripts/run-database-suites.ts e2e",
     "layer:new": "nuxt add-template layer",
     "auth:role": "node scripts/auth-role.ts",
+    "feedback:category": "node scripts/feedback-category.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:check": "drizzle-kit check"

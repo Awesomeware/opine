@@ -90,6 +90,8 @@ async function runSuite(suite: TestSuite) {
       DISCORD_CLIENT_SECRET: 'opine-test-secret',
       AUTH_SIGN_IN_MAX: '10',
       AUTH_SIGN_IN_WINDOW_SECONDS: '60',
+      FEEDBACK_POST_MAX: '5',
+      FEEDBACK_POST_WINDOW_SECONDS: '60',
     }
 
     if (kind === 'integration') {
