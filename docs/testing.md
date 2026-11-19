@@ -12,7 +12,7 @@ Install the browser with `pnpm exec playwright install chromium`. On Linux, `pnp
 
 ## Suite isolation and resource limits
 
-A **logical suite** is an entry in [tests/suites.ts](../tests/suites.ts), potentially containing multiple related files. The database-backed runner starts one fresh PostgreSQL 18 container per suite, applies committed migrations from `drizzle/`, and passes its generated connection URL to that suite's test process. It overrides any inherited `DATABASE_URL`; the development database is never used. Containers use dynamically assigned ports and are stopped after their suite finishes, including test failures.
+A **logical suite** is an entry in [tests/suites.ts](../tests/suites.ts), potentially containing multiple related files. The database-backed runner starts one fresh PostgreSQL 18 container per suite, applies committed migrations from `drizzle/`, and passes its generated connection URL to that suite's test process. It overrides any inherited `DATABASE_URL`; the development database is never used. Authentication suites receive generated test secrets and dummy Discord credentials; E2E uses its assigned server origin for authentication. Containers use dynamically assigned ports and are stopped after their suite finishes, including test failures.
 
 Independent suites can run in parallel because they have separate databases. At most two suites run concurrently by default. Set a positive integer to change that limit:
 
@@ -29,11 +29,12 @@ Each E2E suite also starts its own built Nitro application on a dynamically assi
 
 ## Initial coverage
 
-- Lightweight tests cover database configuration and pool lifecycle, plus suite scheduling behavior.
+- Lightweight tests cover database configuration, pool lifecycle, suite scheduling, and the independent role permission matrix.
 - The `database` integration suite covers real queries, reconnecting after pool shutdown, migration history and reapplication, and test-data persistence across connections.
-- The `application-smoke` browser suite checks the rendered page heading, document title, and database readiness endpoint.
+- The `authentication` integration suite covers Discord callbacks with controlled provider responses, internal identity persistence, rejected implicit linking, OAuth state, session expiry/revocation/sign-out, role mutations, the operator CLI, and HTTP rate limits.
+- The `application-smoke` browser suite checks the rendered page and database readiness, Discord redirect initiation, session reload/sign-out, server authorization boundaries, CSRF protection, and rejection of forged rate-limit IP headers.
 
-The application schema is currently empty. Migration checks exercise the committed history and will include feature migrations as they are added. These small smoke checks establish the harness; authentication and feedback will add real user journeys. CI remains outside this step.
+Migration checks apply the committed authentication schema to fresh databases. Auth tests use a small feature-owned `createMember` factory that creates genuine database identities and signed sessions; it is guarded against use outside the isolated test database. Browser tests do not require real Discord credentials or introduce a test-only login endpoint. A real Discord consent round trip remains a deployment check; see [Authentication](authentication.md). CI remains deferred.
 
 ## Adding tests
 

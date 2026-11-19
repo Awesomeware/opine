@@ -35,9 +35,9 @@ If pnpm is not installed, bootstrap the pinned version with `npm install --globa
 
 Install Docker Engine (or Docker Desktop) with Docker Compose before starting PostgreSQL. Compose runs PostgreSQL 18, waits for its healthcheck, and exposes it only on `127.0.0.1:5432`. The credentials in `.env.example` and `compose.yaml` are for local development only. If port 5432 is occupied, change `POSTGRES_PORT` in `.env` and the port in `DATABASE_URL` together.
 
-Open <http://localhost:3000>. The skeleton displays a simple Hello World page. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
+Configure the Discord application and authentication secrets using [Authentication and access](docs/authentication.md), then open <http://localhost:3000>. The placeholder page now includes Discord sign-in and sign-out. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
 
-The server creates a shared database connection pool on first use and closes it during Nitro shutdown. It reads `DATABASE_URL` only on the server. The page and liveness endpoint can still run without a database; readiness and database-backed features require one. Discord credentials are not needed until authentication is implemented. Local `.env` files are ignored by Git.
+The server creates a shared database connection pool on first use and closes it during Nitro shutdown. It reads `DATABASE_URL` only on the server. The page and liveness endpoint can still run without a database; readiness and database-backed features require one. Authentication requires the configured Discord credentials and Better Auth secret. Local `.env` files are ignored by Git.
 
 PostgreSQL data lives in the Compose-managed `postgres_data` volume. `docker compose stop` / `docker compose start --wait`, `docker compose restart`, and `docker compose down` / `docker compose up -d --wait` preserve it. After a restart, run `docker compose up -d --wait` to wait for readiness. **`docker compose down --volumes` deletes the local database permanently.** Use that only when intentionally resetting local data, then start PostgreSQL and reapply migrations. Do not change the PostgreSQL major version on an existing volume without a database upgrade or dump/restore.
 
@@ -54,6 +54,7 @@ PostgreSQL data lives in the Compose-managed `postgres_data` volume. `docker com
 | `pnpm test`             | Run lightweight Node tests without Docker.                       |
 | `pnpm test:integration` | Run isolated PostgreSQL integration suites.                      |
 | `pnpm test:e2e`         | Build and run isolated Playwright browser suites.                |
+| `pnpm auth:role ...`    | Grant or revoke privileged roles as a database operator.         |
 | `pnpm layer:new <name>` | Scaffold a local feature layer with Nuxt's built-in generator.   |
 | `pnpm build`            | Build the SPA and Nitro server for production.                   |
 | `pnpm preview`          | Preview the production build locally.                            |
@@ -77,7 +78,7 @@ On Linux, use `pnpm exec playwright install --with-deps chromium` if browser sys
 
 ## Database migrations
 
-Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The initial schema is intentionally empty: `pnpm db:generate` reports no changes, and `pnpm db:migrate` initializes Drizzle's migration bookkeeping without creating application tables. Authentication and feedback tables belong to their respective implementation steps.
+Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The first migration creates authentication, session, rate-limit, and role tables. Later features extend this committed history.
 
 For each schema change:
 

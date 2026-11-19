@@ -6,7 +6,7 @@ The [requirements](../requirements.md) define the product boundary, and [TODO.md
 
 ## Feature modules
 
-Use local Nuxt layers under `layers/<feature>/` to keep a feature's UI, endpoints, use cases, schema, contracts, and tests together. Each layer has a minimal `nuxt.config.ts` exporting `defineNuxtConfig({})`; Nuxt automatically registers local layers. Add the first layer for authentication in TODO #2. Create subsequent layers when their capabilities are implemented, without empty scaffolding in advance.
+Use local Nuxt layers under `layers/<feature>/` to keep a feature's UI, endpoints, use cases, schema, contracts, and tests together. Each layer has a minimal `nuxt.config.ts` exporting `defineNuxtConfig({})`; Nuxt automatically registers local layers. The first implemented layer is [authentication](../layers/auth/README.md). Create subsequent layers when their capabilities are implemented, without empty scaffolding in advance.
 
 A feature represents a cohesive product capability. Individual actions such as creating feedback or editing a post are slices inside that feature, not separate Nuxt layers. Add folders and helpers only when the feature needs them.
 
@@ -84,7 +84,7 @@ The separation of `app/`, `server/`, and `shared/` remains inside each feature. 
 
 ## Database ownership and migrations
 
-Each feature defines its tables and relations in `layers/<feature>/server/schema.ts`. Root `server/db/schema.ts` re-exports them for both the shared Drizzle client and Drizzle Kit. It contains no table definitions or feature behavior. It is intentionally empty until the first feature introduces tables.
+Each feature defines its tables and relations in `layers/<feature>/server/schema.ts`. Root `server/db/schema.ts` re-exports them for both the shared Drizzle client and Drizzle Kit. It contains no table definitions or feature behavior. It currently re-exports the authentication tables.
 
 Schema modules describe the database without opening connections. They must not import the database client, the aggregate schema, or use-case code. For cross-feature foreign keys, import the owning feature's exported schema definition directly, keeping schema dependencies acyclic. This avoids a cycle between schema assembly and the shared client.
 
@@ -107,7 +107,7 @@ server/
 drizzle/                     Application-wide migration history
 ```
 
-These are shared operational concerns and remain at the root. The connection pool and operational endpoints need no feature layer. Authentication and feedback introduce their own layers in later checklist steps.
+These are shared operational concerns and remain at the root. The connection pool and operational endpoints need no feature layer. Authentication owns `layers/auth/`; feedback will introduce its own layer in TODO #3.
 
 ## Tests and verification
 

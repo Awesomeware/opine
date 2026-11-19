@@ -13,12 +13,12 @@ Work through these steps individually. Each step should include its schema chang
 
 ## 2. Implement authentication and permissions
 
-- [ ] Connect Better Auth to PostgreSQL and Discord.
-- [ ] Add sign-in, sign-out, and session handling.
-- [ ] Use internal Opine user IDs with linked login identities.
-- [ ] Establish member, community-manager, and administrator permissions.
-- [ ] Document how to grant the first administrator access.
-- [ ] Test authorization boundaries.
+- [x] Connect Better Auth to PostgreSQL and Discord.
+- [x] Add sign-in, sign-out, and session handling.
+- [x] Use internal Opine user IDs with linked login identities.
+- [x] Establish member, community-manager, and administrator permissions.
+- [x] Document how to grant the first administrator access.
+- [x] Test authorization boundaries.
 
 ## 3. Build the first complete feedback flow
 
