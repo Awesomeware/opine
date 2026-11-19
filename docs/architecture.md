@@ -6,7 +6,7 @@ The [requirements](../requirements.md) define the product boundary, and [TODO.md
 
 ## Feature modules
 
-Use local Nuxt layers under `layers/<feature>/` to keep a feature's UI, endpoints, use cases, schema, contracts, and tests together. Each layer has a minimal `nuxt.config.ts` exporting `defineNuxtConfig({})`; Nuxt automatically registers local layers. The first implemented layer is [authentication](../layers/auth/README.md). Create subsequent layers when their capabilities are implemented, without empty scaffolding in advance.
+Use local Nuxt layers under `layers/<feature>/` to keep a feature's UI, endpoints, use cases, schema, contracts, and tests together. Each layer has a minimal `nuxt.config.ts` exporting `defineNuxtConfig({})`; Nuxt automatically registers local layers. The implemented layers are [authentication](../layers/auth/README.md) and [feedback](../layers/feedback/README.md). Create subsequent layers when their capabilities are implemented, without empty scaffolding in advance.
 
 A feature represents a cohesive product capability. Individual actions such as creating feedback or editing a post are slices inside that feature, not separate Nuxt layers. Add folders and helpers only when the feature needs them.
 
@@ -32,44 +32,42 @@ These create `layers/feedback/app/pages/feedback/new.vue` and `layers/feedback/s
 
 Use the native generator rather than maintaining a parallel `new-layer.sh`. It refuses to overwrite an existing config unless `--force` is explicitly supplied. The old `nuxt add layer` scaffolding syntax is deprecated; use `add-template` or the project shortcut.
 
-### Example layout
-
-This feedback layout is illustrative, not implemented yet:
+### Current feedback layout
 
 ```text
 layers/feedback/
   nuxt.config.ts
-  app/
-    pages/feedback/
-      index.vue
-      new.vue
-    components/
-      FeedbackForm.vue
+  app/pages/feedback/
+    index.vue                Public list and filters
+    new.vue                  Authenticated submission
+    [id].vue                 Public detail and sharing
   server/
-    api/feedback/
-      index.get.ts
-      index.post.ts
-    posts/
-      create.ts
-      create.test.ts
-      list.ts
-      list.test.ts
-    schema.ts
+    api/feedback/            HTTP entrypoints
+    posts.ts                 Creation and public queries
+    categories.ts            Category reads and operator configuration
+    list-input.ts            Filter and pagination validation
+    schema.ts                Categories, posts, and follows
+    posts.integration.ts     Database behavior tests
   shared/
-    post-input.ts
+    post-input.ts            Browser-safe submission validation
+    status.ts                Status values and labels
+    contracts.ts             Public serialized response types
+  tests/                     Fixtures and browser journeys
 ```
+
+Split `posts.ts` into individual use-case files when its size or complexity warrants it; vertical slices do not require a file per function.
 
 Nuxt layers merge into a single application. They provide physical grouping, while our import and naming conventions establish module boundaries. Use distinct feature routes and component names; do not use layer precedence to override another feature's implementation. See the official [layer structure](https://nuxt.com/docs/4.x/directory-structure/layers) and [layer priority](https://nuxt.com/docs/4.x/getting-started/layers#layer-priority) documentation.
 
 ## A vertical slice: create feedback
 
-The feature's `new.vue` page presents `FeedbackForm.vue` and calls `POST /api/feedback`. The endpoint reads the request and authenticated session and delegates substantial behavior to `server/posts/create.ts`.
+The feature's `new.vue` page owns the submission form and calls `POST /api/feedback/posts`. The endpoint reads the request and authenticated session and delegates creation to `server/posts.ts`.
 
-The create operation owns authoritative input validation, participation authorization, and the transaction that writes the post and its initial follow. It returns the result needed by the endpoint. Client-side validation can reuse browser-safe input rules, but server validation and authorization remain mandatory. The exact implementation follows TODO #3 and the relevant requirements.
+The create operation owns authoritative input validation, participation authorization, and the transaction that writes the post and its initial follow. It returns the result needed by the endpoint. Client-side validation can reuse browser-safe input rules, but server validation and authorization remain mandatory. This is implemented in TODO #3; follow controls and notifications remain scheduled for #5.
 
 Keep the operation's Drizzle queries near that behavior. Introduce a helper, service, or repository only when it makes existing code easier to understand or removes meaningful duplication. A small endpoint may contain its entire operation without an extra wrapper.
 
-`create.test.ts` verifies lightweight behavior; `create.integration.ts` exercises database-backed behavior, including authorization and transactions where applicable. Browser journeys use `*.e2e.ts`. Keep feature-specific tests within their owning feature and register database-backed files in an appropriate suite.
+`shared/post-input.test.ts` verifies submission validation; `server/posts.integration.ts` exercises transactions and database behavior. Browser journeys use `*.e2e.ts` and cover HTTP authorization as well as the interface. Keep feature-specific tests within their owning feature and register database-backed files in an appropriate suite.
 
 ## Dependencies and runtime boundaries
 
@@ -84,7 +82,7 @@ The separation of `app/`, `server/`, and `shared/` remains inside each feature. 
 
 ## Database ownership and migrations
 
-Each feature defines its tables and relations in `layers/<feature>/server/schema.ts`. Root `server/db/schema.ts` re-exports them for both the shared Drizzle client and Drizzle Kit. It contains no table definitions or feature behavior. It currently re-exports the authentication tables.
+Each feature defines its tables and relations in `layers/<feature>/server/schema.ts`. Root `server/db/schema.ts` re-exports them for both the shared Drizzle client and Drizzle Kit. It contains no table definitions or feature behavior. It currently re-exports authentication and feedback tables.
 
 Schema modules describe the database without opening connections. They must not import the database client, the aggregate schema, or use-case code. For cross-feature foreign keys, import the owning feature's exported schema definition directly, keeping schema dependencies acyclic. This avoids a cycle between schema assembly and the shared client.
 
@@ -107,7 +105,7 @@ server/
 drizzle/                     Application-wide migration history
 ```
 
-These are shared operational concerns and remain at the root. The connection pool and operational endpoints need no feature layer. Authentication owns `layers/auth/`; feedback will introduce its own layer in TODO #3.
+These are shared operational concerns and remain at the root. The connection pool and operational endpoints need no feature layer. Authentication owns `layers/auth/`; feedback owns `layers/feedback/`.
 
 ## Tests and verification
 

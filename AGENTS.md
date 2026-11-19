@@ -21,6 +21,7 @@ The app runs at <http://localhost:3000>. See [README.md](README.md) for setup de
 - `pnpm test` — run lightweight Node tests without Docker or loading `.env`.
 - `pnpm test:integration` — run database suites against fresh Testcontainers PostgreSQL instances.
 - `pnpm test:e2e` — build and run Playwright browser suites against fresh databases and application servers.
+- `pnpm feedback:category upsert|enable|disable ...` — operator category configuration; see [feedback setup](docs/feedback.md).
 - `pnpm auth:role grant|revoke <user-id> <role>` — operator role management; see [authentication setup](docs/authentication.md).
 - `pnpm layer:new <name>` — scaffold a feature layer using the installed Nuxt CLI.
 - `pnpm build` / `pnpm preview` — build for production / preview the build.
@@ -47,6 +48,10 @@ Follow [docs/testing.md](docs/testing.md). Each logical integration or E2E suite
 ## Authentication boundaries
 
 Follow [layers/auth/README.md](layers/auth/README.md) for the feature's public entrypoints. Resolve the caller with `getAccess(headers)` and enforce permissions on the server for every protected operation. Use internal user IDs for ownership. Every authenticated user is a member; administrator and community-manager roles are independent. Never trust client-supplied actor IDs or role claims, enable automatic account linking, or import test session fixtures into production code.
+
+## Feedback boundaries
+
+Follow [layers/feedback/README.md](layers/feedback/README.md). Create the post and initial author follow in one transaction. Preserve contributions when credentials or users are removed; author/category foreign keys currently restrict deletion. Public responses select only public fields. Keep feedback timestamps at millisecond precision so pagination cursors preserve stored ordering. Retried writes, editing, and follow controls remain assigned to their later checklist steps.
 
 ## Programming guidelines
 

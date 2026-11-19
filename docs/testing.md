@@ -25,16 +25,19 @@ The limit applies per command invocation. Running both commands simultaneously c
 
 Tests within a suite run serially: Node uses `--test-concurrency=1` and Playwright uses one worker. Files in the same suite share a database, so tests must clean up their own data and avoid depending on another test's execution order. Keep the suite catalog small and cohesive; add related files to an existing suite before creating a new isolation boundary.
 
-Each E2E suite also starts its own built Nitro application on a dynamically assigned localhost port. Playwright shuts down that server before the runner stops PostgreSQL. Existing development servers are not reused. Run E2E tests through `pnpm test:e2e`; the runner supplies the required `OPINE_TEST_*` configuration. Failure traces are saved under `test-results/<suite-name>/`.
+Each E2E suite also starts its own built Nitro application on a dynamically assigned localhost port. Playwright shuts down that server before the runner stops PostgreSQL. Existing development servers are not reused. Run E2E tests through `pnpm test:e2e`; the runner supplies the required `OPINE_TEST_*` configuration. Failure traces and browser screenshots are saved under `test-results/<suite-name>/<phase>/`.
 
-## Initial coverage
+An E2E suite can declare `restartFiles` for a second phase. After its ordinary tests finish and Playwright stops the app, the runner restarts the same PostgreSQL container, refreshes its potentially changed mapped port, and launches a fresh app process at the same public origin. The feedback journey deliberately retains one post/session/follow for this phase. Its private handoff file is stored in a temporary directory removed in the runner's `finally` block. The verification phase deletes the retained scenario rows. No extra database container is started for this check.
 
-- Lightweight tests cover database configuration, pool lifecycle, suite scheduling, and the independent role permission matrix.
+## Current coverage
+
+- Lightweight tests cover database configuration, pool lifecycle, suite scheduling, the independent role permission matrix, safe auth diagnostics, and feedback/filter validation.
 - The `database` integration suite covers real queries, reconnecting after pool shutdown, migration history and reapplication, and test-data persistence across connections.
 - The `authentication` integration suite covers Discord callbacks with controlled provider responses, internal identity persistence, rejected implicit linking, OAuth state, session expiry/revocation/sign-out, role mutations, the operator CLI, and HTTP rate limits.
-- The `application-smoke` browser suite checks the rendered page and database readiness, Discord redirect initiation, session reload/sign-out, server authorization boundaries, CSRF protection, and rejection of forged rate-limit IP headers.
+- The `feedback` integration suite covers atomic post/follow rollback, author privacy, restrictive deletion, category configuration, literal search, exact pagination, and concurrent submission limits.
+- The `application-smoke` browser suite checks the rendered page and database readiness, Discord redirect initiation, session reload/sign-out, server authorization boundaries, CSRF protection, and rejection of forged rate-limit IP headers. It also covers feedback publication, draft preservation, public links, filtering, pagination, mobile overflow checks, and the database/app restart phase.
 
-Migration checks apply the committed authentication schema to fresh databases. Auth tests use a small feature-owned `createMember` factory that creates genuine database identities and signed sessions; it is guarded against use outside the isolated test database. Browser tests do not require real Discord credentials or introduce a test-only login endpoint. A real Discord consent round trip remains a deployment check; see [Authentication](authentication.md). CI remains deferred.
+Migration checks apply the committed authentication and feedback schema to fresh databases. Auth tests use a small feature-owned `createMember` factory that creates genuine database identities and signed sessions; it is guarded against use outside the isolated test database. Browser tests do not require real Discord credentials or introduce a test-only login endpoint. A real Discord consent round trip remains a deployment check; see [Authentication](authentication.md). CI remains deferred.
 
 ## Adding tests
 

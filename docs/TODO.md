@@ -22,12 +22,12 @@ Work through these steps individually. Each step should include its schema chang
 
 ## 3. Build the first complete feedback flow
 
-- [ ] Add categories and posts.
-- [ ] Implement the public feedback list and detail page.
-- [ ] Implement the authenticated submission form.
-- [ ] Apply the [simplified visual reference](../example-simplified.png) as these screens take shape.
-- [ ] Include input validation, pagination, and useful loading and error states.
-- [ ] Verify the first milestone end to end, including persistence after a restart.
+- [x] Add categories and posts.
+- [x] Implement the public feedback list and detail page.
+- [x] Implement the authenticated submission form.
+- [x] Apply the [simplified visual reference](../example-simplified.png) as these screens take shape.
+- [x] Include input validation, pagination, and useful loading and error states.
+- [x] Verify the first milestone end to end, including persistence after a restart.
 
 ## 4. Add participation
 
@@ -42,7 +42,7 @@ Work through these steps individually. Each step should include its schema chang
 - [ ] Add the oldest-first review queue.
 - [ ] Add explicit official responses.
 - [ ] Record status changes alongside their official explanation.
-- [ ] Add following and notifications so players can see the outcome.
+- [ ] Add follow/unfollow controls and notifications so players can see the outcome.
 
 ## Before a public pilot
 

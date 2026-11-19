@@ -35,7 +35,7 @@ If pnpm is not installed, bootstrap the pinned version with `npm install --globa
 
 Install Docker Engine (or Docker Desktop) with Docker Compose before starting PostgreSQL. Compose runs PostgreSQL 18, waits for its healthcheck, and exposes it only on `127.0.0.1:5432`. The credentials in `.env.example` and `compose.yaml` are for local development only. If port 5432 is occupied, change `POSTGRES_PORT` in `.env` and the port in `DATABASE_URL` together.
 
-Configure the Discord application and authentication secrets using [Authentication and access](docs/authentication.md), then open <http://localhost:3000>. The placeholder page now includes Discord sign-in and sign-out. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
+Configure the Discord application and authentication secrets using [Authentication and access](docs/authentication.md), then open <http://localhost:3000>. The homepage opens the public feedback feed. Sign in to submit feedback, then share its public detail link. See [Feedback](docs/feedback.md) for category configuration and the current schema. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
 
 The server creates a shared database connection pool on first use and closes it during Nitro shutdown. It reads `DATABASE_URL` only on the server. The page and liveness endpoint can still run without a database; readiness and database-backed features require one. Authentication requires the configured Discord credentials and Better Auth secret. Local `.env` files are ignored by Git.
 
@@ -43,24 +43,25 @@ PostgreSQL data lives in the Compose-managed `postgres_data` volume. `docker com
 
 ## Commands
 
-| Command                 | Purpose                                                          |
-| ----------------------- | ---------------------------------------------------------------- |
-| `pnpm dev`              | Start the development server.                                    |
-| `pnpm lint`             | Check JavaScript, TypeScript, and Vue script blocks with oxlint. |
-| `pnpm lint:fix`         | Apply automatic lint fixes.                                      |
-| `pnpm format`           | Format source files and documentation with oxfmt.                |
-| `pnpm format:check`     | Check formatting without modifying files.                        |
-| `pnpm typecheck`        | Check application and server TypeScript.                         |
-| `pnpm test`             | Run lightweight Node tests without Docker.                       |
-| `pnpm test:integration` | Run isolated PostgreSQL integration suites.                      |
-| `pnpm test:e2e`         | Build and run isolated Playwright browser suites.                |
-| `pnpm auth:role ...`    | Grant or revoke privileged roles as a database operator.         |
-| `pnpm layer:new <name>` | Scaffold a local feature layer with Nuxt's built-in generator.   |
-| `pnpm build`            | Build the SPA and Nitro server for production.                   |
-| `pnpm preview`          | Preview the production build locally.                            |
-| `pnpm db:generate`      | Generate SQL migrations after adding or changing the schema.     |
-| `pnpm db:migrate`       | Apply committed migrations using `DATABASE_URL`.                 |
-| `pnpm db:check`         | Check migration history consistency.                             |
+| Command                      | Purpose                                                          |
+| ---------------------------- | ---------------------------------------------------------------- |
+| `pnpm dev`                   | Start the development server.                                    |
+| `pnpm lint`                  | Check JavaScript, TypeScript, and Vue script blocks with oxlint. |
+| `pnpm lint:fix`              | Apply automatic lint fixes.                                      |
+| `pnpm format`                | Format source files and documentation with oxfmt.                |
+| `pnpm format:check`          | Check formatting without modifying files.                        |
+| `pnpm typecheck`             | Check application and server TypeScript.                         |
+| `pnpm test`                  | Run lightweight Node tests without Docker.                       |
+| `pnpm test:integration`      | Run isolated PostgreSQL integration suites.                      |
+| `pnpm test:e2e`              | Build and run isolated Playwright browser suites.                |
+| `pnpm feedback:category ...` | Configure category names, ordering, and availability.            |
+| `pnpm auth:role ...`         | Grant or revoke privileged roles as a database operator.         |
+| `pnpm layer:new <name>`      | Scaffold a local feature layer with Nuxt's built-in generator.   |
+| `pnpm build`                 | Build the SPA and Nitro server for production.                   |
+| `pnpm preview`               | Preview the production build locally.                            |
+| `pnpm db:generate`           | Generate SQL migrations after adding or changing the schema.     |
+| `pnpm db:migrate`            | Apply committed migrations using `DATABASE_URL`.                 |
+| `pnpm db:check`              | Check migration history consistency.                             |
 
 Oxlint checks Vue script blocks; `pnpm typecheck` also checks Vue templates.
 
@@ -78,7 +79,7 @@ On Linux, use `pnpm exec playwright install --with-deps chromium` if browser sys
 
 ## Database migrations
 
-Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The first migration creates authentication, session, rate-limit, and role tables. Later features extend this committed history.
+Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The committed migrations create authentication, session, rate-limit, role, category, post, and follow tables. A fresh installation starts with a General feedback category. Later features extend this history.
 
 For each schema change:
 
@@ -99,7 +100,7 @@ Opine uses feature modules with vertical slices. See [Architecture](docs/archite
 ```text
 app/
   app.vue                    Application shell
-  pages/                     Root pages, including the initial placeholder
+  pages/                     Root route redirect
   components/                Reusable UI components
   composables/               Client-side Vue helpers
   spa-loading-template.html  Initial SPA loading state
@@ -115,8 +116,8 @@ layers/<feature>/            Feature modules, introduced with their implementati
 shared/                      Contracts genuinely shared across features and runtimes
 drizzle/                     Committed SQL migrations
 tests/                       Shared test harness, suite catalog, browser smoke tests
-scripts/                     Database-backed test runner
-docs/                        Architecture, testing, and implementation checklist
+scripts/                     Operator commands and database-backed test runner
+docs/                        Architecture, authentication, feedback, testing, and checklist
 public/                      Static public assets
 compose.yaml                 Local PostgreSQL service and persistent volume
 drizzle.config.ts            Database tooling configuration
