@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -48,12 +49,15 @@ export const feedbackPost = pgTable(
     title: text('title').notNull(),
     description: text('description').notNull(),
     desiredImprovement: text('desired_improvement'),
+    version: integer('version').notNull().default(1),
+    editedAt: timestamp('edited_at', { withTimezone: true, precision: 3 }),
     status: feedbackStatus('status').notNull().default('new'),
     // Match the precision of JS Date so pagination cursors preserve ordering exactly.
     createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   },
   (table) => [
+    check('feedback_post_version_positive', sql`${table.version} > 0`),
     index('feedback_post_newest_idx').on(table.createdAt.desc(), table.id.desc()),
     index('feedback_post_category_newest_idx').on(
       table.categoryId,
@@ -95,5 +99,69 @@ export const feedbackFollow = pgTable(
   (table) => [
     primaryKey({ columns: [table.postId, table.userId] }),
     index('feedback_follow_user_idx').on(table.userId),
+  ],
+)
+
+export const feedbackComment = pgTable(
+  'feedback_comment',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => feedbackPost.id, { onDelete: 'restrict' }),
+    authorId: text('author_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'restrict' }),
+    body: text('body').notNull(),
+    version: integer('version').notNull().default(1),
+    editedAt: timestamp('edited_at', { withTimezone: true, precision: 3 }),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      'feedback_comment_body_valid',
+      sql`char_length(btrim(${table.body})) between 1 and 10000 and char_length(${table.body}) <= 10000`,
+    ),
+    check('feedback_comment_version_positive', sql`${table.version} > 0`),
+    index('feedback_comment_chronological_idx').on(table.postId, table.createdAt, table.id),
+    index('feedback_comment_author_idx').on(table.authorId),
+  ],
+)
+
+export const feedbackReactionKind = pgEnum('feedback_reaction_kind', ['agree', 'disagree'])
+export const feedbackReaction = pgTable(
+  'feedback_reaction',
+  {
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => feedbackPost.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    kind: feedbackReactionKind('kind').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.postId, table.userId] }),
+    index('feedback_reaction_user_idx').on(table.userId),
+  ],
+)
+
+export const feedbackWriteReceipt = pgTable(
+  'feedback_write_receipt',
+  {
+    actorId: text('actor_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    requestId: uuid('request_id').notNull(),
+    operation: text('operation').notNull(),
+    requestHash: text('request_hash').notNull(),
+    result: jsonb('result').$type<{ id: string; version?: number }>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.actorId, table.requestId] }),
+    index('feedback_write_receipt_rate_idx').on(table.actorId, table.operation, table.createdAt),
   ],
 )

@@ -15,6 +15,13 @@
       "when": 1795112062848,
       "tag": "0001_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795115237159,
+      "tag": "0002_participation",
+      "breakpoints": true
     }
   ]
 }

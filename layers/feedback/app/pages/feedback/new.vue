@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFeedbackWrite } from '../../composables/useFeedbackWrite'
 import { authClient } from '../../../../auth/app/auth-client'
 import { postLimits, validatePostInput } from '../../../shared/post-input'
 import type { FeedbackCategory } from '../../../shared/contracts'
@@ -22,11 +23,14 @@ const message = ref('')
 const errorSummary = ref<HTMLParagraphElement | null>(null)
 const storageMessage = ref('')
 const draftOwner = ref<string | null>(null)
+let pendingWrite: ReturnType<typeof useFeedbackWrite> | null = null
 
 watch(
   () => session.value.data?.user.id,
   (id) => {
     draftOwner.value = id ?? null
+    pendingWrite = id ? useFeedbackWrite(`post.${id}`) : null
+    message.value = ''
     Object.assign(form, { title: '', description: '', desiredImprovement: '', categoryId: '' })
     fieldErrors.value = {}
     if (!id) return
@@ -96,12 +100,19 @@ async function publish() {
     errorSummary.value?.focus()
     return
   }
+  const owner = draftOwner.value
+  const write = pendingWrite
+  if (!owner || !write) return
   busy.value = true
   try {
     const post = await $fetch<{ id: string }>('/api/feedback/posts', {
       method: 'POST',
       body: result.data,
+      headers: write.headers(result.data),
+      retry: 0,
     })
+    if (draftOwner.value !== owner) return
+    write.complete()
     if (draftOwner.value) {
       try {
         sessionStorage.removeItem(`opine.feedback.draft.${draftOwner.value}`)
@@ -111,6 +122,7 @@ async function publish() {
     }
     await navigateTo(`/feedback/${post.id}`)
   } catch (error: unknown) {
+    if (draftOwner.value !== owner) return
     const failure = error as {
       statusCode?: number
       data?: { data?: { fieldErrors?: typeof fieldErrors.value } }
@@ -134,7 +146,7 @@ async function publish() {
       message.value = 'You are posting too quickly. Please wait before trying again.'
     } else {
       message.value =
-        'Unable to confirm submission. Your draft is saved. Check the feedback list before trying again.'
+        'Unable to confirm submission. Your draft is saved; retrying the same submission is safe.'
     }
     await nextTick()
     errorSummary.value?.focus()
@@ -155,6 +167,7 @@ async function publish() {
     <p v-if="route.query.signIn" role="alert">
       Sign-in was cancelled or could not be completed. You can try again.
     </p>
+    <p v-if="pendingWrite?.warning.value">{{ pendingWrite.warning.value }}</p>
     <p v-if="storageMessage" role="status">{{ storageMessage }}</p>
     <p v-if="session.isPending" role="status">Checking your session…</p>
     <div v-else-if="session.error" class="panel empty-state">
@@ -177,6 +190,7 @@ async function publish() {
         <label for="post-title">Title</label>
         <p id="title-help" class="field-help">Give your feedback a clear, specific title.</p>
         <input
+          :readonly="busy"
           id="post-title"
           v-model="form.title"
           required
@@ -192,6 +206,7 @@ async function publish() {
           Describe your feedback and why it matters. Include examples or details where helpful.
         </p>
         <textarea
+          :readonly="busy"
           id="post-description"
           v-model="form.description"
           required
@@ -210,6 +225,7 @@ async function publish() {
         <label for="post-improvement"
           >Suggested improvement <span class="muted">(optional)</span></label
         ><textarea
+          :readonly="busy"
           id="post-improvement"
           v-model="form.desiredImprovement"
           rows="4"
@@ -232,7 +248,7 @@ async function publish() {
           id="post-category"
           v-model="form.categoryId"
           required
-          :disabled="categoriesPending || !!categoriesError"
+          :disabled="busy || categoriesPending || !!categoriesError"
           :aria-invalid="!!fieldErrors.categoryId"
           :aria-describedby="fieldErrors.categoryId ? 'category-error' : undefined"
         >

@@ -96,6 +96,10 @@ async function runSuite(suite: TestSuite) {
       AUTH_SIGN_IN_WINDOW_SECONDS: '60',
       FEEDBACK_POST_MAX: '5',
       FEEDBACK_POST_WINDOW_SECONDS: '60',
+      FEEDBACK_COMMENT_MAX: '10',
+      FEEDBACK_REACTION_MAX: '30',
+      FEEDBACK_EDIT_MAX: '20',
+      FEEDBACK_PARTICIPATION_WINDOW_SECONDS: '60',
     }
 
     if (kind === 'integration') {

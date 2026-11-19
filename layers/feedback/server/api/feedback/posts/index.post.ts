@@ -1,15 +1,9 @@
-import { fromNodeHeaders } from 'better-auth/node'
-import { getAccess } from '../../../../../auth/server/access.ts'
 import { validatePostInput } from '../../../../shared/post-input.ts'
 import { createPost, PostingRateLimitError } from '../../../posts.ts'
+import { feedbackActor, feedbackResponse } from '../../../http.ts'
 
 export default defineEventHandler(async (event) => {
-  setResponseHeader(event, 'Cache-Control', 'no-store')
-  const access = await getAccess(fromNodeHeaders(event.node.req.headers))
-  if (!access) throw createError({ statusCode: 401, statusMessage: 'Sign in to share feedback.' })
-  if (getHeader(event, 'origin') !== process.env.BETTER_AUTH_URL?.trim()) {
-    throw createError({ statusCode: 403, statusMessage: 'Invalid request origin.' })
-  }
+  const { actorId, requestId } = await feedbackActor(event)
   const parsed = validatePostInput(await readBody(event))
   if (!parsed.success)
     throw createError({
@@ -18,7 +12,7 @@ export default defineEventHandler(async (event) => {
       data: { fieldErrors: parsed.fieldErrors },
     })
   try {
-    const post = await createPost(access.user.id, parsed.data)
+    const post = await feedbackResponse(event, () => createPost(actorId, parsed.data, requestId))
     if (!post)
       throw createError({
         statusCode: 400,

@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto'
 import { and, count, desc, eq, gte, ilike, lt, or, sql } from 'drizzle-orm'
 import { getDatabase } from '../../../server/db/index.ts'
 import { user } from '../../auth/server/schema.ts'
 import type { PostInput } from '../shared/post-input.ts'
 import type { ListPostsInput } from './list-input.ts'
+import { feedbackWrite, positiveInteger } from './writes.ts'
 import { feedbackCategory, feedbackFollow, feedbackPost } from './schema.ts'
 
 export class PostingRateLimitError extends Error {
@@ -13,43 +15,45 @@ export class PostingRateLimitError extends Error {
   }
 }
 
-function positiveInteger(name: string, fallback: number) {
-  const value = Number(process.env[name] ?? fallback)
-  if (!Number.isSafeInteger(value) || value < 1 || value > 86400)
-    throw new Error(`${name} must be an integer between 1 and 86400.`)
-  return value
-}
-
 // The caller supplies an authenticated internal user ID and validated input.
-export async function createPost(authorId: string, input: PostInput) {
+export async function createPost(
+  authorId: string,
+  input: PostInput,
+  requestId: string = randomUUID(),
+) {
   const max = positiveInteger('FEEDBACK_POST_MAX', 5)
   const windowSeconds = positiveInteger('FEEDBACK_POST_WINDOW_SECONDS', 60)
-  return getDatabase().transaction(async (transaction) => {
-    // Serialize submissions by author so concurrent requests cannot bypass the limit.
-    await transaction.select({ id: user.id }).from(user).where(eq(user.id, authorId)).for('update')
-    const [recent] = await transaction
-      .select({ count: count() })
-      .from(feedbackPost)
-      .where(
-        and(
-          eq(feedbackPost.authorId, authorId),
-          gte(feedbackPost.createdAt, new Date(Date.now() - windowSeconds * 1000)),
-        ),
-      )
-    if (recent && recent.count >= max) throw new PostingRateLimitError(windowSeconds)
-    const [category] = await transaction
-      .select({ id: feedbackCategory.id })
-      .from(feedbackCategory)
-      .where(and(eq(feedbackCategory.id, input.categoryId), eq(feedbackCategory.isActive, true)))
-      .for('share')
-    if (!category) return null
-    const [post] = await transaction
-      .insert(feedbackPost)
-      .values({ ...input, authorId })
-      .returning({ id: feedbackPost.id })
-    await transaction.insert(feedbackFollow).values({ postId: post!.id, userId: authorId })
-    return post!
-  })
+  return feedbackWrite(
+    authorId,
+    requestId,
+    'create-post',
+    input,
+    async () => {},
+    async (transaction) => {
+      const [recent] = await transaction
+        .select({ count: count() })
+        .from(feedbackPost)
+        .where(
+          and(
+            eq(feedbackPost.authorId, authorId),
+            gte(feedbackPost.createdAt, new Date(Date.now() - windowSeconds * 1000)),
+          ),
+        )
+      if (recent && recent.count >= max) throw new PostingRateLimitError(windowSeconds)
+      const [category] = await transaction
+        .select({ id: feedbackCategory.id })
+        .from(feedbackCategory)
+        .where(and(eq(feedbackCategory.id, input.categoryId), eq(feedbackCategory.isActive, true)))
+        .for('share')
+      if (!category) return null
+      const [post] = await transaction
+        .insert(feedbackPost)
+        .values({ ...input, authorId })
+        .returning({ id: feedbackPost.id })
+      await transaction.insert(feedbackFollow).values({ postId: post!.id, userId: authorId })
+      return post!
+    },
+  )
 }
 
 const publicFields = {
@@ -61,13 +65,18 @@ const publicFields = {
   category: { id: feedbackCategory.id, slug: feedbackCategory.slug, name: feedbackCategory.name },
 }
 
-export async function getPost(id: string) {
+export async function getPost(id: string, viewerId?: string) {
   const [post] = await getDatabase()
     .select({
       ...publicFields,
       description: feedbackPost.description,
       desiredImprovement: feedbackPost.desiredImprovement,
       updatedAt: feedbackPost.updatedAt,
+      editedAt: feedbackPost.editedAt,
+      version: feedbackPost.version,
+      canEdit: viewerId
+        ? sql<boolean>`${feedbackPost.authorId} = ${viewerId}`
+        : sql<boolean>`false`,
     })
     .from(feedbackPost)
     .innerJoin(user, eq(user.id, feedbackPost.authorId))

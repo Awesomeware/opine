@@ -169,7 +169,7 @@ test('submission enforces identity, origin, validation, active categories, and r
     desiredImprovement: null,
     categoryId: category.id,
   }
-  const headers = { origin, cookie: member.cookieHeader }
+  const headers = { origin, cookie: member.cookieHeader, 'Idempotency-Key': randomUUID() }
   try {
     expect(
       (await request.post('/api/feedback/posts', { headers: { origin }, data })).status(),
@@ -214,8 +214,18 @@ test('submission enforces identity, origin, validation, active categories, and r
       .set({ isActive: true })
       .where(eq(feedbackCategory.id, category.id))
     for (let index = 0; index < 5; index++)
-      expect((await request.post('/api/feedback/posts', { headers, data })).status()).toBe(201)
-    const limited = await request.post('/api/feedback/posts', { headers, data })
+      expect(
+        (
+          await request.post('/api/feedback/posts', {
+            headers: { ...headers, 'Idempotency-Key': randomUUID() },
+            data,
+          })
+        ).status(),
+      ).toBe(201)
+    const limited = await request.post('/api/feedback/posts', {
+      headers: { ...headers, 'Idempotency-Key': randomUUID() },
+      data,
+    })
     expect(limited.status()).toBe(429)
     expect(Number(limited.headers()['retry-after'])).toBeGreaterThan(0)
     const records = await getDatabase()
