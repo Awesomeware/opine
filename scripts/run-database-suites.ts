@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createServer } from 'node:net'
 import { fileURLToPath } from 'node:url'
+import { randomBytes } from 'node:crypto'
 import { PostgreSqlContainer } from '@testcontainers/postgresql'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
@@ -83,6 +84,12 @@ async function runSuite(suite: TestSuite) {
       DATABASE_URL: databaseUrl,
       OPINE_TEST_DATABASE_URL: databaseUrl,
       OPINE_TEST_SUITE_NAME: suite.name,
+      BETTER_AUTH_URL: 'http://localhost:3000',
+      BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
+      DISCORD_CLIENT_ID: 'opine-test-client',
+      DISCORD_CLIENT_SECRET: 'opine-test-secret',
+      AUTH_SIGN_IN_MAX: '10',
+      AUTH_SIGN_IN_WINDOW_SECONDS: '60',
     }
 
     if (kind === 'integration') {
@@ -91,7 +98,7 @@ async function runSuite(suite: TestSuite) {
       const baseURL = `http://127.0.0.1:${await availablePort()}`
       await runTests(
         [fileURLToPath(import.meta.resolve('@playwright/test/cli')), 'test', ...suite.files],
-        { ...env, OPINE_TEST_BASE_URL: baseURL },
+        { ...env, OPINE_TEST_BASE_URL: baseURL, BETTER_AUTH_URL: baseURL },
       )
     }
   } finally {
