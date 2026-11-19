@@ -1,2 +1,6 @@
 allowBuilds:
+  # Optional native accelerators and metadata-only hooks are not needed for these tests.
+  cpu-features: false
   esbuild: true
+  protobufjs: false
+  ssh2: false

@@ -14,6 +14,8 @@
     "format:check": "oxfmt --check",
     "typecheck": "nuxt typecheck",
     "test": "node --test",
+    "test:integration": "node scripts/run-database-suites.ts integration",
+    "test:e2e": "pnpm build && node scripts/run-database-suites.ts e2e",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:check": "drizzle-kit check"
@@ -28,6 +30,8 @@
     "vue-router": "^5.5.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@testcontainers/postgresql": "^12.2.1",
     "@types/pg": "^8.23.1",
     "dotenv": "^18.0.10",
     "drizzle-kit": "^0.31.11",
