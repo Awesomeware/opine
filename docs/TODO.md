@@ -1,0 +1,54 @@
+# Implementation checklist
+
+First milestone: **a player signs in with Discord, submits feedback, and shares a public link that works after a restart.**
+
+Work through these steps individually. Each step should include its schema changes, UI, endpoints, and relevant tests. The [requirements](../requirements.md) define the release scope.
+
+## 1. Make local development reproducible
+
+- [x] Add PostgreSQL through Docker Compose.
+- [x] Wire up the server-side database connection.
+- [x] Establish the Drizzle migration workflow.
+- (SKIPPED FOR NOW) Add CI for formatting, linting, typechecking, and builds.
+
+## 2. Implement authentication and permissions
+
+- [ ] Connect Better Auth to PostgreSQL and Discord.
+- [ ] Add sign-in, sign-out, and session handling.
+- [ ] Use internal Opine user IDs with linked login identities.
+- [ ] Establish member, community-manager, and administrator permissions.
+- [ ] Document how to grant the first administrator access.
+- [ ] Test authorization boundaries.
+
+## 3. Build the first complete feedback flow
+
+- [ ] Add categories and posts.
+- [ ] Implement the public feedback list and detail page.
+- [ ] Implement the authenticated submission form.
+- [ ] Apply the [simplified visual reference](../example-simplified.png) as these screens take shape.
+- [ ] Include input validation, pagination, and useful loading and error states.
+- [ ] Verify the first milestone end to end, including persistence after a restart.
+
+## 4. Add participation
+
+- [ ] Implement flat comments.
+- [ ] Implement adding and removing an "I've experienced this" confirmation.
+- [ ] Enforce one confirmation per user per post with database constraints.
+- [ ] Add author editing with revision history.
+- [ ] Handle retried writes and conflicting edits.
+
+## 5. Complete the CM response loop
+
+- [ ] Add the oldest-first review queue.
+- [ ] Add explicit official responses.
+- [ ] Record status changes alongside their official explanation.
+- [ ] Add following and notifications so players can see the outcome.
+
+## Before a public pilot
+
+- [ ] Implement the basic moderation requirements.
+- [ ] Complete operational readiness, including documented backup and restoration and a successful restoration check.
+
+## Before publishing the repository
+
+- [ ] Choose and add the open-source license.

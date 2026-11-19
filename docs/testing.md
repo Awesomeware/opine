@@ -1,0 +1,58 @@
+# Testing
+
+Use the Node and pnpm versions pinned in `.nvmrc` and `package.json`.
+
+| Command                 | Scope                                            | Requirements                      |
+| ----------------------- | ------------------------------------------------ | --------------------------------- |
+| `pnpm test`             | Lightweight `*.test.ts` tests discovered by Node | Installed dependencies            |
+| `pnpm test:integration` | Database integration suites                      | Running Docker-compatible runtime |
+| `pnpm test:e2e`         | Production build and Playwright browser suites   | Docker runtime and Chromium       |
+
+Install the browser with `pnpm exec playwright install chromium`. On Linux, `pnpm exec playwright install --with-deps chromium` also installs required system packages when needed. Docker Compose is for local development and is not needed for tests. The first database-backed run downloads the PostgreSQL image if it is not cached.
+
+## Suite isolation and resource limits
+
+A **logical suite** is an entry in [tests/suites.ts](../tests/suites.ts), potentially containing multiple related files. The database-backed runner starts one fresh PostgreSQL 18 container per suite, applies committed migrations from `drizzle/`, and passes its generated connection URL to that suite's test process. It overrides any inherited `DATABASE_URL`; the development database is never used. Containers use dynamically assigned ports and are stopped after their suite finishes, including test failures.
+
+Independent suites can run in parallel because they have separate databases. At most two suites run concurrently by default. Set a positive integer to change that limit:
+
+```sh
+OPINE_TEST_SUITE_CONCURRENCY=1 pnpm test:integration
+OPINE_TEST_SUITE_CONCURRENCY=2 pnpm test:e2e
+```
+
+The limit applies per command invocation. Running both commands simultaneously can therefore use up to four PostgreSQL containers. Testcontainers also runs its small Ryuk cleanup helper, so the suite limit is not a limit on all Docker containers.
+
+Tests within a suite run serially: Node uses `--test-concurrency=1` and Playwright uses one worker. Files in the same suite share a database, so tests must clean up their own data and avoid depending on another test's execution order. Keep the suite catalog small and cohesive; add related files to an existing suite before creating a new isolation boundary.
+
+Each E2E suite also starts its own built Nitro application on a dynamically assigned localhost port. Playwright shuts down that server before the runner stops PostgreSQL. Existing development servers are not reused. Run E2E tests through `pnpm test:e2e`; the runner supplies the required `OPINE_TEST_*` configuration. Failure traces are saved under `test-results/<suite-name>/`.
+
+## Initial coverage
+
+- Lightweight tests cover database configuration and pool lifecycle, plus suite scheduling behavior.
+- The `database` integration suite covers real queries, reconnecting after pool shutdown, migration history and reapplication, and test-data persistence across connections.
+- The `application-smoke` browser suite checks the rendered page heading, document title, and database readiness endpoint.
+
+The application schema is currently empty. Migration checks exercise the committed history and will include feature migrations as they are added. These small smoke checks establish the harness; authentication and feedback will add real user journeys. CI remains outside this step.
+
+## Adding tests
+
+Keep feature tests inside their layer, near the behavior they verify and outside Nuxt route or plugin discovery folders. Use these suffixes consistently:
+
+- `*.test.ts`: lightweight tests, discovered automatically by `pnpm test`; no Docker or `.env` loading.
+- `*.integration.ts`: Node database tests; add the file to an integration suite in `tests/suites.ts`.
+- `*.e2e.ts`: Playwright journeys; add the file to an E2E suite in `tests/suites.ts`.
+
+Node's default discovery also treats names such as `test-*.ts` as tests. Name executable helpers `run-*.ts`, as in `scripts/run-database-suites.ts`, so `pnpm test` does not execute them accidentally.
+
+Keep test objects deterministic, with small feature-owned factories when domain objects arrive. Use direct assertions for simple outcomes and authorization decisions. Introduce snapshots for substantial, stable outputs when they add useful coverage, and review updates as code changes.
+
+Node's existing test runner supports `t.assert.snapshot(value)`. When snapshot tests are introduced, create or update their baselines explicitly with:
+
+```sh
+pnpm test --test-update-snapshots
+```
+
+Commit the generated snapshot files with their tests. Ordinary test runs must compare against those baselines without updating them.
+
+For code changes, run lint, formatting checks, typecheck, build, and the relevant test commands. See [Architecture](architecture.md#tests-and-verification) for ownership and runtime boundaries.

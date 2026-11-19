@@ -25,59 +25,104 @@ Use **Node.js 26.7.0**, pinned in `.nvmrc`, and **pnpm 12.21.0**, pinned in `pac
 nvm install
 nvm use
 pnpm install --frozen-lockfile
+cp .env.example .env
+docker compose up -d --wait
+pnpm db:migrate
 pnpm dev
 ```
 
 If pnpm is not installed, bootstrap the pinned version with `npm install --global pnpm@12.21.0` after `nvm use`. Application dependencies are managed exclusively with pnpm.
 
-Open <http://localhost:3000>. The skeleton displays a simple Hello World page and exposes `GET /api/health` as an application liveness endpoint.
+Install Docker Engine (or Docker Desktop) with Docker Compose before starting PostgreSQL. Compose runs PostgreSQL 18, waits for its healthcheck, and exposes it only on `127.0.0.1:5432`. The credentials in `.env.example` and `compose.yaml` are for local development only. If port 5432 is occupied, change `POSTGRES_PORT` in `.env` and the port in `DATABASE_URL` together.
 
-The skeleton runs without PostgreSQL or Discord credentials. Database and authentication dependencies are installed; application tables and the sign-in flow will be implemented with their features. `.env.example` lists the settings reserved for that work. Local `.env` files are ignored by Git.
+Open <http://localhost:3000>. The skeleton displays a simple Hello World page. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
+
+The server creates a shared database connection pool on first use and closes it during Nitro shutdown. It reads `DATABASE_URL` only on the server. The page and liveness endpoint can still run without a database; readiness and database-backed features require one. Discord credentials are not needed until authentication is implemented. Local `.env` files are ignored by Git.
+
+PostgreSQL data lives in the Compose-managed `postgres_data` volume. `docker compose stop` / `docker compose start --wait`, `docker compose restart`, and `docker compose down` / `docker compose up -d --wait` preserve it. After a restart, run `docker compose up -d --wait` to wait for readiness. **`docker compose down --volumes` deletes the local database permanently.** Use that only when intentionally resetting local data, then start PostgreSQL and reapply migrations. Do not change the PostgreSQL major version on an existing volume without a database upgrade or dump/restore.
 
 ## Commands
 
-| Command             | Purpose                                                          |
-| ------------------- | ---------------------------------------------------------------- |
-| `pnpm dev`          | Start the development server.                                    |
-| `pnpm lint`         | Check JavaScript, TypeScript, and Vue script blocks with oxlint. |
-| `pnpm lint:fix`     | Apply automatic lint fixes.                                      |
-| `pnpm format`       | Format source files and documentation with oxfmt.                |
-| `pnpm format:check` | Check formatting without modifying files.                        |
-| `pnpm typecheck`    | Check application and server TypeScript.                         |
-| `pnpm build`        | Build the SPA and Nitro server for production.                   |
-| `pnpm preview`      | Preview the production build locally.                            |
-| `pnpm db:generate`  | Generate SQL migrations after adding or changing the schema.     |
-| `pnpm db:migrate`   | Apply committed migrations using `DATABASE_URL`.                 |
-| `pnpm db:check`     | Check migration history consistency.                             |
+| Command                 | Purpose                                                          |
+| ----------------------- | ---------------------------------------------------------------- |
+| `pnpm dev`              | Start the development server.                                    |
+| `pnpm lint`             | Check JavaScript, TypeScript, and Vue script blocks with oxlint. |
+| `pnpm lint:fix`         | Apply automatic lint fixes.                                      |
+| `pnpm format`           | Format source files and documentation with oxfmt.                |
+| `pnpm format:check`     | Check formatting without modifying files.                        |
+| `pnpm typecheck`        | Check application and server TypeScript.                         |
+| `pnpm test`             | Run lightweight Node tests without Docker.                       |
+| `pnpm test:integration` | Run isolated PostgreSQL integration suites.                      |
+| `pnpm test:e2e`         | Build and run isolated Playwright browser suites.                |
+| `pnpm layer:new <name>` | Scaffold a local feature layer with Nuxt's built-in generator.   |
+| `pnpm build`            | Build the SPA and Nitro server for production.                   |
+| `pnpm preview`          | Preview the production build locally.                            |
+| `pnpm db:generate`      | Generate SQL migrations after adding or changing the schema.     |
+| `pnpm db:migrate`       | Apply committed migrations using `DATABASE_URL`.                 |
+| `pnpm db:check`         | Check migration history consistency.                             |
 
 Oxlint checks Vue script blocks; `pnpm typecheck` also checks Vue templates.
 
-Drizzle Kit reads `.env` through `drizzle.config.ts`. The initial schema is empty; no database migrations have been generated yet. Review and commit generated SQL migrations before applying them.
+## Testing
 
-Production runs with `node .output/server/index.mjs` after `pnpm build`. Keep the Nitro server in the deployment: the SPA will use it for authentication and database access. Supply production environment variables through the deployment environment.
+`pnpm test` runs lightweight tests without Docker. For database and browser tests, start Docker and install Chromium once:
+
+```sh
+pnpm exec playwright install chromium
+pnpm test:integration
+pnpm test:e2e
+```
+
+On Linux, use `pnpm exec playwright install --with-deps chromium` if browser system dependencies are missing. Testcontainers provisions a fresh PostgreSQL 18 container per logical suite; tests need neither Docker Compose nor a configured development database. Independent suites can run in parallel, with a default limit of two. See [Testing](docs/testing.md) for suite ownership, concurrency, and adding tests.
+
+## Database migrations
+
+Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The initial schema is intentionally empty: `pnpm db:generate` reports no changes, and `pnpm db:migrate` initializes Drizzle's migration bookkeeping without creating application tables. Authentication and feedback tables belong to their respective implementation steps.
+
+For each schema change:
+
+1. Edit the owning feature's `layers/<feature>/server/schema.ts`. Re-export new tables and relations from `server/db/schema.ts`, the shared entrypoint for Drizzle and migration tooling.
+2. Run `pnpm db:generate --name=describe_the_change`.
+3. Review the generated SQL under `drizzle/`, including any data-loss implications. Commit the SQL and generated `drizzle/meta/` snapshots and journal together with the schema change.
+4. Run `pnpm db:check` to check migration history consistency, then `pnpm db:migrate` against your local database.
+5. Run `pnpm test:integration` to apply the committed migrations to a fresh test database and check database behavior.
+
+Run `pnpm db:migrate` again to verify that applied migrations are not rerun. Test migrations on a fresh database as well as existing data. `db:check` checks migration files, not database connectivity or schema drift. Do not edit already-applied migrations or use `drizzle-kit push` for shared databases; generate a new reviewed migration instead. Migrations are an explicit command and never run automatically on server startup.
+
+Production runs with `node .output/server/index.mjs` after `pnpm build`. Keep the Nitro server in the deployment: the SPA will use it for authentication and database access. Supply production environment variables through the deployment environment; the built server does not load `.env` automatically. Apply committed migrations as a deployment step before starting the new server. For a local production smoke test, use `node --env-file=.env .output/server/index.mjs`, then request `/api/ready`.
 
 ## Folder structure
+
+Opine uses feature modules with vertical slices. See [Architecture](docs/architecture.md) for ownership, dependency rules, and a worked feature example. Feature layers are added as their implementation steps begin.
 
 ```text
 app/
   app.vue                    Application shell
-  pages/                     Page components
+  pages/                     Root pages, including the initial placeholder
   components/                Reusable UI components
   composables/               Client-side Vue helpers
   spa-loading-template.html  Initial SPA loading state
 server/
-  api/                       Nitro HTTP endpoints
-  db/schema.ts               PostgreSQL table definitions
-  utils/                     Server-only database and authentication helpers
-shared/
-  types/                     Types safe to share between browser and server
+  api/                       Operational endpoints (health and readiness)
+  db/                        Database client, colocated tests, schema aggregation
+  plugins/                   Server lifecycle hooks
+layers/<feature>/            Feature modules, introduced with their implementation
+  nuxt.config.ts             Nuxt layer registration
+  app/                       Feature pages, components, and composables
+  server/                    Feature endpoints, use cases, schema, and tests
+  shared/                    Browser-safe feature contracts and validation
+shared/                      Contracts genuinely shared across features and runtimes
 drizzle/                     Committed SQL migrations
+tests/                       Shared test harness, suite catalog, browser smoke tests
+scripts/                     Database-backed test runner
+docs/                        Architecture, testing, and implementation checklist
 public/                      Static public assets
+compose.yaml                 Local PostgreSQL service and persistent volume
 drizzle.config.ts            Database tooling configuration
 nuxt.config.ts               Nuxt application configuration
 ```
 
-Placeholder directories are reserved for these responsibilities. Keep credentials, database clients, and authentication configuration in server code.
+The tree includes planned feature locations; no empty feature layers are required. Keep credentials, database clients, and authentication configuration in server code. Node-compatible tests live alongside the code they exercise. `pnpm test` discovers lightweight tests recursively; database-backed suites are listed explicitly in `tests/suites.ts`.
 
 ## Product scope and design
 
