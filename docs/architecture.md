@@ -44,12 +44,16 @@ layers/feedback/
   server/
     api/feedback/            HTTP entrypoints
     posts.ts                 Creation and public queries
+    participation.ts         Comments, reactions, and author edits
+    writes.ts                Atomic mutations and retry receipts
+    http.ts                  Authenticated HTTP boundary and error mapping
     categories.ts            Category reads and operator configuration
     list-input.ts            Filter and pagination validation
-    schema.ts                Categories, posts, and follows
+    schema.ts                Feedback and participation tables
     posts.integration.ts     Database behavior tests
   shared/
     post-input.ts            Browser-safe submission validation
+    participation-input.ts   Comment, reaction, and edit validation
     status.ts                Status values and labels
     contracts.ts             Public serialized response types
   tests/                     Fixtures and browser journeys

@@ -35,7 +35,7 @@ If pnpm is not installed, bootstrap the pinned version with `npm install --globa
 
 Install Docker Engine (or Docker Desktop) with Docker Compose before starting PostgreSQL. Compose runs PostgreSQL 18, waits for its healthcheck, and exposes it only on `127.0.0.1:5432`. The credentials in `.env.example` and `compose.yaml` are for local development only. If port 5432 is occupied, change `POSTGRES_PORT` in `.env` and the port in `DATABASE_URL` together.
 
-Configure the Discord application and authentication secrets using [Authentication and access](docs/authentication.md), then open <http://localhost:3000>. The homepage opens the public feedback feed. Sign in to submit feedback, then share its public detail link. See [Feedback](docs/feedback.md) for category configuration and the current schema. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
+Configure the Discord application and authentication secrets using [Authentication and access](docs/authentication.md), then open <http://localhost:3000>. The homepage opens the public feedback feed. Sign in to submit feedback, comment, react with Agree / Disagree, and edit your own text. Share public post and comment links. See [Feedback](docs/feedback.md) for category configuration and the current schema. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
 
 The server creates a shared database connection pool on first use and closes it during Nitro shutdown. It reads `DATABASE_URL` only on the server. The page and liveness endpoint can still run without a database; readiness and database-backed features require one. Authentication requires the configured Discord credentials and Better Auth secret. Local `.env` files are ignored by Git.
 
@@ -79,7 +79,7 @@ On Linux, use `pnpm exec playwright install --with-deps chromium` if browser sys
 
 ## Database migrations
 
-Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The committed migrations create authentication, session, rate-limit, role, category, post, and follow tables. A fresh installation starts with a General feedback category. Later features extend this history.
+Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The committed migrations create authentication, session, rate-limit, role, category, post, follow, comment, reaction, and write-receipt tables. A fresh installation starts with a General feedback category. Later features extend this history.
 
 For each schema change:
 
@@ -132,4 +132,4 @@ The tree includes planned feature locations; no empty feature layers are require
 - [User journeys](journeys.md)
 - [Primary visual reference](example-simplified.png)
 
-The first version centers on feedback posts, experience confirmations, flat discussion, official responses, and a community-manager work queue. See the requirements for release boundaries and deferred features.
+The first version centers on feedback posts, Agree / Disagree reactions, flat discussion, official responses, and a community-manager work queue. See the requirements for release boundaries and deferred features.

@@ -51,7 +51,7 @@ Follow [layers/auth/README.md](layers/auth/README.md) for the feature's public e
 
 ## Feedback boundaries
 
-Follow [layers/feedback/README.md](layers/feedback/README.md). Create the post and initial author follow in one transaction. Preserve contributions when credentials or users are removed; author/category foreign keys currently restrict deletion. Public responses select only public fields. Keep feedback timestamps at millisecond precision so pagination cursors preserve stored ordering. Retried writes, editing, and follow controls remain assigned to their later checklist steps.
+Follow [layers/feedback/README.md](layers/feedback/README.md). Create the post and initial author follow in one transaction. Preserve contributions when credentials or users are removed; author/category foreign keys currently restrict deletion. Public responses select only public fields. Keep feedback timestamps at millisecond precision so pagination cursors preserve stored ordering. Require UUID idempotency keys on feedback writes and commit receipts with mutations; authorize before replay. Keep only current post/comment text, `edited_at`, and a version for conflicts—no revision history. Reactions are one Agree or Disagree per account/post and never affect ranking or visibility. Follow controls remain in #5.
 
 ## Programming guidelines
 
