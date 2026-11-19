@@ -1,8 +1,17 @@
 <script setup lang="ts">
+import { authClient } from '../../../../auth/app/auth-client'
 import { statusLabels } from '../../../shared/status'
 import type { FeedbackPost } from '../../../shared/contracts'
 
 const route = useRoute()
+const session = authClient.useSession()
+const owner = computed(() => session.value.data?.user.id ?? null)
+const editing = ref(false)
+watch(owner, () => {
+  editing.value = false
+  data.value = undefined
+  refresh()
+})
 const { data, pending, error, refresh } = useFetch<{ post: FeedbackPost }>(
   () => `/api/feedback/posts/${encodeURIComponent(String(route.params.id))}`,
 )
@@ -43,20 +52,47 @@ async function copyLink() {
         <strong>{{ post.author.name }}</strong><span aria-hidden="true"> · </span
         ><time :datetime="post.createdAt">{{
           new Date(post.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })
-        }}</time>
+        }}</time
+        ><span v-if="post.editedAt" :title="new Date(post.editedAt).toLocaleString()">
+          · Edited</span
+        >
       </p>
-      <div class="prose">
-        <p>{{ post.description }}</p>
+      <FeedbackEditor
+        v-if="editing && owner"
+        :key="owner"
+        :owner="owner"
+        :endpoint="`/api/feedback/posts/${post.id}`"
+        :title="post.title"
+        :description="post.description"
+        :desired-improvement="post.desiredImprovement"
+        :version="post.version"
+        @saved="
+          editing = false;
+          refresh()
+        "
+        @cancel="editing = false"
+      />
+      <div v-else class="prose">
+        <FeedbackText :text="post.description" />
         <template v-if="post.desiredImprovement"
           ><h2>Suggested improvement</h2>
-          <p>{{ post.desiredImprovement }}</p></template
-        >
+          <FeedbackText :text="post.desiredImprovement"
+        /></template>
       </div>
       <div class="detail-actions">
         <span class="status-badge">{{ statusLabels[post.status] }}</span
-        ><button type="button" @click="copyLink">Copy link</button>
+        ><button type="button" @click="copyLink">Copy link</button
+        ><button v-if="post.canEdit && owner && !editing" type="button" @click="editing = true">
+          Edit feedback
+        </button>
       </div>
       <p v-if="shareMessage" role="status">{{ shareMessage }}</p>
     </article>
+    <FeedbackDiscussion
+      v-if="post"
+      :key="`${post.id}.${owner}`"
+      :post-id="post.id"
+      :owner="owner"
+    />
   </main>
 </template>

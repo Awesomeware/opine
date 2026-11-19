@@ -21,6 +21,7 @@ export const suites: Record<'integration' | 'e2e', TestSuite[]> = {
         'tests/e2e/smoke.e2e.ts',
         'layers/auth/tests/auth.e2e.ts',
         'layers/feedback/tests/feedback.e2e.ts',
+        'layers/feedback/tests/participation.e2e.ts',
       ],
       restartFiles: ['layers/feedback/tests/persistence.e2e.ts'],
     },
