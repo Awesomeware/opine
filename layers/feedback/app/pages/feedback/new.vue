@@ -52,7 +52,7 @@ watch(form, () => {
     sessionStorage.setItem(`opine.feedback.draft.${draftOwner.value}`, JSON.stringify(form))
   } catch {
     storageMessage.value =
-      'Your draft cannot be saved in this browser. Keep this page open until you publish.'
+      'Your draft cannot be saved in this browser. Keep this page open until you submit your feedback.'
   }
 })
 
@@ -128,13 +128,13 @@ async function publish() {
         }
       }
     } else if (failure.statusCode === 401) {
-      message.value = 'Your session has expired. Sign in again to publish your saved draft.'
+      message.value = 'Your session has expired. Sign in again to submit your saved draft.'
       await session.value.refetch()
     } else if (failure.statusCode === 429) {
       message.value = 'You are posting too quickly. Please wait before trying again.'
     } else {
       message.value =
-        'Unable to confirm publication. Your draft is saved. Check the feedback list before trying again.'
+        'Unable to confirm submission. Your draft is saved. Check the feedback list before trying again.'
     }
     await nextTick()
     errorSummary.value?.focus()
@@ -147,10 +147,9 @@ async function publish() {
 <template>
   <main id="main-content" class="content-column form-column">
     <NuxtLink class="back-link" to="/feedback">← All feedback</NuxtLink>
-    <p class="eyebrow">Start a conversation</p>
-    <h1>Share your experience</h1>
+    <h1>Share feedback</h1>
     <p class="intro">
-      Tell the community what happened and how it felt. You do not need to have a solution.
+      Tell us what could work better, what you’d like to see, or what’s already working well.
     </p>
     <p v-if="message" ref="errorSummary" class="notice" role="alert" tabindex="-1">{{ message }}</p>
     <p v-if="route.query.signIn" role="alert">
@@ -164,7 +163,7 @@ async function publish() {
       <button type="button" :disabled="busy" @click="retrySession">Retry posting session</button>
     </div>
     <div v-else-if="!session.data" class="panel empty-state">
-      <h2>Join the conversation</h2>
+      <h2>Share feedback for the game</h2>
       <p>
         Sign in with Discord to share feedback. Your saved draft will be restored for your account.
       </p>
@@ -173,10 +172,10 @@ async function publish() {
       </button>
     </div>
     <form v-else class="panel feedback-form" novalidate @submit.prevent="publish">
-      <p class="field-help">All fields are required except desired improvement.</p>
+      <p class="field-help">All fields are required except suggested improvement.</p>
       <div class="field">
         <label for="post-title">Title</label>
-        <p id="title-help" class="field-help">A short description of your experience.</p>
+        <p id="title-help" class="field-help">Give your feedback a clear, specific title.</p>
         <input
           id="post-title"
           v-model="form.title"
@@ -188,9 +187,9 @@ async function publish() {
         <p v-if="fieldErrors.title" id="title-error" class="field-error">{{ fieldErrors.title }}</p>
       </div>
       <div class="field">
-        <label for="post-description">Your experience</label>
+        <label for="post-description">Feedback</label>
         <p id="description-help" class="field-help">
-          What happened? What impact did it have on your time playing?
+          Describe your feedback and why it matters. Include examples or details where helpful.
         </p>
         <textarea
           id="post-description"
@@ -209,7 +208,7 @@ async function publish() {
       </div>
       <div class="field">
         <label for="post-improvement"
-          >Desired improvement <span class="muted">(optional)</span></label
+          >Suggested improvement <span class="muted">(optional)</span></label
         ><textarea
           id="post-improvement"
           v-model="form.desiredImprovement"
@@ -255,12 +254,12 @@ async function publish() {
           class="button-primary"
           :disabled="busy || categoriesPending || !!categoriesError || !categories.length"
         >
-          {{ busy ? 'Publishing…' : 'Publish feedback' }}</button
+          {{ busy ? 'Submitting…' : 'Submit feedback' }}</button
         ><NuxtLink to="/feedback">Back to feedback</NuxtLink>
       </div>
       <p class="field-help">
         Your feedback and display name will be public. Drafts stay in this browser tab until
-        published.
+        submitted.
       </p>
     </form>
   </main>

@@ -28,7 +28,7 @@ async function copyLink() {
     <div v-else-if="error" class="panel empty-state" role="alert">
       <template v-if="error.statusCode === 404"
         ><h1>Feedback not found</h1>
-        <p>This feedback is not available. Explore the community’s other experiences.</p></template
+        <p>This feedback is not available. Browse other feedback from the community.</p></template
       >
       <template v-else
         ><h1>Unable to load feedback</h1>
@@ -48,7 +48,7 @@ async function copyLink() {
       <div class="prose">
         <p>{{ post.description }}</p>
         <template v-if="post.desiredImprovement"
-          ><h2>Desired improvement</h2>
+          ><h2>Suggested improvement</h2>
           <p>{{ post.desiredImprovement }}</p></template
         >
       </div>

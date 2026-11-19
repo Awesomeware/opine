@@ -11,7 +11,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Visit <http://localhost:3000/feedback>. The migration creates a **General feedback** category so a fresh installation can accept submissions immediately. Sign in, select **Share feedback**, and publish a post. Copy its link and open it in a private browser window to verify public access.
+Visit <http://localhost:3000/feedback>. The migration creates a **General feedback** category so a fresh installation can accept submissions immediately. Sign in, select **Share feedback**, and choose **Submit feedback** when ready. Copy its link and open it in a private browser window to verify public access.
 
 The submission form keeps a draft in session storage, separately for each signed-in account. It survives a page reload in the same browser tab, but is not synchronized to other devices and is not a server backup. Successful publication clears the saved draft. Validation errors preserve the entered fields. If publication cannot be confirmed after a network failure, check the feed before retrying: idempotent retries are scheduled for TODO #4.
 
@@ -42,7 +42,7 @@ Authentication remains in [the auth schema](../layers/auth/server/schema.ts). Fe
 
 Creating feedback inserts the post and the author's follow in one transaction. The follow controls and notifications are deferred to #5; the initial subscription is already durable.
 
-Post statuses are `new`, `reviewing`, `planned`, `delivered`, `not_planned`, and `answered`. The submission endpoint always chooses `new`; changing status requires the later official-response workflow. Titles are limited to 200 characters, descriptions to 10,000, and desired improvements to 5,000. Empty optional improvement text becomes NULL. Content is rendered as plain text, without executing markup.
+Post statuses are `new`, `reviewing`, `planned`, `delivered`, `not_planned`, and `answered`. The submission endpoint always chooses `new`; changing status requires the later official-response workflow. Titles are limited to 200 characters, descriptions to 10,000, and suggested improvements to 5,000. Empty optional improvement text becomes NULL. Content is rendered as plain text, without executing markup.
 
 Indexes support newest-first browsing, category/status filtering, author lookup, and user follows. Pagination uses creation time plus ID to handle equal timestamps deterministically. Search currently uses literal case-insensitive substring matching across title and description; it has no dedicated full-text search index. Reassess search indexing with actual data volume rather than changing search semantics accidentally.
 

@@ -18,6 +18,6 @@ import AuthControls from '../layers/auth/app/components/AuthControls.vue'
       <AuthControls />
     </header>
     <NuxtPage />
-    <footer class="site-footer">A home for your community’s experiences.</footer>
+    <footer class="site-footer">Help shape the game with your feedback.</footer>
   </div>
 </template>

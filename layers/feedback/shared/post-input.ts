@@ -34,12 +34,12 @@ export function validatePostInput(
   if (!title || title.length > postLimits.title)
     fieldErrors.title = `Enter a title between 1 and ${postLimits.title} characters.`
   if (!description || description.length > postLimits.description)
-    fieldErrors.description = `Describe your experience in 1–${postLimits.description} characters.`
+    fieldErrors.description = `Enter your feedback in 1–${postLimits.description} characters.`
   if (
     (fields.desiredImprovement != null && typeof fields.desiredImprovement !== 'string') ||
     (desiredImprovement && desiredImprovement.length > postLimits.desiredImprovement)
   ) {
-    fieldErrors.desiredImprovement = `Use no more than ${postLimits.desiredImprovement} characters for your desired improvement.`
+    fieldErrors.desiredImprovement = `Use no more than ${postLimits.desiredImprovement} characters for your suggested improvement.`
   }
   for (const field of ['title', 'description', 'desiredImprovement'] as const) {
     if (typeof fields[field] === 'string' && fields[field].includes('\0')) {

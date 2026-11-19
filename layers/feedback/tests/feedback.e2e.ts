@@ -23,25 +23,28 @@ test('a member publishes feedback and shares a public link', async ({
     await page
       .getByLabel('Title', { exact: true })
       .fill('Getting a group together takes most of my evening')
-    await page.getByRole('button', { name: 'Publish feedback', exact: true }).click()
-    await expect(page.getByLabel('Your experience')).toHaveAttribute('aria-invalid', 'true')
+    await page.getByRole('button', { name: 'Submit feedback', exact: true }).click()
+    await expect(page.getByLabel('Feedback', { exact: true })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    )
     await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
       'Getting a group together takes most of my evening',
     )
     await page
-      .getByLabel('Your experience')
+      .getByLabel('Feedback', { exact: true })
       .fill(
         'We spent forty minutes travelling and replacing someone who left.\nI only had ninety minutes to play. <script>window.injected = true</script>',
       )
     await page
-      .getByLabel('Desired improvement')
+      .getByLabel('Suggested improvement')
       .fill('Help us find nearby players so we can spend more time adventuring together.')
     await page.getByLabel('Category', { exact: true }).selectOption(category.id)
     await page.reload()
     await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
       'Getting a group together takes most of my evening',
     )
-    await page.getByRole('button', { name: 'Publish feedback', exact: true }).click()
+    await page.getByRole('button', { name: 'Submit feedback', exact: true }).click()
     await page.waitForURL(/\/feedback\/[0-9a-f-]{36}$/)
     await expect(
       page.getByRole('heading', { name: 'Getting a group together takes most of my evening' }),
@@ -194,13 +197,13 @@ test('submission enforces identity, origin, validation, active categories, and r
     await page.context().addCookies([member.cookie])
     await page.goto('/feedback/new')
     await page.getByLabel('Title', { exact: true }).fill(data.title)
-    await page.getByLabel('Your experience').fill(data.description)
+    await page.getByLabel('Feedback', { exact: true }).fill(data.description)
     await page.getByLabel('Category', { exact: true }).selectOption(category.id)
     await getDatabase()
       .update(feedbackCategory)
       .set({ isActive: false })
       .where(eq(feedbackCategory.id, category.id))
-    await page.getByRole('button', { name: 'Publish feedback', exact: true }).click()
+    await page.getByRole('button', { name: 'Submit feedback', exact: true }).click()
     await expect(page.getByLabel('Category', { exact: true })).toHaveAttribute(
       'aria-invalid',
       'true',

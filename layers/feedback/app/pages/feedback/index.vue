@@ -75,16 +75,16 @@ async function loadMore() {
   <main id="main-content" class="content-column">
     <div class="page-heading">
       <div>
-        <p class="eyebrow">The community’s voice</p>
+        <p class="eyebrow">Help improve the game</p>
         <h1>Community feedback</h1>
       </div>
       <NuxtLink class="button button-primary" to="/feedback/new">Share feedback</NuxtLink>
     </div>
-    <p class="intro">Share your experience. Make room for a different perspective.</p>
+    <p class="intro">Share feedback, suggest improvements, and discuss the game.</p>
     <form class="panel filters" role="search" @submit.prevent="applyFilters">
       <div class="field search-field">
         <label for="search">Search feedback</label
-        ><input id="search" v-model="filters.q" type="search" placeholder="Find an experience…" />
+        ><input id="search" v-model="filters.q" type="search" placeholder="Find feedback…" />
       </div>
       <div class="field">
         <label for="category-filter">Category</label
@@ -113,7 +113,7 @@ async function loadMore() {
     <p v-if="categoriesError" role="alert">
       Categories could not be loaded. You can still search feedback.
     </p>
-    <p class="list-caption">Newest experiences first</p>
+    <p class="list-caption">Newest feedback first</p>
     <p v-if="pending" role="status">Loading feedback…</p>
     <div v-else-if="error" class="panel notice" role="alert">
       <p>Unable to load feedback. Please try again.</p>
@@ -122,7 +122,7 @@ async function loadMore() {
     <template v-else>
       <div v-if="!posts.length" class="panel empty-state">
         <h2>No feedback found</h2>
-        <p>Try another search or share an experience of your own.</p>
+        <p>Try another search or share your own feedback.</p>
         <NuxtLink to="/feedback/new">Share feedback</NuxtLink>
       </div>
       <ol v-else class="feedback-list">
