@@ -1,6 +1,6 @@
 # Feedback feature
 
-This layer owns categories, posts, follows, comments, reactions, and write receipts. Its schema lives in `server/schema.ts`, aggregated by the root database schema. It consumes the shared database pool and auth's public identity/session entrypoints. The approved schema and local operations are described in [Feedback](../../docs/feedback.md).
+This layer owns categories, posts, follows, comments, reactions, official responses, notifications, category-change audit records, and write receipts. Its schema lives in `server/schema.ts`, aggregated by the root database schema. It consumes the shared database pool and auth's public identity/session entrypoints. The approved schema and local operations are described in [Feedback](../../docs/feedback.md).
 
 ## Public entrypoints
 
@@ -23,6 +23,19 @@ Additional endpoints:
 - `GET /api/feedback/posts/:id/reactions` returns separate agree/disagree counts and the current viewer's choice.
 - `PUT /api/feedback/posts/:id/reactions` accepts `kind: 'agree' | 'disagree' | null`, explicitly setting or removing the member's reaction.
 
+Official workflow endpoints (implemented in `server/outcomes.ts`):
+
+- `GET /api/feedback/posts/:id/outcome` returns current `status`, workflow `version`, `latestResponse`, the latest status-changing `statusResponse`, viewer `following`, and `canRespond`.
+- `POST /api/feedback/posts/:id/responses` requires current community-manager access and `{ body, version, status? }`. It returns `{ id, version }`; omitted status preserves the current status. Ordinary privileged comments are never automatically official.
+- `GET /api/feedback/posts/:id/responses/:responseId` returns the immutable public response for direct links.
+- `GET /api/feedback/posts/:id/discussion` merges comments and official responses chronologically. Optional `type` accepts the four ordinary types or `team`; omission selects All. It returns discriminated `entries` and `nextCursor`; each source is bounded before merging. The older comments API still returns only comments.
+- `PUT /api/feedback/posts/:id/follow` accepts `{ following: boolean }` and sets the member's subscription explicitly.
+- `GET /api/feedback/notifications` is private to the session owner. It accepts `unread=true|false`, cursor, and limit; returns notifications and the owner's total `unreadCount`. `PATCH /api/feedback/notifications/:notificationId` accepts `{ read: true }` and cannot read another member's item.
+- `GET /api/feedback/review` requires community-manager access. It accepts category slug, status (default `new`, or `all`), `followUp=true|false`, cursor, and limit. Results are oldest-first. Follow-up requires an ordinary comment newer than the latest response, from an author who is not currently a community manager; unanswered posts are excluded.
+- `PATCH /api/feedback/posts/:id/category` requires community-manager access and `{ categoryId, version }`; only active destination categories are accepted. `GET /api/feedback/posts/:id/category-history` exposes the bounded operational audit to community managers.
+
+`shared/outcome-input.ts` validates official response, follow, read, and category commands. All new lists default to 20 and cap HTTP page sizes at 50. Direct official links use `?response=<id>#response-<id>` and resolve independently of discussion filters.
+
 All writes require a member session, the configured origin, and a UUID idempotency key. Viewer-aware reads are `no-store`; public projections expose `canEdit` rather than user IDs. Input validators live in `shared/participation-input.ts`; `shared/contribution-types.ts` owns type values, labels, and prompts. The page uses `?contribution=<type>` for its filter and a separate `comment` query parameter for a direct link. A linked contribution outside the selected filter is resolved independently and labelled accordingly. HTTP entrypoints use `server/http.ts`; use cases in `server/participation.ts` enforce ownership. `server/writes.ts` owns the common transaction and receipt logic.
 
 ## Persistence and concurrency
@@ -41,10 +54,18 @@ Body-only pre-upgrade create requests have a replay-only path: authenticate, aut
 
 Edits compare the loaded version before changing current content. Actual text or type changes increment the version and set `edited_at`; no-op saves leave both unchanged. There are no revision tables. Author edits never change category/status. Comments, reactions, and edit limits count persisted requests and survive restarts. Reaction counts do not affect feedback ordering.
 
+## Official workflow invariants
+
+Response publication locks the post and compares its separate `workflow_version`; author text edits keep their independent `version`. Response, optional status change, notification fanout, and receipt are atomic. Category correction shares the workflow version but writes a separate audit. Actual status deltas retain previous/new status; unchanged statuses store no delta. Official responses are immutable: corrections publish a new response.
+
+Authorize the current community-manager role before replay inside the actor transaction; administrator alone is insufficient. `FOR NO KEY UPDATE` serializes actor writes while allowing notification foreign-key checks against other active members, and conflicts with role-management locks. Follow writes serialize on the same post lock as publication. Receipt replay returns its old result without reapplying an old subscription state.
+
+Outcome reads use a repeatable-read snapshot. Assign response creation time after the post lock, strictly later than prior responses and comments at millisecond precision; comments created after a response must remain chronologically later even when their transaction started before it. Notifications inherit the response publication time. Never notify for ordinary comments.
+
 ## Planned and deferred behavior
 
-Required contribution types, tailored composer guidance, labels, and full-discussion type filters are implemented. Team responses joins the filters in #5; official responses must remain an explicit CM operation, not a member contribution type. The prominent status and featured official-response panel also arrive in #5. Keep the proposal distinct and Agree / Disagree secondary. See [requirements](../../requirements.md) for the agreed product scope. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred.
+Required contribution types, the Team responses filter, prominent official status/response, review queue, following, and in-platform notifications are implemented. Keep the proposal distinct and Agree / Disagree secondary. See [requirements](../../requirements.md) for release scope. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred.
 
-The author follow is persisted now; follow/unfollow controls and notifications arrive in TODO #5. Status changes and official responses arrive in #5. Moderation and account anonymization must be implemented before the public pilot. Never infer moderation or official-response authority from the administrator role.
+Moderation and account anonymization must be implemented before the public pilot. Never infer moderation or official-response authority from the administrator role. Email, push, and Discord notifications are deferred.
 
 Keep request keys and drafts scoped to the current account and operation. Disable duplicate clicks while requests are in flight. Retry an uncertain write with its original key and payload; do not turn an uncertain reaction into a toggle or overwrite an edit conflict without explicit review.

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type {
   FeedbackComment,
-  FeedbackCommentsPage,
+  FeedbackDiscussionPage,
+  OfficialResponse,
   FeedbackReactions,
   ReactionKind,
 } from '../../shared/contracts'
@@ -18,7 +19,12 @@ import { useFeedbackWrite, feedbackWriteError } from '../composables/useFeedback
 const props = defineProps<{ postId: string; owner: string | null }>()
 const route = useRoute()
 const endpoint = `/api/feedback/posts/${props.postId}`
-const comments = ref<FeedbackComment[]>([])
+type Entry = FeedbackDiscussionPage['entries'][number]
+const entries = ref<Entry[]>([])
+const comments = computed(() =>
+  entries.value.flatMap((entry) => (entry.kind === 'comment' ? [entry.comment] : [])),
+)
+const targetResponse = ref<OfficialResponse | null>(null)
 const target = ref<FeedbackComment | null>(null)
 const nextCursor = ref<string | null>(null)
 const loaded = ref(false)
@@ -31,7 +37,9 @@ const explain = ref(false)
 const body = ref('')
 const type = ref<ContributionType | ''>('')
 const filter = computed(() =>
-  isContributionType(route.query.contribution) ? route.query.contribution : undefined,
+  isContributionType(route.query.contribution) || route.query.contribution === 'team'
+    ? route.query.contribution
+    : undefined,
 )
 let commentsRequest = 0
 let targetRequest = 0
@@ -84,14 +92,14 @@ async function loadComments(more = false) {
   loading.value = true
   error.value = ''
   try {
-    const page = await $fetch<FeedbackCommentsPage>(`${endpoint}/comments`, {
+    const page = await $fetch<FeedbackDiscussionPage>(`${endpoint}/discussion`, {
       query: {
         ...(selected ? { type: selected } : {}),
         ...(more && nextCursor.value ? { cursor: nextCursor.value } : {}),
       },
     })
     if (!active || request !== commentsRequest) return
-    comments.value = more ? [...comments.value, ...page.comments] : page.comments
+    entries.value = more ? [...entries.value, ...page.entries] : page.entries
     nextCursor.value = page.nextCursor
     loaded.value = true
   } catch {
@@ -104,6 +112,23 @@ async function loadComments(more = false) {
 async function loadTarget() {
   const request = ++targetRequest
   target.value = null
+  targetResponse.value = null
+  const responseId = route.query.response
+  if (typeof responseId === 'string') {
+    try {
+      const result = await $fetch<{ response: OfficialResponse }>(
+        `${endpoint}/responses/${encodeURIComponent(responseId)}`,
+      )
+      if (!active || request !== targetRequest) return
+      targetResponse.value = result.response
+      await nextTick()
+      document.getElementById(`response-${responseId}`)?.scrollIntoView({ block: 'center' })
+    } catch {
+      if (active && request === targetRequest)
+        error.value = 'The linked team response could not be loaded.'
+    }
+    return
+  }
   const id = route.query.comment
   if (typeof id !== 'string') return
   try {
@@ -223,7 +248,7 @@ async function sendComment(payload: { body: string; type?: ContributionType }, l
     }
     await navigateTo({
       path: `/feedback/${props.postId}`,
-      query: { ...route.query, comment: result.id },
+      query: { ...route.query, response: undefined, comment: result.id },
       hash: `#comment-${result.id}`,
     })
     await loadComments()
@@ -250,21 +275,30 @@ async function savedComment() {
   await loadComments()
   await loadTarget()
 }
-const visibleComments = computed(() =>
-  target.value && !comments.value.some((comment) => comment.id === target.value?.id)
-    ? [target.value, ...comments.value]
-    : comments.value,
-)
-async function selectFilter(value?: ContributionType) {
+const visibleEntries = computed(() => {
+  const result = [...entries.value]
+  if (target.value && !comments.value.some((comment) => comment.id === target.value?.id))
+    result.unshift({ kind: 'comment', comment: target.value })
+  if (
+    targetResponse.value &&
+    !result.some(
+      (entry) => entry.kind === 'response' && entry.response.id === targetResponse.value?.id,
+    )
+  )
+    result.unshift({ kind: 'response', response: targetResponse.value })
+  return result
+})
+async function selectFilter(value?: ContributionType | 'team') {
   await navigateTo({ query: { ...route.query, contribution: value }, hash: route.hash })
 }
 watch(filter, () => {
-  comments.value = []
+  entries.value = []
   nextCursor.value = null
   loaded.value = false
   void loadComments()
 })
-watch(() => route.query.comment, loadTarget)
+watch(() => [route.query.comment, route.query.response], loadTarget)
+defineExpose({ refresh: retryComments })
 onMounted(async () => {
   await Promise.all([loadComments(), loadReactions()])
   await loadTarget()
@@ -318,76 +352,99 @@ onMounted(async () => {
       >
         {{ contributionFilterLabels[kind] }}
       </button>
+      <button type="button" :aria-pressed="filter === 'team'" @click="selectFilter('team')">
+        Team responses
+      </button>
     </nav>
     <p class="field-help">
-      Oldest comments first. Keep replies constructive and focused on the feedback.
+      Oldest contributions and team responses first. Keep replies constructive and focused on the
+      feedback.
     </p>
     <p v-if="error" role="alert">
       {{ error }} <button type="button" @click="retryComments">Retry comments</button>
     </p>
     <p v-if="loading">Loading comments…</p>
-    <p v-else-if="loaded && !comments.length">
+    <p v-else-if="loaded && !entries.length">
       {{ filter ? 'No contributions of this type yet.' : 'No contributions yet.' }}
     </p>
-    <article
-      v-for="comment in visibleComments"
-      :id="`comment-${comment.id}`"
-      :key="comment.id"
-      class="comment panel"
-      :class="{ linked: route.query.comment === comment.id }"
+    <template
+      v-for="entry in visibleEntries"
+      :key="entry.kind === 'comment' ? entry.comment.id : entry.response.id"
     >
-      <p
-        v-if="target?.id === comment.id && !comments.some((item) => item.id === comment.id)"
-        class="field-help"
-      >
-        Linked comment ·
-        {{
-          filter && comment.type !== filter
-            ? 'outside the selected filter'
-            : 'outside the current page'
-        }}
-      </p>
-      <p class="contribution-label">
-        {{ comment.type ? contributionLabels[comment.type] : 'Unspecified' }}
-      </p>
-      <p v-if="!comment.type" class="field-help">
-        This comment was posted before contribution types were introduced.
-      </p>
-      <p class="byline">
-        <strong>{{ comment.author.name }}</strong> ·
-        <time :datetime="comment.createdAt">{{ new Date(comment.createdAt).toLocaleString() }}</time
-        ><span v-if="comment.editedAt" :title="new Date(comment.editedAt).toLocaleString()">
-          · Edited</span
-        >
-      </p>
-      <FeedbackEditor
-        v-if="editing === comment.id && owner"
-        :owner="owner"
-        :endpoint="`${endpoint}/comments/${comment.id}`"
-        :body="comment.body"
-        :type="comment.type"
-        :version="comment.version"
-        @saved="savedComment"
-        @cancel="editing = null"
+      <FeedbackOfficialResponse
+        v-if="entry.kind === 'response'"
+        :response="entry.response"
+        :linked="route.query.response === entry.response.id"
+        :outside="
+          !entries.some(
+            (item) => item.kind === 'response' && item.response.id === entry.response.id,
+          )
+        "
       />
-      <FeedbackText v-else :text="comment.body" />
-      <div class="comment-actions">
-        <NuxtLink
-          :to="{
-            path: `/feedback/${postId}`,
-            query: { ...route.query, comment: comment.id },
-            hash: `#comment-${comment.id}`,
-          }"
-          >Comment link</NuxtLink
-        ><button
-          v-if="comment.canEdit && owner && editing !== comment.id"
-          type="button"
-          @click="editing = comment.id"
+      <template v-else>
+        <article
+          v-for="comment in [entry.comment]"
+          :id="`comment-${comment.id}`"
+          :key="comment.id"
+          class="comment panel"
+          :class="{ linked: route.query.comment === comment.id }"
         >
-          Edit comment
-        </button>
-      </div>
-    </article>
+          <p
+            v-if="target?.id === comment.id && !comments.some((item) => item.id === comment.id)"
+            class="field-help"
+          >
+            Linked comment ·
+            {{
+              filter && comment.type !== filter
+                ? 'outside the selected filter'
+                : 'outside the current page'
+            }}
+          </p>
+          <p class="contribution-label">
+            {{ comment.type ? contributionLabels[comment.type] : 'Unspecified' }}
+          </p>
+          <p v-if="!comment.type" class="field-help">
+            This comment was posted before contribution types were introduced.
+          </p>
+          <p class="byline">
+            <strong>{{ comment.author.name }}</strong> ·
+            <time :datetime="comment.createdAt">{{
+              new Date(comment.createdAt).toLocaleString()
+            }}</time
+            ><span v-if="comment.editedAt" :title="new Date(comment.editedAt).toLocaleString()">
+              · Edited</span
+            >
+          </p>
+          <FeedbackEditor
+            v-if="editing === comment.id && owner"
+            :owner="owner"
+            :endpoint="`${endpoint}/comments/${comment.id}`"
+            :body="comment.body"
+            :type="comment.type"
+            :version="comment.version"
+            @saved="savedComment"
+            @cancel="editing = null"
+          />
+          <FeedbackText v-else :text="comment.body" />
+          <div class="comment-actions">
+            <NuxtLink
+              :to="{
+                path: `/feedback/${postId}`,
+                query: { ...route.query, response: undefined, comment: comment.id },
+                hash: `#comment-${comment.id}`,
+              }"
+              >Comment link</NuxtLink
+            ><button
+              v-if="comment.canEdit && owner && editing !== comment.id"
+              type="button"
+              @click="editing = comment.id"
+            >
+              Edit comment
+            </button>
+          </div>
+        </article>
+      </template></template
+    >
     <button v-if="nextCursor" type="button" :disabled="loading" @click="loadComments(true)">
       Load more comments
     </button>

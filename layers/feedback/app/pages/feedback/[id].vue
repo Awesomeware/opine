@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { authClient } from '../../../../auth/app/auth-client'
-import { statusLabels } from '../../../shared/status'
 import type { FeedbackPost } from '../../../shared/contracts'
 
 const route = useRoute()
 const session = authClient.useSession()
 const owner = computed(() => session.value.data?.user.id ?? null)
 const editing = ref(false)
+const discussion = ref<{ refresh: () => Promise<void> } | null>(null)
 watch(owner, () => {
   editing.value = false
   data.value = undefined
@@ -80,15 +80,26 @@ async function copyLink() {
         /></template>
       </div>
       <div class="detail-actions">
-        <span class="status-badge">{{ statusLabels[post.status] }}</span
-        ><button type="button" @click="copyLink">Copy link</button
+        <button type="button" @click="copyLink">Copy link</button
         ><button v-if="post.canEdit && owner && !editing" type="button" @click="editing = true">
           Edit feedback
         </button>
       </div>
       <p v-if="shareMessage" role="status">{{ shareMessage }}</p>
     </article>
+    <FeedbackOutcome
+      v-if="post"
+      :key="`outcome.${post.id}.${owner}`"
+      :category-id="post.category.id"
+      :post-id="post.id"
+      :owner="owner"
+      @published="
+        discussion?.refresh();
+        refresh()
+      "
+    />
     <FeedbackDiscussion
+      ref="discussion"
       v-if="post"
       :key="`${post.id}.${owner}`"
       :post-id="post.id"

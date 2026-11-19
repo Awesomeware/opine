@@ -118,7 +118,7 @@ test('contributions require a type and filter the full discussion while preservi
     const pageFinished = new Promise<void>((resolve) => {
       finished = resolve
     })
-    await page.route(`**${base}?*`, async (route) => {
+    await page.route(`**/api/feedback/posts/${post.id}/discussion?*`, async (route) => {
       const query = new URL(route.request().url()).searchParams
       if (query.get('type') !== 'context' || !query.has('cursor')) return route.continue()
       const response = await route.fetch()
@@ -134,7 +134,7 @@ test('contributions require a type and filter the full discussion while preservi
     await expect(page.locator(`#comment-${question!.id}`)).toBeVisible()
     releasePage()
     await pageFinished
-    await page.unroute(`**${base}?*`)
+    await page.unroute(`**/api/feedback/posts/${post.id}/discussion?*`)
     await expect(page.locator('article.comment')).toHaveCount(1)
     await page.getByRole('button', { name: 'Context', exact: true }).click()
     await expect(page.locator('article.comment')).toHaveCount(20)

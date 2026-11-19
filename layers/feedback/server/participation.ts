@@ -9,7 +9,12 @@ import type {
   PostEditInput,
 } from '../shared/participation-input.ts'
 import type { PostCursor } from './list-input.ts'
-import { feedbackComment, feedbackPost, feedbackReaction } from './schema.ts'
+import {
+  feedbackComment,
+  feedbackOfficialResponse,
+  feedbackPost,
+  feedbackReaction,
+} from './schema.ts'
 import { feedbackWrite, FeedbackWriteError, type FeedbackTransaction } from './writes.ts'
 
 async function requirePost(transaction: FeedbackTransaction, postId: string) {
@@ -35,7 +40,14 @@ export async function createComment(
     async (transaction) => {
       const [comment] = await transaction
         .insert(feedbackComment)
-        .values({ postId, authorId: actorId, body: input.body, type: input.type })
+        .values({
+          postId,
+          authorId: actorId,
+          body: input.body,
+          type: input.type,
+          // A waiting transaction must appear after the response it follows.
+          createdAt: sql`greatest(clock_timestamp(), coalesce((select max(created_at) + interval '1 millisecond' from ${feedbackOfficialResponse} where post_id = ${postId}::uuid), clock_timestamp()))`,
+        })
         .returning({ id: feedbackComment.id, version: feedbackComment.version })
       return comment!
     },

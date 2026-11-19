@@ -14,7 +14,7 @@ import AuthControls from '../layers/auth/app/components/AuthControls.vue'
         </svg>
         <span>Opine</span>
       </NuxtLink>
-      <nav aria-label="Main"><NuxtLink to="/feedback">Community feedback</NuxtLink></nav>
+      <FeedbackNavigation />
       <AuthControls />
     </header>
     <NuxtPage />

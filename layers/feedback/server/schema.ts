@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
   uuid,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import { user } from '../../auth/server/schema.ts'
 import { contributionTypes } from '../shared/contribution-types.ts'
@@ -50,6 +51,7 @@ export const feedbackPost = pgTable(
     title: text('title').notNull(),
     description: text('description').notNull(),
     desiredImprovement: text('desired_improvement'),
+    workflowVersion: integer('workflow_version').notNull().default(1),
     version: integer('version').notNull().default(1),
     editedAt: timestamp('edited_at', { withTimezone: true, precision: 3 }),
     status: feedbackStatus('status').notNull().default('new'),
@@ -173,5 +175,73 @@ export const feedbackWriteReceipt = pgTable(
   (table) => [
     primaryKey({ columns: [table.actorId, table.requestId] }),
     index('feedback_write_receipt_rate_idx').on(table.actorId, table.operation, table.createdAt),
+  ],
+)
+
+export const feedbackOfficialResponse = pgTable(
+  'feedback_official_response',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => feedbackPost.id, { onDelete: 'restrict' }),
+    authorId: text('author_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'restrict' }),
+    body: text('body').notNull(),
+    previousStatus: feedbackStatus('previous_status'),
+    status: feedbackStatus('status'),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      'feedback_response_body_valid',
+      sql`char_length(btrim(${table.body})) between 1 and 10000 and char_length(${table.body}) <= 10000`,
+    ),
+    check(
+      'feedback_response_status_delta_valid',
+      sql`(${table.previousStatus} is null and ${table.status} is null) or (${table.previousStatus} is not null and ${table.status} is not null and ${table.previousStatus} <> ${table.status})`,
+    ),
+    index('feedback_response_chronological_idx').on(table.postId, table.createdAt, table.id),
+  ],
+)
+export const feedbackNotification = pgTable(
+  'feedback_notification',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    responseId: uuid('response_id')
+      .notNull()
+      .references(() => feedbackOfficialResponse.id, { onDelete: 'cascade' }),
+    readAt: timestamp('read_at', { withTimezone: true, precision: 3 }),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('feedback_notification_recipient_response_idx').on(table.userId, table.responseId),
+    index('feedback_notification_inbox_idx').on(table.userId, table.createdAt, table.id),
+  ],
+)
+export const feedbackCategoryChange = pgTable(
+  'feedback_category_change',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => feedbackPost.id, { onDelete: 'restrict' }),
+    actorId: text('actor_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'restrict' }),
+    previousCategoryId: uuid('previous_category_id')
+      .notNull()
+      .references(() => feedbackCategory.id, { onDelete: 'restrict' }),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => feedbackCategory.id, { onDelete: 'restrict' }),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('feedback_category_change_chronological_idx').on(table.postId, table.createdAt, table.id),
   ],
 )

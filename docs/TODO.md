@@ -51,13 +51,14 @@ The participation foundation in #4 is implemented. These additions restore the a
 
 ## 5. Make the team response and outcome explicit
 
-- [ ] Add the oldest-first review queue.
-- [ ] Add explicit official responses, distinct from ordinary typed contributions even when authored by a CM.
-- [ ] Present the proposal, a prominent status and latest official-response panel, then community contributions; show clearly when feedback is awaiting initial review or has no official response.
-- [ ] Add Team responses to the discussion filters and include official responses in All; keep the featured response and current status visible regardless of filter.
-- [ ] Record status changes alongside their official explanation, and keep the current status explanation accessible even after later responses.
-- [ ] Add follow/unfollow controls and notifications so players can see the outcome.
-- [ ] Verify the full journey from a typed contribution to acknowledgement, official response, and follower notification, including the distinction between ordinary CM comments and official responses.
+- [x] Add the oldest-first review queue, category/status filters, and member follow-up filtering.
+- [x] Add community-manager category corrections with a separate audit record.
+- [x] Add explicit official responses, distinct from ordinary typed contributions even when authored by a CM.
+- [x] Present the proposal, a prominent status and latest official-response panel, then community contributions; show clearly when feedback is awaiting initial review or has no official response.
+- [x] Add Team responses to the discussion filters and include official responses in All; keep the featured response and current status visible regardless of filter.
+- [x] Record status changes alongside their official explanation, and keep the current status explanation accessible even after later responses.
+- [x] Add follow/unfollow controls and notifications so players can see the outcome.
+- [x] Verify the full journey from a typed contribution to acknowledgement, official response, and follower notification, including the distinction between ordinary CM comments and official responses.
 
 Community-maintained summaries, curated highlights, nested replies, and separate conversation threads remain deferred. Discussion filters organize one flat discussion.
 

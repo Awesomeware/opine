@@ -24,6 +24,7 @@ export function positiveInteger(name: string, fallback: number) {
 }
 
 // Serialize an actor's writes: the receipt and its mutation always commit together.
+// NO KEY UPDATE also permits notification fanout to reference other active actors.
 export async function feedbackWrite<T extends { id: string; version?: number } | null>(
   actorId: string,
   requestId: string,
@@ -41,7 +42,7 @@ export async function feedbackWrite<T extends { id: string; version?: number } |
       .select({ id: user.id })
       .from(user)
       .where(eq(user.id, actorId))
-      .for('update')
+      .for('no key update')
     if (!actor) throw new FeedbackWriteError(401, 'Sign in to participate.')
     await authorize(transaction)
     const [receipt] = await transaction

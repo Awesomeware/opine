@@ -35,3 +35,39 @@ export type FeedbackComment = {
   canEdit: boolean
 }
 export type FeedbackCommentsPage = { comments: FeedbackComment[]; nextCursor: string | null }
+
+export type OfficialResponse = {
+  id: string
+  postId: string
+  body: string
+  author: { name: string }
+  createdAt: string
+  previousStatus: PostStatus | null
+  status: PostStatus | null
+}
+export type FeedbackOutcome = {
+  status: PostStatus
+  version: number
+  latestResponse: OfficialResponse | null
+  statusResponse: OfficialResponse | null
+  following: boolean
+  canRespond: boolean
+}
+export type DiscussionEntry =
+  | { kind: 'comment'; comment: FeedbackComment }
+  | { kind: 'response'; response: OfficialResponse }
+export type FeedbackDiscussionPage = { entries: DiscussionEntry[]; nextCursor: string | null }
+export type FeedbackNotification = {
+  id: string
+  postId: string
+  postTitle: string
+  responseId: string
+  createdAt: string
+  readAt: string | null
+  status: PostStatus | null
+}
+export type FeedbackNotificationsPage = {
+  notifications: FeedbackNotification[]
+  nextCursor: string | null
+  unreadCount: number
+}

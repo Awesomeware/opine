@@ -12,6 +12,7 @@ export const suites: Record<'integration' | 'e2e', TestSuite[]> = {
         'layers/feedback/server/posts.integration.ts',
         'layers/feedback/server/participation.integration.ts',
         'layers/feedback/server/contribution-types.integration.ts',
+        'layers/feedback/server/outcomes.integration.ts',
       ],
     },
   ],
@@ -24,8 +25,13 @@ export const suites: Record<'integration' | 'e2e', TestSuite[]> = {
         'layers/feedback/tests/feedback.e2e.ts',
         'layers/feedback/tests/participation.e2e.ts',
         'layers/feedback/tests/contribution-types.e2e.ts',
+        'layers/feedback/tests/outcomes.e2e.ts',
+        'layers/feedback/tests/outcomes-queue.e2e.ts',
       ],
-      restartFiles: ['layers/feedback/tests/persistence.e2e.ts'],
+      restartFiles: [
+        'layers/feedback/tests/persistence.e2e.ts',
+        'layers/feedback/tests/outcomes-persistence.e2e.ts',
+      ],
     },
   ],
 }
