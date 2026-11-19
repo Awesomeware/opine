@@ -53,6 +53,10 @@ Follow [layers/auth/README.md](layers/auth/README.md) for the feature's public e
 
 Follow [layers/feedback/README.md](layers/feedback/README.md). Create the post and initial author follow in one transaction. Preserve contributions when credentials or users are removed; author/category foreign keys currently restrict deletion. Public responses select only public fields. Keep feedback timestamps at millisecond precision so pagination cursors preserve stored ordering. Require UUID idempotency keys on feedback writes and commit receipts with mutations; authorize before replay. Keep only current post/comment text, `edited_at`, and a version for conflicts—no revision history. Reactions are one Agree or Disagree per account/post and never affect ranking or visibility. Follow controls remain in #5.
 
+## Product direction
+
+Follow the revised scope in [requirements.md](requirements.md) and checklist #4a before continuing #5. Ordinary contributions will require Context or example, Different view, Suggestion, or Question, with corresponding prompts, labels, and discussion filters. Keep the author's proposal, official team response, and status distinct; Agree / Disagree is secondary. Filters organize one flat discussion. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred. Distinguish planned behavior from the current implementation in feature documentation.
+
 ## Programming guidelines
 
 - Code clarity comes first. Use descriptive names, straightforward control flow, and small, cohesive functions. Keep code concise without making it cryptic.

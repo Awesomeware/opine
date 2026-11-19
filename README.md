@@ -130,6 +130,7 @@ The tree includes planned feature locations; no empty feature layers are require
 
 - [Requirements](requirements.md)
 - [User journeys](journeys.md)
-- [Primary visual reference](example-simplified.png)
+- [Layout and styling reference](example-simplified.png)
+- [Interaction reference](example.png) — contribution types, official-response separation, and discussion navigation; see requirements for the included parts.
 
-The first version centers on feedback posts, Agree / Disagree reactions, flat discussion, official responses, and a community-manager work queue. See the requirements for release boundaries and deferred features.
+The agreed first version centers on feedback proposals, typed contributions with discussion filters, prominent official responses and status, and following the outcome. Agree / Disagree reactions remain secondary. Contribution types and filters are the next implementation step (#4a); the official response loop follows in #5. Summaries and curated highlights remain deferred. See the requirements for release boundaries.

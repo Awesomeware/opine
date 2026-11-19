@@ -1,6 +1,16 @@
 # Feedback: schema and local use
 
-The feedback layer provides public browsing, stable links, authenticated submission, comments, reactions, and author editing. The interface follows the simplified visual reference with dark navy surfaces, gold accents, serif headings, and a centered responsive layout. Official responses, follow controls, and notifications remain in checklist #5.
+The feedback layer provides public browsing, stable links, authenticated submission, comments, reactions, and author editing. The interface follows the simplified visual reference with dark navy surfaces, gold accents, serif headings, and a centered responsive layout. Typed contributions and discussion filters are agreed next work in checklist #4a; official responses, follow controls, and notifications remain in #5.
+
+## Agreed next scope
+
+The current implementation still has untyped flat comments. The [requirements](../requirements.md) and [checklist](TODO.md) now include these additions to v1:
+
+- An explicit choice of **Context or example**, **Different view**, **Suggestion**, or **Question** for each new ordinary contribution, with an appropriate composer prompt and a visible type label.
+- Discussion filters for **All**, **Context**, **Different views**, **Suggestions**, **Questions**, and **Team responses**. These select from one flat discussion, with chronological pagination across all matching entries. Team responses will arrive with the official-response workflow in #5.
+- A page centered on the author's proposal, prominent current status and latest official response, then community contributions. The team position stays visible while filtering; Agree / Disagree remains a secondary action with separate counts.
+
+Community-maintained summaries and curated highlights remain deferred, as do nested replies and separate conversation threads. The existing schema and endpoints below describe implemented behavior; this scope adjustment does not yet add contribution types or official responses to them.
 
 ## Try it locally
 

@@ -37,7 +37,9 @@ Write receipts use `(actor_id, request_id)` as their primary key. An actor row l
 
 Edits compare the loaded version before changing current content. Actual changes increment the version and set `edited_at`; no-op saves leave both unchanged. There are no revision tables. Author edits never change category/status. Comments, reactions, and edit limits count persisted requests and survive restarts. Reaction counts do not affect feedback ordering.
 
-## Deferred behavior
+## Planned and deferred behavior
+
+The next checklist step, #4a, introduces required member contribution types (Context or example, Different view, Suggestion, Question), type-specific composer guidance, displayed labels, and filters over the full chronological discussion. Current comments remain untyped until that work is implemented. Team responses joins the filters in #5; official responses must remain an explicit CM operation, not a member contribution type. Keep the proposal, prominent status, and featured official response distinct, and keep Agree / Disagree secondary. See [requirements](../../requirements.md) for the agreed product scope. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred.
 
 The author follow is persisted now; follow/unfollow controls and notifications arrive in TODO #5. Status changes and official responses arrive in #5. Moderation and account anonymization must be implemented before the public pilot. Never infer moderation or official-response authority from the administrator role.
 

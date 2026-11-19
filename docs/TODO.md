@@ -37,12 +37,29 @@ Work through these steps individually. Each step should include its schema chang
 - [x] Add author editing with an Edited indicator and no retained text history.
 - [x] Handle retried writes and conflicting edits.
 
-## 5. Complete the CM response loop
+## 4a. Structure participation
+
+The participation foundation in #4 is implemented. These additions restore the agreed structure before completing #5.
+
+- [ ] Require an explicit choice of Context or example, Different view, Suggestion, or Question for new ordinary contributions.
+- [ ] Show type-specific composer guidance and display the chosen type on each contribution.
+- [ ] Add All, Context, Different views, Suggestions, and Questions filters with chronological, bounded pagination over all matching contributions.
+- [ ] Preserve stable contribution links and context when switching filters.
+- [ ] Keep Agree / Disagree visually secondary to contributing and following the outcome; preserve separate counts and existing reaction behavior.
+- [ ] Define compatibility for existing untyped comments without losing content or inventing an author's chosen type.
+- [ ] Test required type selection, validation, filtering beyond the first page, direct links, and existing-comment compatibility.
+
+## 5. Make the team response and outcome explicit
 
 - [ ] Add the oldest-first review queue.
-- [ ] Add explicit official responses.
-- [ ] Record status changes alongside their official explanation.
+- [ ] Add explicit official responses, distinct from ordinary typed contributions even when authored by a CM.
+- [ ] Present the proposal, a prominent status and latest official-response panel, then community contributions; show clearly when feedback is awaiting initial review or has no official response.
+- [ ] Add Team responses to the discussion filters and include official responses in All; keep the featured response and current status visible regardless of filter.
+- [ ] Record status changes alongside their official explanation, and keep the current status explanation accessible even after later responses.
 - [ ] Add follow/unfollow controls and notifications so players can see the outcome.
+- [ ] Verify the full journey from a typed contribution to acknowledgement, official response, and follower notification, including the distinction between ordinary CM comments and official responses.
+
+Community-maintained summaries, curated highlights, nested replies, and separate conversation threads remain deferred. Discussion filters organize one flat discussion.
 
 ## Before a public pilot
 

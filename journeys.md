@@ -8,17 +8,17 @@ These journeys cover only the reduced first version in [requirements.md](require
 - V1-J02: As a visitor, I can search feedback and filter it by category or status before deciding whether to post.
 - V1-J03: As a visitor, I can open a shared link to a post, comment, or official response and understand its context.
 
-## Share an experience
+## Contribute to feedback
 
-- V1-J04: As a community member, I can sign in with Discord and submit a title, my experience, one category, and an optional desired improvement without supplying bug-report metadata.
-- V1-J05: As a community member, I can edit my own post or ordinary comment, with previous versions accessible in its history unless moderation restricts them.
-- V1-J06: As a community member, I can add or remove one "I've experienced this" confirmation on a post.
-- V1-J07: As a community member, I can add a flat comment describing a supporting or different experience, an idea, or a question.
-- V1-J08: As a visitor, I can read the full chronological discussion, including disagreements and earlier official responses.
+- V1-J04: As a community member, I can sign in with Discord and submit a title, my feedback, one category, and an optional suggested improvement without supplying bug-report metadata.
+- V1-J05: As a community member, I can edit my own post or ordinary comment, with an Edited indicator and protection against conflicting edits, without retaining previous text.
+- V1-J06: As a community member, I can choose, change, or remove one Agree / Disagree reaction on a post, with separate counts and no effect on visibility or ranking.
+- V1-J07: As a community member, I can explicitly choose Context or example, Different view, Suggestion, or Question, see guidance for that choice, and add a flat contribution displaying its type.
+- V1-J08: As a visitor, I can read All contributions chronologically or filter by Context, Different views, Suggestions, Questions, or Team responses, including results beyond the first page.
 
 ## Follow the outcome
 
-- V1-J09: As a visitor, I can see the current status and latest visible official response without reading the entire discussion, and distinguish planned, delivered, declined, and explanation-only outcomes.
+- V1-J09: As a visitor, I can distinguish the author's proposal, current status, and latest visible official response without reading the entire discussion, see when acknowledgement is still pending, and distinguish planned, delivered, declined, and explanation-only outcomes.
 - V1-J10: As a community member, I automatically follow my new posts and can follow or unfollow any post.
 - V1-J11: As a follower, I can receive an in-platform notification for an official response and any accompanying status change, open the response directly, and mark the notification as read.
 
@@ -26,7 +26,7 @@ These journeys cover only the reduced first version in [requirements.md](require
 
 - V1-J12: As a community manager, I can work through New posts oldest first and filter the queue by category or status.
 - V1-J13: As a community manager, I can find posts where players have added comments since the latest official response, without personal read tracking or assignments.
-- V1-J14: As a community manager, I can correct a post's category with the change recorded in its history.
+- V1-J14: As a community manager, I can correct a post's category with the actor, time, and previous category recorded in a category-change audit.
 - V1-J15: As a community manager, I can explicitly publish an official response that appears above the discussion, including a focused question when I need more examples. I can also participate through ordinary comments without an official badge.
 - V1-J16: As a community manager, I can change a post's status with an accompanying official explanation, revisit any outcome, and leave discussion open. Earlier responses and status changes remain accessible; a correction uses a new official response.
 
@@ -44,9 +44,9 @@ These journeys cover only the reduced first version in [requirements.md](require
 
 ## Pilot walkthrough
 
-1. A player follows a link from Discord, searches existing feedback, and signs in with Discord to submit an experience if it is not already represented.
-2. Another player confirms the experience; a third adds a comment explaining a different experience.
-3. A CM finds the post in the New queue and publishes an official response, changing its status if appropriate.
+1. A player follows a link from Discord, searches existing feedback, and signs in with Discord to submit feedback if it is not already represented.
+2. Other players explicitly choose types to add context, a different view, a suggestion, and a question. Readers filter these contributions; optional Agree / Disagree reactions remain secondary.
+3. A CM finds the post in the New queue and explicitly publishes an official response, changing its status if appropriate. The proposal, status, and featured team response remain distinct while readers filter the discussion, including Team responses.
 4. The author and other followers receive one notification for the official update.
 5. New player comments after that response bring the post into the CM follow-up filter.
 6. The CM records the outcome with an explanation, distinguishing a planned or delivered change from a declined change or an explanation-only answer.

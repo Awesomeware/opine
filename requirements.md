@@ -2,9 +2,9 @@
 
 ## Product goal
 
-Give player feedback a durable home where other players can add their experiences, community managers can respond, and participants can follow the outcome.
+Give game feedback a durable home where players can contribute context, different views, suggestions, and questions; community managers can acknowledge and respond; and participants can follow the outcome.
 
-The first version must work without volunteer curation. Its core loop is: submit feedback → discuss and react → receive an official response → follow the outcome.
+The first version must work without volunteer curation. Its core loop is: submit feedback → add structured contributions → receive an official response → follow the outcome. The proposal, community contributions, and team position must remain easy to distinguish. Agree / Disagree reactions are a secondary signal.
 
 This is the first-release boundary, replacing the broader draft. `V1-` identifiers belong to this reduced scope. Deferred features are not prerequisites for release.
 
@@ -26,18 +26,29 @@ This is the first-release boundary, replacing the broader draft. `V1-` identifie
 
 ## Feedback and discussion
 
-- V1-F05: Each feedback post shall contain a title, experience description, optional desired improvement, one category, author, creation time, and current status. New posts shall start as New.
-- V1-F06: Each member shall be able to add, change, or remove one Agree or Disagree reaction per post, including their own posts. Display separate counts for the two reactions, never a combined score. Reactions shall not affect ranking, visibility, account reputation, or moderation. There shall be no comment reactions. Both reactions may invite an optional, independent comment.
-- V1-F07: Members shall be able to add flat comments containing supporting experiences, different experiences, suggestions, or questions. Comments shall not require a contribution type or support nested replies. Plain text with links is sufficient; attachments and a rich text editor are outside v1.
-- V1-F08: A post's discussion shall display all permitted comments and official responses in chronological order, with author and publication time. Comment volume shall not affect a post's placement in feedback lists.
+- V1-F05: Each feedback post shall contain a title, feedback description, optional suggested improvement, one category, author, creation time, and current status. New posts shall start as New.
+- V1-F06: Each member shall be able to add, change, or remove one Agree or Disagree reaction per post, including their own posts. Display separate counts for the two reactions, never a combined score. Reactions shall not affect ranking, visibility, account reputation, or moderation. There shall be no comment reactions. Both reactions may invite an optional, independent typed contribution. A reaction does not determine the contribution type, and contributing does not require reacting.
+- V1-F07: Members shall explicitly choose one contribution type before submitting an ordinary comment: Context or example, Different view, Suggestion, or Question. The selected type shall guide the composer prompt and be displayed on the contribution. Types describe the purpose of the contribution, not its sentiment or official status. Discussion remains flat, without nested replies. Plain text with links is sufficient; attachments and a rich text editor are outside v1.
+- V1-F08: A post's discussion shall offer All, Context, Different views, Suggestions, Questions, and Team responses filters. All includes every permitted ordinary contribution and official response. Type filters select ordinary contributions by their declared type; Team responses selects only explicitly official responses. Each view shall preserve chronological order and load bounded pages across the full matching discussion, not just filter already-loaded items. Display author, publication time, and contribution type or official badge. These are views of one discussion, not separate conversation threads. Comment volume shall not affect a post's placement in feedback lists.
 - V1-F09: Authors shall be able to edit their own posts and ordinary comments. Edits shall display an edited indicator and retain only current content, the last edit time, and a version number for conflict detection. Original text and intermediate revisions shall not be retained. Unchanged submissions shall not count as edits. Authors may edit post text, but not its category or status. Existing comments and reactions remain attached after edits.
 - V1-F10: Posts, comments, and official responses shall have stable direct links suitable for sharing in Discord.
-- V1-F11: Feedback pages shall display the current feedback, the latest official response when present, and the full discussion in that order. No summary, highlights, or separate discussion views are required.
+- V1-F11: Feedback pages shall display the current feedback, the latest official response when present, and the full discussion in that order. The team response shall be visually distinct from both the proposal and ordinary contributions, with the current status prominent. If no official response exists, say so; New means awaiting initial review, not acknowledged. Discussion filters shall not hide the featured response or current status. Summaries and curated highlights are outside v1.
+
+### Contribution types
+
+Each new ordinary contribution requires an explicit choice; there is no preselected catch-all type. Members choose the main purpose when a contribution covers more than one point. The type is independent of post category, status, and Agree / Disagree reactions. Official responses use a separate CM action, not a fifth selectable member type.
+
+| Type               | Purpose                                                   | Composer guidance                                                   |
+| ------------------ | --------------------------------------------------------- | ------------------------------------------------------------------- |
+| Context or example | Add relevant details, observations, or concrete examples. | What context or example would help others understand this feedback? |
+| Different view     | Offer a contrasting viewpoint, concern, or tradeoff.      | What do you see differently, and why?                               |
+| Suggestion         | Propose a change, alternative, or refinement.             | What would you suggest, and how would it help?                      |
+| Question           | Ask for clarification or information.                     | What would you like clarified or answered?                          |
 
 ## Official responses and outcomes
 
 - V1-F12: Publishing an official response shall be an explicit community-manager action. Ordinary comments from privileged accounts shall not automatically carry an official badge.
-- V1-F13: Official responses shall display a distinct team badge and publication time. The latest response shall appear automatically above the discussion; earlier responses shall remain accessible in the discussion. Corrections shall use a new official response, preserving the earlier record unless moderation restricts it.
+- V1-F13: Official responses shall display a distinct team badge and publication time. The latest response shall appear automatically above the discussion; earlier responses shall remain accessible in All and Team responses. Corrections shall use a new official response, preserving the earlier record unless moderation restricts it.
 - V1-F14: Feedback shall use the following statuses:
 
 | Status      | Meaning                                                                                  |
@@ -49,12 +60,12 @@ This is the first-release boundary, replacing the broader draft. `V1-` identifie
 | Not planned | The team has decided not to pursue a change at present, with an explanation.             |
 | Answered    | The feedback is resolved through an explanation; no implementation decision is needed.   |
 
-- V1-F15: A community manager shall be able to publish an official response with an optional status change. Every status change shall accompany an official response explaining it and retain the previous status, new status, representative, and time. Publishing a response alone shall not automatically change the status.
+- V1-F15: A community manager shall be able to publish an official response with an optional status change. Every status change shall accompany an official response explaining it and retain the previous status, new status, representative, and time. Readers shall be able to find the explanation for the current status even if a later official response does not change that status. Publishing a response alone shall not automatically change the status.
 - V1-F16: Community managers shall be able to revisit feedback and change any status. Statuses shall not close discussion or prevent additional reactions.
 
 ## Discovery and the CM work queue
 
-- V1-F17: Public feedback lists shall show newest posts first and support text search of titles and experience descriptions, plus category and status filters. Automatic duplicate suggestions, tags, and popularity rankings are outside v1.
+- V1-F17: Public feedback lists shall show newest posts first and support text search of titles and feedback descriptions, plus category and status filters. Automatic duplicate suggestions, tags, and popularity rankings are outside v1.
 - V1-F18: Community managers shall have a work queue with category and status filters and oldest-first ordering, defaulting to New posts. A follow-up filter shall show posts with ordinary member comments newer than the latest official response, excluding comments from community managers. Posts without an official response belong in the initial-review queue rather than this follow-up filter. This is a shared queue, with no assignment or per-manager read tracking.
 - V1-F19: Community managers shall be able to correct a post's category, recording the actor, time, and previous category in a category-change audit record. This operational audit is separate from author text edits.
 
@@ -75,12 +86,12 @@ This is the first-release boundary, replacing the broader draft. `V1-` identifie
 
 ## Presentation and accessibility
 
-Use [example-simplified.png](example-simplified.png) as the primary visual target. Preserve its centered single-column layout, dark navy surfaces, restrained gold accents, serif headings, readable sans-serif body text, subtle panel borders, and teal treatment for official responses. Place status and counts near the post's primary actions, followed by the latest official response, flat chronological discussion with incremental loading, and a plain comment form.
+Use [example-simplified.png](example-simplified.png) as the primary visual target. Preserve its centered single-column layout, dark navy surfaces, restrained gold accents, serif headings, readable sans-serif body text, subtle panel borders, and teal treatment for official responses. Present the author's proposal first, a prominent status and distinct official-response panel next, and then typed community contributions with discussion filters and incremental loading. Keep Agree / Disagree controls visually secondary to contributing and following the outcome. Use a plain-text composer with an explicit contribution-type choice and a prompt appropriate to that choice.
 
-The image does not expand the feature scope. Replace the pictured "Seeking examples" status with an applicable v1 status such as Reviewing; requests for examples belong in the official response. Navigation shall reflect v1 features; the pictured "Team updates" link does not require a separate updates feed. The pictured EQ: Legends wordmark illustrates community branding; the product identity remains Opine. The earlier [example.png](example.png) is retained as background reference only; its summary, related-feedback panel, tags, discussion tabs, and contribution-type controls remain deferred.
+The image does not expand the feature scope. Replace the pictured "Seeking examples" status with an applicable v1 status such as Reviewing; requests for examples belong in the official response. Navigation shall reflect v1 features; the pictured "Team updates" link does not require a separate updates feed. The pictured EQ: Legends wordmark illustrates community branding; the product identity remains Opine. Use the original [example.png](example.png) as the interaction reference for contribution-type choices, visibly separated official responses, and discussion navigation, adapted to the types and filters specified here. Its community-maintained summary, curated Highlights view, related-feedback panel, and tags remain deferred; restoring discussion filters does not restore those features.
 
 - V1-U01: Use the Opine identity, with an o followed by a pine tree mark, a dark visual direction, restrained gold accents, and distinct official responses. The readable name "Opine" shall remain available to assistive technology and in text contexts.
-- V1-U02: Primary actions shall be Agree / Disagree, following updates, and adding a comment. Reaction labels shall remain visible alongside any icons; disagreement shall not be styled as an error. Discussion guidance shall welcome supporting and differing views.
+- V1-U02: Primary participation actions shall be adding a typed contribution and following updates. Agree / Disagree remains an optional secondary action, with separate counts and visible labels alongside any icons; disagreement shall not be styled as an error. Contribution-type choices and discussion filters shall support keyboard use and clearly indicate selection. Discussion guidance shall welcome supporting and differing views.
 - V1-U03: Ordinary content shall work on desktop and mobile without horizontal scrolling. Primary actions shall support keyboards, accessible names, and visible focus indicators.
 - V1-U04: Text and controls shall meet WCAG 2.2 AA contrast requirements. Status and official-response identification shall not rely on color alone.
 - V1-U05: Forms shall identify invalid fields and preserve entered content after validation errors.
@@ -106,7 +117,7 @@ The image does not expand the feature scope. Replace the pictured "Seeking examp
 These are possible later additions, not a committed roadmap:
 
 - Community curators, separate volunteer moderator permissions, maintained summaries, source-linked summary points, and highlights.
-- Contribution types, nested replies, separate discussion tabs, and manually featured responses.
+- Nested replies, separate conversation threads, and manually featured responses. Typed contributions and discussion filters are included in v1.
 - Tags, automatic similar-post suggestions, related or duplicate links, merged counts, and moving discussions.
 - Formal curation and moderation appeals with dedicated review records and interfaces.
 - Assignments, internal notes, saved queues, analytics, popularity feeds, and per-manager read tracking.
@@ -117,4 +128,4 @@ These are possible later additions, not a committed roadmap:
 
 ## First-release acceptance
 
-A player can find existing feedback or submit feedback, another player can agree or disagree and add a comment, a CM can find and respond to it, and followers can see the response and eventual outcome. This works without a curator. Basic moderation, access controls, accessibility, and a successful backup restoration are part of release readiness.
+A player can find or submit feedback; another player can choose a contribution type and add context, a different view, a suggestion, or a question. Readers can filter those contributions and find official responses without scanning the entire discussion. A CM can acknowledge the feedback and respond with a visible status and explanation, and followers can see the response and eventual outcome. Agree / Disagree remains available without driving ranking or obscuring substantive contributions. This works without a curator. Basic moderation, access controls, accessibility, and a successful backup restoration are part of release readiness.
