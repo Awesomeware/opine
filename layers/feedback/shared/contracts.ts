@@ -1,3 +1,4 @@
+import type { ContributionType } from './contribution-types.ts'
 import type { PostStatus } from './status.ts'
 
 export type FeedbackCategory = { id: string; slug: string; name: string; isActive: boolean }
@@ -26,6 +27,7 @@ export type FeedbackComment = {
   id: string
   postId: string
   body: string
+  type: ContributionType | null
   author: { name: string }
   createdAt: string
   editedAt: string | null

@@ -55,7 +55,7 @@ Follow [layers/feedback/README.md](layers/feedback/README.md). Create the post a
 
 ## Product direction
 
-Follow the revised scope in [requirements.md](requirements.md) and checklist #4a before continuing #5. Ordinary contributions will require Context or example, Different view, Suggestion, or Question, with corresponding prompts, labels, and discussion filters. Keep the author's proposal, official team response, and status distinct; Agree / Disagree is secondary. Filters organize one flat discussion. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred. Distinguish planned behavior from the current implementation in feature documentation.
+Follow the revised scope in [requirements.md](requirements.md). New ordinary contributions require Context or example, Different view, Suggestion, or Question, with corresponding prompts, labels, and discussion filters. Keep the author's proposal, official team response, and status distinct; Agree / Disagree is secondary. Filters organize one flat discussion. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred. Legacy untyped comments remain NULL and display Unspecified; never guess their type. Apply type filters before pagination and resolve direct comment links independently of the selected filter. Omitted type on edit preserves classification. Body-only legacy creates may only replay existing receipts, never create new untyped comments. The prominent official-response/status panel and Team responses filter remain #5. Distinguish planned behavior from the current implementation in feature documentation.
 
 ## Programming guidelines
 

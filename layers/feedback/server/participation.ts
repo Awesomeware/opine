@@ -2,6 +2,7 @@ import { and, asc, count, eq, gt, or, sql } from 'drizzle-orm'
 import { getDatabase } from '../../../server/db/index.ts'
 import { user } from '../../auth/server/schema.ts'
 import type { ReactionKind } from '../shared/contracts.ts'
+import type { ContributionType } from '../shared/contribution-types.ts'
 import type {
   CommentInput,
   CommentEditInput,
@@ -34,11 +35,27 @@ export async function createComment(
     async (transaction) => {
       const [comment] = await transaction
         .insert(feedbackComment)
-        .values({ postId, authorId: actorId, body: input.body })
+        .values({ postId, authorId: actorId, body: input.body, type: input.type })
         .returning({ id: feedbackComment.id, version: feedbackComment.version })
       return comment!
     },
     { env: 'FEEDBACK_COMMENT_MAX', fallback: 10 },
+  )
+}
+// This path can only recover an already committed pre-types write, never create a comment.
+export async function replayLegacyComment(
+  actorId: string,
+  postId: string,
+  input: { body: string },
+  requestId: string,
+) {
+  return feedbackWrite<{ id: string; version: number } | null>(
+    actorId,
+    requestId,
+    'create-comment',
+    { postId, ...input },
+    (transaction) => requirePost(transaction, postId),
+    async () => null,
   )
 }
 export async function editPost(
@@ -128,11 +145,14 @@ export async function editComment(
           409,
           'This comment has changed. Review the latest version before saving.',
         )
-      if (comment.body === input.body) return { id: comment.id, version: comment.version }
+      const type = input.type ?? comment.type
+      if (comment.body === input.body && comment.type === type)
+        return { id: comment.id, version: comment.version }
       const [updated] = await transaction
         .update(feedbackComment)
         .set({
           body: input.body,
+          type,
           version: comment.version + 1,
           editedAt: new Date(),
         })
@@ -180,6 +200,7 @@ function commentFields(viewerId?: string) {
     id: feedbackComment.id,
     postId: feedbackComment.postId,
     body: feedbackComment.body,
+    type: feedbackComment.type,
     createdAt: feedbackComment.createdAt,
     editedAt: feedbackComment.editedAt,
     version: feedbackComment.version,
@@ -200,7 +221,11 @@ export async function getComment(postId: string, commentId: string, viewerId?: s
 }
 export async function listComments(
   postId: string,
-  { cursor, limit = 20 }: { cursor?: PostCursor; limit?: number } = {},
+  {
+    cursor,
+    limit = 20,
+    type,
+  }: { cursor?: PostCursor; limit?: number; type?: ContributionType } = {},
   viewerId?: string,
 ) {
   const posts = await getDatabase()
@@ -215,6 +240,7 @@ export async function listComments(
     .where(
       and(
         eq(feedbackComment.postId, postId),
+        type ? eq(feedbackComment.type, type) : undefined,
         cursor
           ? or(
               gt(feedbackComment.createdAt, new Date(cursor.createdAt)),

@@ -16,14 +16,14 @@ The `server/posts.ts` functions are internal use cases. In particular, `createPo
 Additional endpoints:
 
 - `PATCH /api/feedback/posts/:id` accepts title, description, optional desired improvement, and loaded version. Only the author may edit text; category/status are forbidden.
-- `GET /api/feedback/posts/:id/comments` accepts an opaque cursor and limit (1–50, default 20), returning chronological comments and the next cursor.
+- `GET /api/feedback/posts/:id/comments` accepts optional `type` (`context`, `different_view`, `suggestion`, `question`), an opaque cursor, and limit (1–50, default 20). Type filtering happens before chronological pagination. Omitting type includes legacy unclassified comments.
 - `GET /api/feedback/posts/:id/comments/:commentId` resolves a direct comment link without loading preceding pages.
-- `POST /api/feedback/posts/:id/comments` accepts body text, at most 10,000 characters.
-- `PATCH /api/feedback/posts/:id/comments/:commentId` accepts body and loaded version; only its author may edit it.
+- `POST /api/feedback/posts/:id/comments` requires body text, at most 10,000 characters, and one of the four contribution types.
+- `PATCH /api/feedback/posts/:id/comments/:commentId` accepts body, loaded version, and optional type; only its author may edit it. Omitted type preserves the current value, including legacy NULL; explicit NULL is rejected.
 - `GET /api/feedback/posts/:id/reactions` returns separate agree/disagree counts and the current viewer's choice.
 - `PUT /api/feedback/posts/:id/reactions` accepts `kind: 'agree' | 'disagree' | null`, explicitly setting or removing the member's reaction.
 
-All writes require a member session, the configured origin, and a UUID idempotency key. Viewer-aware reads are `no-store`; public projections expose `canEdit` rather than user IDs. Input validators live in `shared/participation-input.ts`. HTTP entrypoints use `server/http.ts`; use cases in `server/participation.ts` enforce ownership. `server/writes.ts` owns the common transaction and receipt logic.
+All writes require a member session, the configured origin, and a UUID idempotency key. Viewer-aware reads are `no-store`; public projections expose `canEdit` rather than user IDs. Input validators live in `shared/participation-input.ts`; `shared/contribution-types.ts` owns type values, labels, and prompts. The page uses `?contribution=<type>` for its filter and a separate `comment` query parameter for a direct link. A linked contribution outside the selected filter is resolved independently and labelled accordingly. HTTP entrypoints use `server/http.ts`; use cases in `server/participation.ts` enforce ownership. `server/writes.ts` owns the common transaction and receipt logic.
 
 ## Persistence and concurrency
 
@@ -31,15 +31,19 @@ Creation inserts the post and its author follow in one transaction. Category sel
 
 Author and category references use restrictive deletion. Removing authentication credentials or a session does not remove posts. Post and comment authors use restrictive foreign keys. A user record with contributions cannot be physically deleted until an explicit retention/anonymization workflow is implemented. Disabling a category preserves its existing posts. Posts with comments cannot be physically deleted. Removable follows and reactions cascade on post/user deletion; private write receipts cascade on user deletion. No public delete operation exists in this step.
 
-Pagination orders by `(created_at DESC, id DESC)` and fetches one extra row to determine whether another page exists. Feedback timestamps use millisecond precision to match JavaScript dates exactly; cursor serialization must not discard stored timestamp precision. Reset the cursor when filters change. Public list/detail responses explicitly select public fields rather than serializing user rows.
+Post pagination orders by `(created_at DESC, id DESC)` and fetches one extra row to determine whether another page exists. Feedback timestamps use millisecond precision to match JavaScript dates exactly; cursor serialization must not discard stored timestamp precision. Reset the cursor when filters change. Public list/detail responses explicitly select public fields rather than serializing user rows.
+
+Comment pagination orders by `(created_at ASC, id ASC)`, with type filtering applied before the limit. Migration `0003_contribution_types.sql` leaves existing comments unclassified (NULL), displayed as Unspecified. New submissions must select a type; do not infer one from old text.
 
 Write receipts use `(actor_id, request_id)` as their primary key. An actor row lock serializes concurrent requests; mutation and receipt commit atomically. Authorization precedes replay, replay precedes rate and version checks, and changed input with an existing key conflicts. Receipt hashes include operation and target. Results contain resource IDs/versions only; never retain previous text. Keep receipts until an explicit retention decision, since expiring them weakens retry guarantees.
 
-Edits compare the loaded version before changing current content. Actual changes increment the version and set `edited_at`; no-op saves leave both unchanged. There are no revision tables. Author edits never change category/status. Comments, reactions, and edit limits count persisted requests and survive restarts. Reaction counts do not affect feedback ordering.
+Body-only pre-upgrade create requests have a replay-only path: authenticate, authorize, and recover a matching receipt, or reject the missing type. This path must never insert a new untyped contribution. New receipt fingerprints include type; edit omission remains distinct from an explicit type selection.
+
+Edits compare the loaded version before changing current content. Actual text or type changes increment the version and set `edited_at`; no-op saves leave both unchanged. There are no revision tables. Author edits never change category/status. Comments, reactions, and edit limits count persisted requests and survive restarts. Reaction counts do not affect feedback ordering.
 
 ## Planned and deferred behavior
 
-The next checklist step, #4a, introduces required member contribution types (Context or example, Different view, Suggestion, Question), type-specific composer guidance, displayed labels, and filters over the full chronological discussion. Current comments remain untyped until that work is implemented. Team responses joins the filters in #5; official responses must remain an explicit CM operation, not a member contribution type. Keep the proposal, prominent status, and featured official response distinct, and keep Agree / Disagree secondary. See [requirements](../../requirements.md) for the agreed product scope. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred.
+Required contribution types, tailored composer guidance, labels, and full-discussion type filters are implemented. Team responses joins the filters in #5; official responses must remain an explicit CM operation, not a member contribution type. The prominent status and featured official-response panel also arrive in #5. Keep the proposal distinct and Agree / Disagree secondary. See [requirements](../../requirements.md) for the agreed product scope. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred.
 
 The author follow is persisted now; follow/unfollow controls and notifications arrive in TODO #5. Status changes and official responses arrive in #5. Moderation and account anonymization must be implemented before the public pilot. Never infer moderation or official-response authority from the administrator role.
 

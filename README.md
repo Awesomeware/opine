@@ -35,7 +35,7 @@ If pnpm is not installed, bootstrap the pinned version with `npm install --globa
 
 Install Docker Engine (or Docker Desktop) with Docker Compose before starting PostgreSQL. Compose runs PostgreSQL 18, waits for its healthcheck, and exposes it only on `127.0.0.1:5432`. The credentials in `.env.example` and `compose.yaml` are for local development only. If port 5432 is occupied, change `POSTGRES_PORT` in `.env` and the port in `DATABASE_URL` together.
 
-Configure the Discord application and authentication secrets using [Authentication and access](docs/authentication.md), then open <http://localhost:3000>. The homepage opens the public feedback feed. Sign in to submit feedback, comment, react with Agree / Disagree, and edit your own text. Share public post and comment links. See [Feedback](docs/feedback.md) for category configuration and the current schema. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
+Configure the Discord application and authentication secrets using [Authentication and access](docs/authentication.md), then open <http://localhost:3000>. The homepage opens the public feedback feed. Sign in to submit feedback, contribute context, a different view, a suggestion, or a question, react with Agree / Disagree, and edit your own text. Filter the discussion by contribution type. Share public post and comment links. See [Feedback](docs/feedback.md) for category configuration and the current schema. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
 
 The server creates a shared database connection pool on first use and closes it during Nitro shutdown. It reads `DATABASE_URL` only on the server. The page and liveness endpoint can still run without a database; readiness and database-backed features require one. Authentication requires the configured Discord credentials and Better Auth secret. Local `.env` files are ignored by Git.
 
@@ -79,7 +79,7 @@ On Linux, use `pnpm exec playwright install --with-deps chromium` if browser sys
 
 ## Database migrations
 
-Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The committed migrations create authentication, session, rate-limit, role, category, post, follow, comment, reaction, and write-receipt tables. A fresh installation starts with a General feedback category. Later features extend this history.
+Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The committed migrations create authentication, session, rate-limit, role, category, post, follow, comment, reaction, and write-receipt tables. A fresh installation starts with a General feedback category. The contribution-type migration preserves older comments as Unspecified instead of guessing their classification. Later features extend this history.
 
 For each schema change:
 
@@ -133,4 +133,4 @@ The tree includes planned feature locations; no empty feature layers are require
 - [Layout and styling reference](example-simplified.png)
 - [Interaction reference](example.png) — contribution types, official-response separation, and discussion navigation; see requirements for the included parts.
 
-The agreed first version centers on feedback proposals, typed contributions with discussion filters, prominent official responses and status, and following the outcome. Agree / Disagree reactions remain secondary. Contribution types and filters are the next implementation step (#4a); the official response loop follows in #5. Summaries and curated highlights remain deferred. See the requirements for release boundaries.
+The agreed first version centers on feedback proposals, typed contributions with discussion filters, prominent official responses and status, and following the outcome. Agree / Disagree reactions remain secondary. Contribution types and filters are implemented; the prominent official-response/status panel and Team responses filter follow in #5. Summaries and curated highlights remain deferred. See the requirements for release boundaries.

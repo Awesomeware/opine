@@ -41,13 +41,13 @@ Work through these steps individually. Each step should include its schema chang
 
 The participation foundation in #4 is implemented. These additions restore the agreed structure before completing #5.
 
-- [ ] Require an explicit choice of Context or example, Different view, Suggestion, or Question for new ordinary contributions.
-- [ ] Show type-specific composer guidance and display the chosen type on each contribution.
-- [ ] Add All, Context, Different views, Suggestions, and Questions filters with chronological, bounded pagination over all matching contributions.
-- [ ] Preserve stable contribution links and context when switching filters.
-- [ ] Keep Agree / Disagree visually secondary to contributing and following the outcome; preserve separate counts and existing reaction behavior.
-- [ ] Define compatibility for existing untyped comments without losing content or inventing an author's chosen type.
-- [ ] Test required type selection, validation, filtering beyond the first page, direct links, and existing-comment compatibility.
+- [x] Require an explicit choice of Context or example, Different view, Suggestion, or Question for new ordinary contributions.
+- [x] Show type-specific composer guidance and display the chosen type on each contribution.
+- [x] Add All, Context, Different views, Suggestions, and Questions filters with chronological, bounded pagination over all matching contributions.
+- [x] Preserve stable contribution links and context when switching filters.
+- [x] Keep Agree / Disagree visually secondary to contributing and following the outcome; preserve separate counts and existing reaction behavior.
+- [x] Define compatibility for existing untyped comments without losing content or inventing an author's chosen type.
+- [x] Test required type selection, validation, filtering beyond the first page, direct links, and existing-comment compatibility.
 
 ## 5. Make the team response and outcome explicit
 

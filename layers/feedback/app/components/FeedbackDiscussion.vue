@@ -5,6 +5,13 @@ import type {
   FeedbackReactions,
   ReactionKind,
 } from '../../shared/contracts'
+import {
+  contributionTypes,
+  contributionLabels,
+  contributionFilterLabels,
+  isContributionType,
+  type ContributionType,
+} from '../../shared/contribution-types'
 import { validateCommentInput } from '../../shared/participation-input'
 import { authClient } from '../../../auth/app/auth-client'
 import { useFeedbackWrite, feedbackWriteError } from '../composables/useFeedbackWrite'
@@ -22,6 +29,12 @@ const reactionError = ref('')
 const reacting = ref(false)
 const explain = ref(false)
 const body = ref('')
+const type = ref<ContributionType | ''>('')
+const filter = computed(() =>
+  isContributionType(route.query.contribution) ? route.query.contribution : undefined,
+)
+let commentsRequest = 0
+let targetRequest = 0
 const busy = ref(false)
 const message = ref('')
 const fieldErrors = ref<Record<string, string>>({})
@@ -37,17 +50,27 @@ onBeforeUnmount(() => {
 })
 if (props.owner) {
   try {
-    body.value = sessionStorage.getItem(draftKey) ?? ''
+    const saved = sessionStorage.getItem(draftKey) ?? ''
+    body.value = saved
+    try {
+      const draft = JSON.parse(saved)
+      if (draft && typeof draft.body === 'string') {
+        body.value = draft.body
+        type.value = isContributionType(draft.type) ? draft.type : ''
+      }
+    } catch {
+      /* Earlier drafts were stored as plain text. */
+    }
   } catch {
     message.value = 'Your comment draft could not be restored.'
   }
 }
 watch(
-  body,
+  [body, type],
   () => {
     if (!props.owner) return
     try {
-      sessionStorage.setItem(draftKey, body.value)
+      sessionStorage.setItem(draftKey, JSON.stringify({ body: body.value, type: type.value }))
     } catch {
       message.value = 'Your comment cannot be saved in this browser. Keep this page open.'
     }
@@ -55,24 +78,31 @@ watch(
   { flush: 'sync' },
 )
 async function loadComments(more = false) {
-  if (loading.value) return
+  if (more && loading.value) return
+  const request = ++commentsRequest
+  const selected = filter.value
   loading.value = true
   error.value = ''
   try {
     const page = await $fetch<FeedbackCommentsPage>(`${endpoint}/comments`, {
-      query: more && nextCursor.value ? { cursor: nextCursor.value } : {},
+      query: {
+        ...(selected ? { type: selected } : {}),
+        ...(more && nextCursor.value ? { cursor: nextCursor.value } : {}),
+      },
     })
-    if (!active) return
+    if (!active || request !== commentsRequest) return
     comments.value = more ? [...comments.value, ...page.comments] : page.comments
     nextCursor.value = page.nextCursor
     loaded.value = true
   } catch {
-    if (active) error.value = 'Unable to load comments. Please retry.'
+    if (active && request === commentsRequest)
+      error.value = 'Unable to load comments. Please retry.'
   } finally {
-    loading.value = false
+    if (request === commentsRequest) loading.value = false
   }
 }
 async function loadTarget() {
+  const request = ++targetRequest
   target.value = null
   const id = route.query.comment
   if (typeof id !== 'string') return
@@ -80,12 +110,12 @@ async function loadTarget() {
     const response = await $fetch<{ comment: FeedbackComment }>(
       `${endpoint}/comments/${encodeURIComponent(id)}`,
     )
-    if (!active || route.query.comment !== id) return
+    if (!active || request !== targetRequest || route.query.comment !== id) return
     target.value = response.comment
     await nextTick()
     document.getElementById(`comment-${id}`)?.scrollIntoView({ block: 'center' })
   } catch {
-    if (active && route.query.comment === id)
+    if (active && request === targetRequest && route.query.comment === id)
       error.value = 'The linked comment could not be loaded.'
   }
 }
@@ -143,18 +173,31 @@ async function signIn() {
     message.value = 'Unable to start sign-in. Please try again.'
   }
 }
+const legacyPending = computed(() => {
+  const pending = commentWrite.pendingBody.value
+  return pending && typeof pending === 'object' && 'body' in pending && !('type' in pending)
+    ? (pending as { body: string })
+    : null
+})
+if (legacyPending.value && !body.value) body.value = legacyPending.value.body
+async function retryLegacyComment() {
+  if (legacyPending.value) await sendComment(legacyPending.value, true)
+}
 async function submitComment() {
-  if (busy.value || !props.owner) return
+  if (busy.value || !props.owner || legacyPending.value) return
   fieldErrors.value = {}
-  const parsed = validateCommentInput({ body: body.value })
+  const parsed = validateCommentInput({ body: body.value, type: type.value })
   if (!parsed.success) {
     fieldErrors.value = parsed.fieldErrors
     message.value = 'Please check the highlighted field.'
     return
   }
+  await sendComment(parsed.data)
+}
+async function sendComment(payload: { body: string; type?: ContributionType }, legacy = false) {
+  if (busy.value || !props.owner) return
   busy.value = true
   message.value = ''
-  const payload = parsed.data
   try {
     const result = await $fetch<{ id: string }>(`${endpoint}/comments`, {
       method: 'POST',
@@ -164,18 +207,34 @@ async function submitComment() {
     })
     if (!active) return
     commentWrite.complete()
-    body.value = ''
-    try {
-      sessionStorage.removeItem(draftKey)
-    } catch {
-      /* Submitted successfully. */
+    const preservesNewerDraft =
+      legacy && (body.value.trim() !== payload.body.trim() || !!type.value)
+    if (preservesNewerDraft) {
+      message.value =
+        'Your earlier submission was recovered. Your newer draft is still in the form.'
+    } else {
+      body.value = ''
+      type.value = ''
+      try {
+        sessionStorage.removeItem(draftKey)
+      } catch {
+        /* Submitted successfully. */
+      }
     }
-    await navigateTo(`/feedback/${props.postId}?comment=${result.id}#comment-${result.id}`)
+    await navigateTo({
+      path: `/feedback/${props.postId}`,
+      query: { ...route.query, comment: result.id },
+      hash: `#comment-${result.id}`,
+    })
     await loadComments()
     await loadTarget()
   } catch (failure) {
     if (active) {
-      message.value = feedbackWriteError(failure)
+      if (legacy && (failure as { statusCode?: number }).statusCode === 400) {
+        commentWrite.complete()
+        message.value =
+          'The earlier submission was not saved. Choose a contribution type and submit your preserved draft.'
+      } else message.value = feedbackWriteError(failure)
       expired.value = (failure as { statusCode?: number }).statusCode === 401
     }
   } finally {
@@ -196,6 +255,15 @@ const visibleComments = computed(() =>
     ? [target.value, ...comments.value]
     : comments.value,
 )
+async function selectFilter(value?: ContributionType) {
+  await navigateTo({ query: { ...route.query, contribution: value }, hash: route.hash })
+}
+watch(filter, () => {
+  comments.value = []
+  nextCursor.value = null
+  loaded.value = false
+  void loadComments()
+})
 watch(() => route.query.comment, loadTarget)
 onMounted(async () => {
   await Promise.all([loadComments(), loadReactions()])
@@ -203,8 +271,7 @@ onMounted(async () => {
 })
 </script>
 <template>
-  <section class="participation" aria-labelledby="reactions-heading">
-    <h2 id="reactions-heading">What do you think?</h2>
+  <section class="reaction-summary" aria-label="Reactions">
     <div v-if="reactions" class="reaction-actions">
       <button
         type="button"
@@ -239,7 +306,19 @@ onMounted(async () => {
     </p>
   </section>
   <section class="participation" aria-labelledby="comments-heading">
-    <h2 id="comments-heading">Comments</h2>
+    <h2 id="comments-heading">Community contributions</h2>
+    <nav class="discussion-filters" aria-label="Filter contributions">
+      <button type="button" :aria-pressed="!filter" @click="selectFilter()">All</button>
+      <button
+        v-for="kind in contributionTypes"
+        :key="kind"
+        type="button"
+        :aria-pressed="filter === kind"
+        @click="selectFilter(kind)"
+      >
+        {{ contributionFilterLabels[kind] }}
+      </button>
+    </nav>
     <p class="field-help">
       Oldest comments first. Keep replies constructive and focused on the feedback.
     </p>
@@ -247,7 +326,9 @@ onMounted(async () => {
       {{ error }} <button type="button" @click="retryComments">Retry comments</button>
     </p>
     <p v-if="loading">Loading comments…</p>
-    <p v-else-if="loaded && !visibleComments.length">No comments yet.</p>
+    <p v-else-if="loaded && !comments.length">
+      {{ filter ? 'No contributions of this type yet.' : 'No contributions yet.' }}
+    </p>
     <article
       v-for="comment in visibleComments"
       :id="`comment-${comment.id}`"
@@ -259,7 +340,18 @@ onMounted(async () => {
         v-if="target?.id === comment.id && !comments.some((item) => item.id === comment.id)"
         class="field-help"
       >
-        Linked comment · outside the current page
+        Linked comment ·
+        {{
+          filter && comment.type !== filter
+            ? 'outside the selected filter'
+            : 'outside the current page'
+        }}
+      </p>
+      <p class="contribution-label">
+        {{ comment.type ? contributionLabels[comment.type] : 'Unspecified' }}
+      </p>
+      <p v-if="!comment.type" class="field-help">
+        This comment was posted before contribution types were introduced.
       </p>
       <p class="byline">
         <strong>{{ comment.author.name }}</strong> ·
@@ -273,13 +365,19 @@ onMounted(async () => {
         :owner="owner"
         :endpoint="`${endpoint}/comments/${comment.id}`"
         :body="comment.body"
+        :type="comment.type"
         :version="comment.version"
         @saved="savedComment"
         @cancel="editing = null"
       />
       <FeedbackText v-else :text="comment.body" />
       <div class="comment-actions">
-        <NuxtLink :to="`/feedback/${postId}?comment=${comment.id}#comment-${comment.id}`"
+        <NuxtLink
+          :to="{
+            path: `/feedback/${postId}`,
+            query: { ...route.query, comment: comment.id },
+            hash: `#comment-${comment.id}`,
+          }"
           >Comment link</NuxtLink
         ><button
           v-if="comment.canEdit && owner && editing !== comment.id"
@@ -302,10 +400,22 @@ onMounted(async () => {
       novalidate
       @submit.prevent="submitComment"
     >
+      <p v-if="legacyPending" role="status">
+        An earlier submission is awaiting confirmation. Recover it before creating another comment.
+        <button type="button" :disabled="busy" @click="retryLegacyComment">
+          Recover earlier submission
+        </button>
+      </p>
+      <FeedbackContributionType
+        v-model="type"
+        name="new-contribution-type"
+        :disabled="busy || !!legacyPending"
+        :error="fieldErrors.type"
+      />
       <div class="field">
         <label for="new-comment">Add a comment</label
         ><textarea
-          :readonly="busy"
+          :readonly="busy || !!legacyPending"
           id="new-comment"
           ref="commentInput"
           v-model="body"
@@ -320,12 +430,29 @@ onMounted(async () => {
       <p class="field-help">
         Your comment and display name will be public. Drafts stay in this browser tab.
       </p>
-      <button type="submit" :disabled="busy">{{ busy ? 'Submitting…' : 'Submit comment' }}</button>
+      <button type="submit" :disabled="busy || !!legacyPending">
+        {{ busy ? 'Submitting…' : 'Submit comment' }}
+      </button>
     </form>
     <p v-else><button type="button" @click="signIn">Sign in with Discord to participate</button></p>
   </section>
 </template>
 <style scoped>
+.reaction-summary {
+  margin-top: 1.5rem;
+}
+.discussion-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.discussion-filters [aria-pressed='true'] {
+  outline: 2px solid currentColor;
+}
+.contribution-label {
+  font-weight: 700;
+}
 .participation {
   margin-top: 2.5rem;
   border-top: 1px solid var(--border, #ddd);

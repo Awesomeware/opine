@@ -1,10 +1,11 @@
 import { validatePostInput, type PostInput } from './post-input.ts'
+import { isContributionType, type ContributionType } from './contribution-types.ts'
 import type { ReactionKind } from './contracts.ts'
 
 export const commentLimit = 10_000
 export type PostEditInput = Omit<PostInput, 'categoryId'> & { version: number }
-export type CommentInput = { body: string }
-export type CommentEditInput = CommentInput & { version: number }
+export type CommentInput = { body: string; type: ContributionType }
+export type CommentEditInput = { body: string; type?: ContributionType; version: number }
 type Validation<T> =
   | { success: true; data: T }
   | { success: false; fieldErrors: Record<string, string> }
@@ -22,7 +23,8 @@ function validVersion(version: unknown): version is number {
     version < 2147483647
   )
 }
-export function validateCommentInput(input: unknown): Validation<CommentInput> {
+// The old body-only shape remains valid for receipt recovery and edits that preserve type.
+export function validateLegacyCommentInput(input: unknown): Validation<{ body: string }> {
   const value = fields(input, ['body'])
   if (!value)
     return { success: false, fieldErrors: { form: 'The comment contains unexpected fields.' } }
@@ -34,11 +36,26 @@ export function validateCommentInput(input: unknown): Validation<CommentInput> {
     }
   return { success: true, data: { body } }
 }
+export function validateCommentInput(input: unknown): Validation<CommentInput> {
+  const value = fields(input, ['body', 'type'])
+  if (!value)
+    return { success: false, fieldErrors: { form: 'The comment contains unexpected fields.' } }
+  const parsed = validateLegacyCommentInput({ body: value.body })
+  const fieldErrors = parsed.success ? {} : parsed.fieldErrors
+  if (!isContributionType(value.type))
+    return { success: false, fieldErrors: { ...fieldErrors, type: 'Choose a contribution type.' } }
+  return parsed.success
+    ? { success: true, data: { body: parsed.data.body, type: value.type } }
+    : parsed
+}
 export function validateCommentEditInput(input: unknown): Validation<CommentEditInput> {
-  const value = fields(input, ['body', 'version'])
+  const value = fields(input, ['body', 'type', 'version'])
   if (!value || !validVersion(value.version))
     return { success: false, fieldErrors: { form: 'A valid comment version is required.' } }
-  const parsed = validateCommentInput({ body: value.body })
+  const parsed =
+    'type' in value
+      ? validateCommentInput({ body: value.body, type: value.type })
+      : validateLegacyCommentInput({ body: value.body })
   return parsed.success
     ? { success: true, data: { ...parsed.data, version: value.version } }
     : parsed

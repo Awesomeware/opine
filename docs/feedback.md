@@ -1,16 +1,14 @@
 # Feedback: schema and local use
 
-The feedback layer provides public browsing, stable links, authenticated submission, comments, reactions, and author editing. The interface follows the simplified visual reference with dark navy surfaces, gold accents, serif headings, and a centered responsive layout. Typed contributions and discussion filters are agreed next work in checklist #4a; official responses, follow controls, and notifications remain in #5.
+The feedback layer provides public browsing, stable links, authenticated submission, typed contributions, discussion filters, reactions, and author editing. The interface uses dark navy surfaces, gold accents, serif headings, and a centered responsive layout. Official responses, follow controls, and notifications remain in checklist #5.
 
-## Agreed next scope
+## Structured participation
 
-The current implementation still has untyped flat comments. The [requirements](../requirements.md) and [checklist](TODO.md) now include these additions to v1:
+Each new ordinary contribution requires an explicit choice of **Context or example**, **Different view**, **Suggestion**, or **Question**. The choice changes the composer prompt and appears as a label beside the saved contribution. Discussion filters select **All**, **Context**, **Different views**, **Suggestions**, or **Questions** from one chronological discussion. Agree / Disagree remains secondary, with separate counts.
 
-- An explicit choice of **Context or example**, **Different view**, **Suggestion**, or **Question** for each new ordinary contribution, with an appropriate composer prompt and a visible type label.
-- Discussion filters for **All**, **Context**, **Different views**, **Suggestions**, **Questions**, and **Team responses**. These select from one flat discussion, with chronological pagination across all matching entries. Team responses will arrive with the official-response workflow in #5.
-- A page centered on the author's proposal, prominent current status and latest official response, then community contributions. The team position stays visible while filtering; Agree / Disagree remains a secondary action with separate counts.
+Existing comments retain their text, identity, timestamps, and versions. Migration `0003_contribution_types.sql` adds a nullable type without assigning a guessed classification. These comments display **Unspecified**, appear under All, and remain accessible through their direct links. Their authors can assign a type when editing.
 
-Community-maintained summaries and curated highlights remain deferred, as do nested replies and separate conversation threads. The existing schema and endpoints below describe implemented behavior; this scope adjustment does not yet add contribution types or official responses to them.
+The [requirements](../requirements.md) and [checklist](TODO.md) reserve the prominent status and official-response panel, plus the **Team responses** filter, for #5. Community-maintained summaries, curated highlights, nested replies, and separate conversation threads remain deferred.
 
 ## Try it locally
 
@@ -52,11 +50,11 @@ Authentication remains in [the auth schema](../layers/auth/server/schema.ts). Fe
 
 Additional participation tables:
 
-| Table                    | Columns                                                                                               | Constraints                                                                                          |
-| ------------------------ | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `feedback_comment`       | UUID `id`, `post_id`; text `author_id`, `body`; integer `version`; nullable `edited_at`; `created_at` | Author/post references restrict deletion; body required, at most 10,000 characters; positive version |
-| `feedback_reaction`      | UUID `post_id`; text `user_id`; enum `kind` (`agree`, `disagree`); `created_at`, `updated_at`         | Composite primary key `(post_id, user_id)`; removable on post/user deletion                          |
-| `feedback_write_receipt` | text `actor_id`, `operation`, `request_hash`; UUID `request_id`; JSON `result`; `created_at`          | Composite primary key `(actor_id, request_id)`; removed on user deletion; no content text in results |
+| Table                    | Columns                                                                                                                     | Constraints                                                                                                                            |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `feedback_comment`       | UUID `id`, `post_id`; text `author_id`, `body`; nullable enum `type`; integer `version`; nullable `edited_at`; `created_at` | Author/post references restrict deletion; body required, at most 10,000 characters; positive version; type required on new submissions |
+| `feedback_reaction`      | UUID `post_id`; text `user_id`; enum `kind` (`agree`, `disagree`); `created_at`, `updated_at`                               | Composite primary key `(post_id, user_id)`; removable on post/user deletion                                                            |
+| `feedback_write_receipt` | text `actor_id`, `operation`, `request_hash`; UUID `request_id`; JSON `result`; `created_at`                                | Composite primary key `(actor_id, request_id)`; removed on user deletion; no content text in results                                   |
 
 Creating feedback inserts the post and the author's follow in one transaction. The follow controls and notifications are deferred to #5; the initial subscription is already durable.
 
@@ -72,17 +70,19 @@ Public responses expose the author's current display name. They omit email, sess
 
 ## Discussion and reactions
 
-Comments are flat, public, chronological, and loaded in batches of 20 (maximum 50). Comment links use `/feedback/<post-id>?comment=<comment-id>#comment-<comment-id>`; a linked comment outside the loaded page is fetched directly and shown separately. Plain text is escaped; HTTP/HTTPS URLs become links without permitting active markup.
+Contributions are flat, public, chronological, and loaded in batches of 20 (maximum 50). Types are `context`, `different_view`, `suggestion`, and `question`. The server applies type filters before pagination; changing the filter starts a new page sequence. The page stores the selected filter in `?contribution=<type>`, so reload and browser navigation preserve it. Comment links use `/feedback/<post-id>?comment=<comment-id>#comment-<comment-id>`; the independent `comment` parameter resolves a linked comment even outside the loaded page or selected type filter. That entry is shown separately with an explanation, without changing the filter. Plain text is escaped; HTTP/HTTPS URLs become links without permitting active markup.
 
 Each signed-in member may select Agree or Disagree, change their choice, or select it again to remove it. Authors may react to their own posts. Counts remain separate, with no score, ranking, visibility, or reputation effect. Neither choice implies following a post. An optional “Add a comment” action focuses the normal comment form; reactions and comments remain independent.
 
 ## Editing and safe retries
 
-Authors may edit their own post text and ordinary comments. Post category and status are excluded. An actual change replaces the current text, increments `version`, and sets `edited_at`; unchanged text does not mark an edit. There are no original-content copies or revision tables. Existing reactions and comments remain attached after edits.
+Authors may edit their own post text and ordinary comments. Post category and status are excluded. A text or contribution-type change increments `version` and sets `edited_at`; an unchanged save does neither. Authors may change their contribution type. Omitting type from a comment edit preserves the existing classification, including NULL on legacy comments; explicitly clearing it is rejected. There are no original-content copies or revision tables. Existing reactions and comments remain attached after edits.
 
 Edit requests include the loaded version. A mismatch returns 409 and preserves the draft. The interface requires loading and reviewing the latest saved content before retrying an edit against its new version.
 
 Every feedback write requires a UUID `Idempotency-Key` header. The browser saves the key with its pending request before sending. Successful changes and receipts commit atomically. Replaying the same actor/key and normalized operation/input returns the original result before checking quotas or edit versions; different input with the same key returns 409. Current authorization is still enforced. Receipts contain only a fingerprint and IDs/version result, not old content, and currently have no expiry. The browser uses a new key when the intended input changes. Pending reactions use an explicit retry button so an uncertain add does not turn into a removal.
+
+A body-only POST from before contribution types were introduced can replay an existing matching successful receipt. It cannot create a new untyped comment. If no receipt exists, the server requires a type; the browser preserves the draft and asks the author to choose one. Type is part of the fingerprint for new submissions and explicit type edits.
 
 ## Posting limits
 
@@ -100,6 +100,6 @@ pnpm test:integration
 pnpm test:e2e
 ```
 
-The feedback integration suite verifies atomic creation and rollback, author privacy, deletion restrictions, category configuration, search, pagination, concurrent limits, reaction switching/removal, retry deduplication, and edit conflicts. The browser suite covers publication, draft preservation, public sharing, filters, pagination, validation, mobile layout, comments, reactions, conflict review, and retries after a lost response.
+The feedback integration suite verifies atomic creation and rollback, author privacy, deletion restrictions, category configuration, search, pagination, concurrent limits, reaction switching/removal, retry deduplication, and edit conflicts. It also checks typed filtering before pagination, tied timestamps, legacy links, type-only edits, and pre-upgrade receipt recovery. An upgrade test creates a temporary database in the same suite container, applies migrations through #4, seeds an untyped comment and receipt, then verifies the contribution-type migration preserves both. It does not start another container. The browser suite covers publication, draft preservation, public sharing, filters, pagination, validation, mobile layout, comments, reactions, conflict review, and retries after a lost response.
 
 The browser runner then stops the first app process, restarts the same PostgreSQL container, and starts a fresh app process at the same origin. A second phase opens the exact saved public link and verifies the original session and follow, edited content and versions, reactions, comment links, and write receipts. Both phases belong to one logical suite and share one database container; temporary session fixtures are deleted after the suite.

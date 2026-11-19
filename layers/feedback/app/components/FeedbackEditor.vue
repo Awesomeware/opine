@@ -2,11 +2,17 @@
 import { useFeedbackWrite, feedbackWriteError } from '../composables/useFeedbackWrite'
 import { authClient } from '../../../auth/app/auth-client'
 import { validatePostEditInput, validateCommentEditInput } from '../../shared/participation-input'
+import {
+  contributionLabels,
+  isContributionType,
+  type ContributionType,
+} from '../../shared/contribution-types'
 import { postLimits } from '../../shared/post-input'
 const props = defineProps<{
   owner: string
   endpoint: string
   version: number
+  type?: ContributionType | null
   body?: string
   title?: string
   description?: string
@@ -20,8 +26,10 @@ const form = reactive({
   description: props.description ?? '',
   desiredImprovement: props.desiredImprovement ?? '',
   body: props.body ?? '',
+  type: (props.type ?? '') as ContributionType | '',
   version: props.version,
 })
+const baselineType = ref<ContributionType | ''>(props.type ?? '')
 const write = useFeedbackWrite(`edit.${props.owner}.${props.endpoint}`)
 const busy = ref(false)
 const message = ref('')
@@ -50,6 +58,7 @@ try {
   if (saved && typeof saved.version === 'number') {
     for (const key of ['title', 'description', 'desiredImprovement', 'body'] as const)
       if (typeof saved[key] === 'string') form[key] = saved[key]
+    if (isContributionType(saved.type)) form.type = saved.type
     form.version = saved.version
   }
 } catch {
@@ -70,6 +79,8 @@ async function save() {
   if (busy.value || conflict.value) return
   message.value = ''
   fieldErrors.value = {}
+  const pending = write.pendingBody.value as { type?: ContributionType } | null
+  const includeType = form.type && (form.type !== baselineType.value || pending?.type === form.type)
   const input = isPost
     ? {
         title: form.title,
@@ -77,7 +88,11 @@ async function save() {
         desiredImprovement: form.desiredImprovement || null,
         version: form.version,
       }
-    : { body: form.body, version: form.version }
+    : {
+        body: form.body,
+        version: form.version,
+        ...(includeType ? { type: form.type } : {}),
+      }
   const parsed = isPost ? validatePostEditInput(input) : validateCommentEditInput(input)
   if (!parsed.success) {
     fieldErrors.value = parsed.fieldErrors
@@ -124,6 +139,7 @@ async function loadLatest() {
 }
 function acceptLatest() {
   if (!latest.value) return
+  baselineType.value = latest.value.type ?? ''
   form.version = latest.value.version
   conflict.value = false
   latest.value = null
@@ -176,19 +192,28 @@ function acceptLatest() {
           :maxlength="postLimits.desiredImprovement"
         /></div
     ></template>
-    <div v-else class="field">
-      <label :for="`${endpoint}-body`">Edit comment</label
-      ><textarea
-        :readonly="busy"
-        :id="`${endpoint}-body`"
-        v-model="form.body"
-        :aria-invalid="!!fieldErrors.body"
-        :aria-describedby="fieldErrors.body ? `${endpoint}-body-error` : undefined"
-        required
-        rows="4"
-        maxlength="10000"
+    <template v-else>
+      <FeedbackContributionType
+        v-model="form.type"
+        :name="`${endpoint}-type`"
+        :disabled="busy"
+        :legacy="!props.type"
+        :error="fieldErrors.type"
       />
-    </div>
+      <div class="field">
+        <label :for="`${endpoint}-body`">Edit comment</label
+        ><textarea
+          :readonly="busy"
+          :id="`${endpoint}-body`"
+          v-model="form.body"
+          :aria-invalid="!!fieldErrors.body"
+          :aria-describedby="fieldErrors.body ? `${endpoint}-body-error` : undefined"
+          required
+          rows="4"
+          maxlength="10000"
+        />
+      </div>
+    </template>
     <p
       v-for="(error, field) in fieldErrors"
       :id="`${endpoint}-${field}-error`"
@@ -206,9 +231,10 @@ function acceptLatest() {
           ><FeedbackText :text="latest.description" /><FeedbackText
             v-if="latest.desiredImprovement"
             :text="latest.desiredImprovement" /></template
-        ><FeedbackText v-else :text="latest.body" /><button type="button" @click="acceptLatest">
-          I’ve reviewed the latest version
-        </button>
+        ><template v-else
+          ><p>{{ latest.type ? contributionLabels[latest.type] : 'Unspecified' }}</p>
+          <FeedbackText :text="latest.body" /></template
+        ><button type="button" @click="acceptLatest">I’ve reviewed the latest version</button>
       </div>
     </div>
     <div class="form-actions">

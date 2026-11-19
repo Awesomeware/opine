@@ -13,6 +13,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 import { user } from '../../auth/server/schema.ts'
+import { contributionTypes } from '../shared/contribution-types.ts'
 import { postStatuses } from '../shared/status.ts'
 
 export const feedbackCategory = pgTable(
@@ -102,6 +103,8 @@ export const feedbackFollow = pgTable(
   ],
 )
 
+export const feedbackContributionType = pgEnum('feedback_contribution_type', contributionTypes)
+
 export const feedbackComment = pgTable(
   'feedback_comment',
   {
@@ -113,6 +116,7 @@ export const feedbackComment = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'restrict' }),
     body: text('body').notNull(),
+    type: feedbackContributionType('type'),
     version: integer('version').notNull().default(1),
     editedAt: timestamp('edited_at', { withTimezone: true, precision: 3 }),
     createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
@@ -124,6 +128,12 @@ export const feedbackComment = pgTable(
     ),
     check('feedback_comment_version_positive', sql`${table.version} > 0`),
     index('feedback_comment_chronological_idx').on(table.postId, table.createdAt, table.id),
+    index('feedback_comment_type_chronological_idx').on(
+      table.postId,
+      table.type,
+      table.createdAt,
+      table.id,
+    ),
     index('feedback_comment_author_idx').on(table.authorId),
   ],
 )

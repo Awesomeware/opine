@@ -156,7 +156,7 @@ test('participation endpoints enforce ownership, validate writes, and replay com
     expect(JSON.stringify(publicPost)).not.toContain(author.user.email)
 
     const commentKey = randomUUID()
-    const data = { body: 'I prefer a subtle visual indicator.' }
+    const data = { body: 'I prefer a subtle visual indicator.', type: 'suggestion' }
     const results = await Promise.all(
       [0, 1].map(() =>
         request.post(`${base}/comments`, {
@@ -172,7 +172,7 @@ test('participation endpoints enforce ownership, validate writes, and replay com
       (
         await request.post(`${base}/comments`, {
           headers: headers(member.cookieHeader, commentKey),
-          data: { body: 'Different input' },
+          data: { body: 'Different input', type: 'suggestion' },
         })
       ).status(),
     ).toBe(409)
@@ -373,9 +373,11 @@ test('members react, discuss, and review conflicting edits before saving', async
     await page.getByRole('button', { name: /^Agree 0$/ }).click()
     await page.getByRole('button', { name: 'Add a comment', exact: true }).click()
     await expect(page.getByLabel('Add a comment', { exact: true })).toBeFocused()
+    await page.getByRole('radio', { name: 'Context or example', exact: true }).check()
     await page.getByLabel('Add a comment', { exact: true }).fill(originalComment)
     await page.reload()
     await expect(page.getByLabel('Add a comment', { exact: true })).toHaveValue(originalComment)
+    await expect(page.getByRole('radio', { name: 'Context or example', exact: true })).toBeChecked()
     page.on('request', (sent) => {
       if (sent.method() === 'POST' && new URL(sent.url()).pathname === `${base}/comments`)
         commentRequestKey = sent.headers()['idempotency-key']

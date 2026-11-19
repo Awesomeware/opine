@@ -96,13 +96,14 @@ test('edited content, reactions, comment links, and write receipts survive resta
         cookie: `${saved.cookie.name}=${saved.cookie.value}`,
         'Idempotency-Key': saved.commentRequestKey,
       },
-      data: { body: saved.originalComment },
+      data: { body: saved.originalComment, type: 'context' },
     })
     expect(retry.status()).toBe(201)
     expect((await retry.json()).id).toBe(saved.commentId)
     const comment = (await (await request.get(`${base}/comments/${saved.commentId}`)).json())
       .comment
     expect(comment.body).toBe(saved.commentBody)
+    expect(comment.type).toBe('context')
     expect(comment.version).toBe(2)
     expect(
       await getDatabase()

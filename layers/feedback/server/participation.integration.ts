@@ -122,7 +122,12 @@ test('a failed comment write leaves no mutation or receipt and can be retried wi
     )
     try {
       await assert.rejects(
-        createComment(commenter.user.id, post.id, { body: 'Please clarify the map.' }, requestId),
+        createComment(
+          commenter.user.id,
+          post.id,
+          { body: 'Please clarify the map.', type: 'question' as const },
+          requestId,
+        ),
       )
       assert.equal((await database.select().from(feedbackComment)).length, 0)
       assert.equal((await database.select().from(feedbackWriteReceipt)).length, 0)
@@ -135,7 +140,7 @@ test('a failed comment write leaves no mutation or receipt and can be retried wi
   const result = await createComment(
     commenter.user.id,
     post.id,
-    { body: 'Please clarify the map.' },
+    { body: 'Please clarify the map.', type: 'question' as const },
     requestId,
   )
   assert.ok(await getComment(post.id, result.id))
@@ -145,14 +150,19 @@ test('a failed comment write leaves no mutation or receipt and can be retried wi
 test('comments deduplicate concurrent retries, reject reused keys, and enforce a shared concurrent allowance', async () => {
   const { commenter, post } = await discussion()
   const requestId = randomUUID()
-  const input = { body: 'Please clarify the map.' }
+  const input = { body: 'Please clarify the map.', type: 'question' as const }
   const replies = await Promise.all(
     Array.from({ length: 4 }, () => createComment(commenter.user.id, post.id, input, requestId)),
   )
   for (const reply of replies) assert.deepEqual(reply, replies[0])
   assert.equal((await getDatabase().select().from(feedbackComment)).length, 1)
   await assert.rejects(
-    createComment(commenter.user.id, post.id, { body: 'Different comment' }, requestId),
+    createComment(
+      commenter.user.id,
+      post.id,
+      { body: 'Different comment', type: 'question' },
+      requestId,
+    ),
     status(409),
   )
   const maximum = Number(process.env.FEEDBACK_COMMENT_MAX ?? 10)
@@ -216,7 +226,7 @@ test('comment edits enforce ownership and versions without retaining original te
   const created = await createComment(
     commenter.user.id,
     post.id,
-    { body: 'Original comment' },
+    { body: 'Original comment', type: 'context' },
     randomUUID(),
   )
   const unchanged = { body: 'Original comment', version: 1 }

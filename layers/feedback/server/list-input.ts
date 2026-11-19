@@ -1,3 +1,4 @@
+import { isContributionType, type ContributionType } from '../shared/contribution-types.ts'
 import { isUuid } from '../shared/post-input.ts'
 import { isPostStatus, type PostStatus } from '../shared/status.ts'
 
@@ -71,5 +72,27 @@ export function parseListInput(
   return {
     success: true,
     data: { q: q || undefined, category: category || undefined, status, cursor, limit },
+  }
+}
+
+export function parseCommentListInput(
+  query: Record<string, unknown>,
+):
+  | { success: true; data: { cursor?: PostCursor; limit: number; type?: ContributionType } }
+  | { success: false; message: string } {
+  if (Object.keys(query).some((key) => !['cursor', 'limit', 'type'].includes(key)))
+    return { success: false, message: 'Invalid discussion filters.' }
+  const { type, ...pagination } = query
+  if ('type' in query && !isContributionType(type))
+    return { success: false, message: 'Invalid contribution type.' }
+  const parsed = parseListInput(pagination)
+  if (!parsed.success) return parsed
+  return {
+    success: true,
+    data: {
+      cursor: parsed.data.cursor,
+      limit: parsed.data.limit,
+      ...(isContributionType(type) ? { type } : {}),
+    },
   }
 }
