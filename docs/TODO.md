@@ -32,9 +32,9 @@ Work through these steps individually. Each step should include its schema chang
 ## 4. Add participation
 
 - [ ] Implement flat comments.
-- [ ] Implement adding and removing an "I've experienced this" confirmation.
-- [ ] Enforce one confirmation per user per post with database constraints.
-- [ ] Add author editing with revision history.
+- [ ] Implement adding, changing, and removing Agree / Disagree reactions.
+- [ ] Enforce one reaction per user per post with database constraints.
+- [ ] Add author editing with an Edited indicator and no retained text history.
 - [ ] Handle retried writes and conflicting edits.
 
 ## 5. Complete the CM response loop
