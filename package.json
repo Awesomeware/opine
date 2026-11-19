@@ -13,6 +13,7 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "typecheck": "nuxt typecheck",
+    "test": "node --test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:check": "drizzle-kit check"
