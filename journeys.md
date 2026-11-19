@@ -1,70 +1,54 @@
-# User journeys
+# Opine — first-version user journeys
+
+These journeys cover only the reduced first version in [requirements.md](requirements.md). `V1-` identifiers replace the broader draft's journey identifiers.
 
 ## Discover feedback
 
-- J-01: As a visitor, I can browse feedback posts without signing in.
-- J-02: As a visitor, I can search feedback posts by words or phrases.
-- J-03: As a visitor, I can filter feedback by category, tags, and status.
-- J-04: As a visitor, I can browse Recent, Most experienced, Seeking player input, and Team responded views.
-- J-05: As a visitor, I can open related feedback from a feedback post.
+- V1-J01: As a visitor, I can browse recent feedback and read posts, comments, and official responses without signing in.
+- V1-J02: As a visitor, I can search feedback and filter it by category or status before deciding whether to post.
+- V1-J03: As a visitor, I can open a shared link to a post, comment, or official response and understand its context.
 
-## Share feedback
+## Share an experience
 
-- J-06: As a community member, I can sign in and manage my public display name and avatar.
-- J-07: As a community member, I can create a feedback post with a title, an experience, and an optional desired improvement.
-- J-08: As a community member, I can assign a category and tags to my feedback post.
-- J-09: As a community member, I can review similar posts before publishing my feedback.
-- J-10: As a community member, I can edit my own feedback while preserving its edit history.
-- J-11: As a community member, I can mark a post with "I've experienced this" and optionally add my own example.
-- J-12: As a community member, I can remove my experience confirmation.
-- J-13: As a community member, I can follow or unfollow a feedback post.
-- J-14: As a community member, I can receive notifications about team responses and status changes on followed posts.
+- V1-J04: As a community member, I can sign in with Discord and submit a title, my experience, one category, and an optional desired improvement without supplying bug-report metadata.
+- V1-J05: As a community member, I can edit my own post or ordinary comment, with previous versions accessible in its history unless moderation restricts them.
+- V1-J06: As a community member, I can add or remove one "I've experienced this" confirmation on a post.
+- V1-J07: As a community member, I can add a flat comment describing a supporting or different experience, an idea, or a question.
+- V1-J08: As a visitor, I can read the full chronological discussion, including disagreements and earlier official responses.
 
-## Contribute to discussion
+## Follow the outcome
 
-- J-15: As a community member, I can respond with a "Shared experience".
-- J-16: As a community member, I can respond with a "Different experience".
-- J-17: As a community member, I can respond with a "Suggestion".
-- J-18: As a community member, I can respond with a "Discussion" comment.
-- J-19: As a community member, I can reply to an existing contribution while retaining its context.
-- J-20: As a community member, I can edit my own contributions while preserving their edit history.
-- J-21: As a visitor, I can switch between Highlights, All discussion, and Team replies.
-- J-22: As a visitor, I can open a direct link to an individual contribution.
+- V1-J09: As a visitor, I can see the current status and latest visible official response without reading the entire discussion, and distinguish planned, delivered, declined, and explanation-only outcomes.
+- V1-J10: As a community member, I automatically follow my new posts and can follow or unfollow any post.
+- V1-J11: As a follower, I can receive an in-platform notification for an official response and any accompanying status change, open the response directly, and mark the notification as read.
 
-## Understand feedback
+## Manage and respond to feedback
 
-- J-23: As a visitor, I can read a summary of the concern, differing perspectives, ideas raised, and open questions.
-- J-24: As a visitor, I can open the contributions supporting each summary point.
-- J-25: As a visitor, I can see who updated a summary and review its edit history.
-- J-26: As a visitor, I can see the current status and the latest featured team response.
-- J-27: As a community member, I can request a correction to a summary or a review of a curation decision.
-
-## Curate feedback
-
-- J-28: As a community curator, I can maintain a feedback summary without changing the original author's post.
-- J-29: As a community curator, I can link summary points to their supporting contributions.
-- J-30: As a community curator, I can add or remove discussion highlights with a recorded reason.
-- J-31: As a community curator, I can correct categories and tags.
-- J-32: As a community curator, I can link related or duplicate posts while preserving their original content.
-- J-33: As a community curator, I can move a tangent into a linked discussion while preserving its authorship and context.
-- J-34: As a community curator, I can request more examples from participants without speaking on behalf of the team.
-- J-35: As a community curator, I can review correction requests and record the outcome.
-
-## Respond as the team
-
-- J-36: As a team representative, I can review summaries and highlighted contributions before reading the full discussion.
-- J-37: As a team representative, I can publish an official response and feature it on the feedback page.
-- J-38: As a team representative, I can change a feedback post's status with an explanation.
-- J-39: As a team representative, I can ask a focused question and mark feedback as seeking examples.
-- J-40: As a team representative, I can explain a decision to pursue, defer, or decline a proposed change.
-- J-41: As a team representative, I can revisit an answered post when new information emerges.
+- V1-J12: As a community manager, I can work through New posts oldest first and filter the queue by category or status.
+- V1-J13: As a community manager, I can find posts where players have added comments since the latest official response, without personal read tracking or assignments.
+- V1-J14: As a community manager, I can correct a post's category with the change recorded in its history.
+- V1-J15: As a community manager, I can explicitly publish an official response that appears above the discussion, including a focused question when I need more examples. I can also participate through ordinary comments without an official badge.
+- V1-J16: As a community manager, I can change a post's status with an accompanying official explanation, revisit any outcome, and leave discussion open. Earlier responses and status changes remain accessible; a correction uses a new official response.
 
 ## Moderate and administer
 
-- J-42: As a community member, I can report content that violates published community rules.
-- J-43: As a moderator, I can review reported content and record a moderation decision with a reason.
-- J-44: As a moderator, I can hide rule-breaking content or restrict an account's participation.
-- J-45: As a community member, I can request a review of moderation affecting my content or account.
-- J-46: As an administrator, I can assign and revoke community curator, team representative, and moderator roles.
-- J-47: As an administrator, I can manage categories, tags, and community rules.
-- J-48: As an administrator, I can configure the platform's name, branding, and community links.
+- V1-J17: As a community member, I can read community rules and privately report a post, comment, or official response with a reason.
+- V1-J18: As a community manager, I can review reports, record their outcomes, hide or restore content, and suspend or restore participation, with moderation reasons recorded.
+- V1-J19: As an affected member, I can read the reason for a moderation action and find an external contact to request review, including while my participation is suspended.
+- V1-J20: As an administrator, I can grant and revoke privileged roles without automatically making my own contributions official.
+- V1-J21: As an administrator, I can configure the installation's name, categories, rules, community link, and moderation-review contact through the documented configuration mechanism.
+
+## Operate an independent installation
+
+- V1-J22: As an operator, I can install and upgrade Opine for one community, back up its data and configuration, and verify restoration using the documentation.
+
+## Pilot walkthrough
+
+1. A player follows a link from Discord, searches existing feedback, and signs in with Discord to submit an experience if it is not already represented.
+2. Another player confirms the experience; a third adds a comment explaining a different experience.
+3. A CM finds the post in the New queue and publishes an official response, changing its status if appropriate.
+4. The author and other followers receive one notification for the official update.
+5. New player comments after that response bring the post into the CM follow-up filter.
+6. The CM records the outcome with an explanation, distinguishing a planned or delivered change from a declined change or an explanation-only answer.
+
+The walkthrough requires no curator, summary, duplicate merge, or Discord bot integration. Removed workflows are listed under "Explicitly deferred" in the requirements and are not first-release acceptance criteria.
