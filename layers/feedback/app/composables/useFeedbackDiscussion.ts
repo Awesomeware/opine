@@ -103,8 +103,7 @@ export function useFeedbackDiscussion(postId: string) {
   }
 
   async function retryComments() {
-    await loadComments()
-    await loadTarget()
+    await Promise.all([loadComments(), loadTarget()])
   }
   const visibleEntries = computed(() => {
     const result = [...entries.value]
@@ -133,9 +132,10 @@ export function useFeedbackDiscussion(postId: string) {
     void loadComments()
   })
 
-  watch(() => [route.query.comment, route.query.response], loadTarget)
+  // Only permalink changes resolve the target; filters keep the loaded target.
+  watch([() => route.query.comment, () => route.query.response], loadTarget, { immediate: true })
 
-  onMounted(retryComments)
+  onMounted(() => loadComments())
 
   return {
     entries,

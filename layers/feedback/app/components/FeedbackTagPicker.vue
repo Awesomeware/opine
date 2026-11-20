@@ -79,14 +79,6 @@ label {
   gap: 6px;
   font-size: 0.9rem;
 }
-input {
-  width: 16px;
-  height: 16px;
-  min-height: 0;
-  padding: 0;
-  margin: 0;
-  accent-color: var(--color-accent);
-}
 .field-error {
   margin-top: 8px;
 }

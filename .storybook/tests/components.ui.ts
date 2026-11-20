@@ -208,3 +208,21 @@ test('public tags render as descriptive labels rather than interactive filters',
   await expect(tags.getByRole('button')).toHaveCount(0)
   await expect(tags.getByRole('link')).toHaveCount(0)
 })
+
+test('shared form defaults keep native checkboxes compact and keyboard usable', async ({
+  page,
+}) => {
+  await page.goto(story('ui-button--default'))
+  await page.evaluate(() => {
+    const label = document.createElement('label')
+    label.innerHTML = '<input type="checkbox"> Needs follow-up'
+    document.body.append(label)
+  })
+  const checkbox = page.getByRole('checkbox', { name: 'Needs follow-up', exact: true })
+  const bounds = await checkbox.boundingBox()
+  expect(bounds!.width).toBeLessThanOrEqual(24)
+  expect(bounds!.height).toBeLessThanOrEqual(24)
+  await checkbox.focus()
+  await page.keyboard.press('Space')
+  await expect(checkbox).toBeChecked()
+})

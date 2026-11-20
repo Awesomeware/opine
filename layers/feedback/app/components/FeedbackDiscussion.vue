@@ -120,7 +120,7 @@ defineExpose({ refresh: retryComments, focusComposer })
       ref="composer"
       :post-id="postId"
       :owner="owner"
-      :refresh="retryComments"
+      :refresh="loadComments"
     />
   </section>
 </template>

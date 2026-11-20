@@ -63,7 +63,7 @@ p {
   font-weight: 600;
   font-size: 0.95rem;
 }
-input,
+input:not([type='checkbox']):not([type='radio']),
 select,
 textarea {
   width: 100%;
@@ -73,6 +73,13 @@ textarea {
   background: var(--color-control);
   color: var(--color-text);
   min-height: 46px;
+}
+input[type='checkbox'],
+input[type='radio'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-accent);
 }
 input::placeholder,
 textarea::placeholder {

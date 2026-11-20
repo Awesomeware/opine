@@ -64,6 +64,8 @@ layers/feedback/app/components/
 - **Components:** put internal visual rules and responsive behavior in the component's `<style scoped>`. Use props for supported variants, slots for content, and events for interactions. Preserve native attributes and accessible semantics. Parents own placement and spacing between components; avoid styling a child's internals with descendant selectors or `:deep()`.
 - **Features:** feedback-specific labels, contribution types, official responses, API calls, and permissions belong to the feedback layer. Generic UI must not import them. Extract shared UI when there is concrete reuse.
 
+Native checkbox/radio controls have their own restrained defaults; full-width text-field rules must not apply to them. Contribution selectors may keep their intentional overlay styling local.
+
 Scoped styles prevent a component's selectors from leaking outward, but global CSS and inherited properties can still affect it. Keep global defaults restrained and load exactly the same foundations in Storybook and Nuxt.
 
 ## Components

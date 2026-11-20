@@ -100,14 +100,18 @@ async function save() {
         :disabled="busy"
         :error="fieldErrors.tagIds"
       />
+      <p v-if="(tagsPending || tagsError) && fieldErrors.tagIds" class="field-error">
+        {{ fieldErrors.tagIds }}
+      </p>
     </div>
     <p
-      v-for="(error, field) in fieldErrors"
+      v-for="field in ['title', 'description', 'desiredImprovement', 'form']"
       :id="`${endpoint}-${field}-error`"
       :key="field"
+      v-show="fieldErrors[field]"
       class="field-error"
     >
-      {{ error }}
+      {{ fieldErrors[field] }}
     </p>
     <p v-if="latestError" role="alert">{{ latestError }}</p>
     <div v-if="conflict">

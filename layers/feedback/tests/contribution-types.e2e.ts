@@ -227,3 +227,54 @@ test('reviewing a type conflict saves the choice shown in the editor', async ({
     await member.cleanup()
   }
 })
+
+test('posting resolves its permalink once and filters leave the linked target alone', async ({
+  page,
+}) => {
+  const member = await createMember()
+  const category = await createCategory()
+  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  let targetReads = 0
+  page.on('request', (request) => {
+    if (
+      request.method() === 'GET' &&
+      new URL(request.url()).pathname.startsWith(`/api/feedback/posts/${post.id}/comments/`)
+    ) {
+      targetReads++
+    }
+  })
+  try {
+    await page.context().addCookies([member.cookie])
+    await page.goto(`/feedback/${post.id}`)
+    await page.getByRole('radio', { name: 'Context or example', exact: true }).check()
+    await page.getByLabel('Add a comment', { exact: true }).fill('Permalink request regression')
+    const submit = page.getByRole('button', { name: 'Submit comment', exact: true })
+    await submit.click()
+    await expect(page.locator('article.comment')).toContainText('Permalink request regression')
+    await expect(submit).toBeEnabled()
+    expect(targetReads).toBe(1)
+
+    // Query-only navigation must not resolve or scroll to the same target again.
+    await page.evaluate(() => {
+      document.documentElement.dataset.targetScrolls = '0'
+      Element.prototype.scrollIntoView = function () {
+        document.documentElement.dataset.targetScrolls = String(
+          Number(document.documentElement.dataset.targetScrolls) + 1,
+        )
+      }
+    })
+    await page.getByRole('button', { name: 'Questions', exact: true }).click()
+    await expect(page).toHaveURL(/contribution=question/)
+    await expect(
+      page.getByText('No contributions of this type yet.', { exact: true }),
+    ).toBeVisible()
+    await expect(page.locator('article.comment')).toContainText('outside the selected filter')
+    expect(targetReads).toBe(1)
+    expect(await page.locator('html').getAttribute('data-target-scrolls')).toBe('0')
+  } finally {
+    await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
+    await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await member.cleanup()
+  }
+})

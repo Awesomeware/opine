@@ -82,13 +82,6 @@ form {
   min-height: 38px;
   font-size: 0.85rem;
 }
-.available input {
-  width: 16px;
-  height: 16px;
-  min-height: 0;
-  padding: 0;
-  accent-color: var(--color-accent);
-}
 p {
   margin: 12px 0 0;
   font-size: 0.85rem;
