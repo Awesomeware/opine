@@ -26,6 +26,8 @@ The app runs at <http://localhost:3000>. See [README.md](README.md) for setup de
 - `pnpm layer:new <name>` — scaffold a feature layer using the installed Nuxt CLI.
 - `pnpm build` / `pnpm preview` — build for production / preview the build.
 - `pnpm db:generate` / `pnpm db:check` — generate migrations / check migration history.
+- `pnpm db:seed` — apply migrations and add repeatable example feedback without replacing existing content.
+- `pnpm db:reset --confirm <database-name>` — erase all application data and restore the default category; see [reset details](README.md#example-data-and-starting-over). Test resets only against disposable databases.
 - `pnpm db:migrate` — apply migrations to the database configured by `DATABASE_URL`.
 
 ## Architecture

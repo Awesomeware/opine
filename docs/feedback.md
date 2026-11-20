@@ -19,6 +19,8 @@ pnpm db:migrate
 pnpm dev
 ```
 
+For populated discussions immediately, run `pnpm db:seed`. It adds three example posts with typed comments, official responses, reactions, and example followers. Repeated runs preserve existing content. Example people have no credentials or sessions; your own account remains separate. See [example data and reset commands](../README.md#example-data-and-starting-over) for starting over.
+
 Visit <http://localhost:3000/feedback>. The migration creates a **General feedback** category so a fresh installation can accept submissions immediately. Sign in, select **Share feedback**, and choose **Submit feedback** when ready. Copy its link and open it in a private browser window to verify public access.
 
 The submission form keeps a draft in session storage, separately for each signed-in account. It survives a page reload in the same browser tab, but is not synchronized to other devices and is not a server backup. Successful publication clears the saved draft. Validation errors preserve the entered fields. If submission cannot be confirmed after a network failure, retrying the same content uses its saved request key. Comments and edits also keep account-specific drafts in this tab.

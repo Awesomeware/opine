@@ -77,6 +77,28 @@ pnpm test:e2e
 
 On Linux, use `pnpm exec playwright install --with-deps chromium` if browser system dependencies are missing. Testcontainers provisions a fresh PostgreSQL 18 container per logical suite; tests need neither Docker Compose nor a configured development database. Independent suites can run in parallel, with a default limit of two. See [Testing](docs/testing.md) for suite ownership, concurrency, and adding tests.
 
+## Example data and starting over
+
+With PostgreSQL running, add a few populated discussions:
+
+```sh
+pnpm db:seed
+pnpm dev
+```
+
+Open <http://localhost:3000/feedback>. The command applies pending migrations and adds three example posts, comments covering all four contribution types, and official responses with status changes. Repeating it preserves existing posts and any edits to the examples. Example people are labelled `(example)` and have no login credentials; sign in with your own Discord account to participate.
+
+To start over, stop the application and confirm the database name from `DATABASE_URL` (the default local name is `opine`):
+
+```sh
+pnpm db:reset --confirm opine
+pnpm db:seed
+```
+
+**Reset permanently removes all Opine data, including users, sessions, roles, feedback, follows, notifications, and configured categories.** It restores the General feedback category, retaining the migrated schema and migration history. Sign in again and reassign administrator/community-manager roles after resetting. Browser drafts remain in the current tab's session storage; close the tab if you also want to discard those.
+
+Both commands read `.env`; an exported `DATABASE_URL` takes precedence. Check its target before resetting. The confirmation must match the connected database name. Omitting confirmation prints usage and makes no changes. Unrelated tables are left alone; unexpected foreign keys into Opine tables cause reset to fail atomically.
+
 ## Database migrations
 
 Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The committed migrations create authentication, session, rate-limit, role, category, post, follow, comment, reaction, write-receipt, official-response, notification, and category-audit tables. A fresh installation starts with a General feedback category. The contribution-type migration preserves older comments as Unspecified instead of guessing their classification. Later features extend this history.

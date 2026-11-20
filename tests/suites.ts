@@ -4,7 +4,10 @@ import type { TestSuite } from './run-suites.ts'
 // Keep suites cohesive; adding a file does not require adding another suite.
 export const suites: Record<'integration' | 'e2e', TestSuite[]> = {
   integration: [
-    { name: 'database', files: ['server/db/db.integration.ts'] },
+    {
+      name: 'database',
+      files: ['server/db/db.integration.ts', 'server/db/example-data.integration.ts'],
+    },
     { name: 'authentication', files: ['layers/auth/server/auth.integration.ts'] },
     {
       name: 'feedback',
