@@ -4,8 +4,8 @@ import { user, userRole } from '../../auth/server/schema.ts'
 import type { OfficialResponseInput, CategoryCorrectionInput } from '../shared/outcome-input.ts'
 import type { ContributionType } from '../shared/contribution-types.ts'
 import type { PostStatus } from '../shared/status.ts'
-import type { PostCursor } from './list-input.ts'
-import { postTagsField } from './tags.ts'
+import { cursorFor, type PostCursor } from './list-input.ts'
+import { publicPostFields } from './posts.ts'
 import { listComments } from './participation.ts'
 import {
   feedbackCategory,
@@ -27,13 +27,6 @@ const responseFields = {
   createdAt: feedbackOfficialResponse.createdAt,
   previousStatus: feedbackOfficialResponse.previousStatus,
   status: feedbackOfficialResponse.status,
-}
-function cursorFor(row: { id: string; createdAt: Date } | undefined, more: boolean) {
-  return more && row
-    ? Buffer.from(JSON.stringify({ id: row.id, createdAt: row.createdAt.toISOString() })).toString(
-        'base64url',
-      )
-    : null
 }
 async function requireManager(
   actorId: string,
@@ -292,52 +285,59 @@ export async function listDiscussion(
   { cursor, limit = 20, type }: Pagination & { type?: ContributionType | 'team' } = {},
   viewerId?: string,
 ) {
-  // Both sources are bounded before the merge; fetching limit+1 from each is sufficient.
-  const comments =
-    type === 'team'
-      ? []
-      : (await listComments(postId, { cursor, limit: limit + 1, type }, viewerId)).comments
-  if (type === 'team') {
-    const [post] = await getDatabase()
-      .select({ id: feedbackPost.id })
-      .from(feedbackPost)
-      .where(eq(feedbackPost.id, postId))
-    if (!post) throw new FeedbackWriteError(404, 'Feedback not found.')
-  }
-  const t = feedbackOfficialResponse
-  const responses =
-    !type || type === 'team'
-      ? await getDatabase()
-          .select(responseFields)
-          .from(t)
-          .innerJoin(user, eq(user.id, t.authorId))
-          .where(
-            and(
-              eq(t.postId, postId),
-              cursor
-                ? or(
-                    gt(t.createdAt, new Date(cursor.createdAt)),
-                    and(eq(t.createdAt, new Date(cursor.createdAt)), gt(t.id, cursor.id)),
-                  )
-                : undefined,
-            ),
-          )
-          .orderBy(asc(t.createdAt), asc(t.id))
-          .limit(limit + 1)
-      : []
-  const merged = [
-    ...comments.map((comment) => ({ kind: 'comment' as const, comment, row: comment })),
-    ...responses.map((response) => ({ kind: 'response' as const, response, row: response })),
-  ].sort(
-    (a, b) =>
-      a.row.createdAt.getTime() - b.row.createdAt.getTime() || a.row.id.localeCompare(b.row.id),
+  // A cursor must not advance past comments committed between the two source reads.
+  return getDatabase().transaction(
+    async (db) => {
+      // Both sources are bounded before the merge; fetching limit+1 from each is sufficient.
+      const comments =
+        type === 'team'
+          ? []
+          : (await listComments(postId, { cursor, limit: limit + 1, type }, viewerId, db)).comments
+      if (type === 'team') {
+        const [post] = await db
+          .select({ id: feedbackPost.id })
+          .from(feedbackPost)
+          .where(eq(feedbackPost.id, postId))
+        if (!post) throw new FeedbackWriteError(404, 'Feedback not found.')
+      }
+      const t = feedbackOfficialResponse
+      const responses =
+        !type || type === 'team'
+          ? await db
+              .select(responseFields)
+              .from(t)
+              .innerJoin(user, eq(user.id, t.authorId))
+              .where(
+                and(
+                  eq(t.postId, postId),
+                  cursor
+                    ? or(
+                        gt(t.createdAt, new Date(cursor.createdAt)),
+                        and(eq(t.createdAt, new Date(cursor.createdAt)), gt(t.id, cursor.id)),
+                      )
+                    : undefined,
+                ),
+              )
+              .orderBy(asc(t.createdAt), asc(t.id))
+              .limit(limit + 1)
+          : []
+      const merged = [
+        ...comments.map((comment) => ({ kind: 'comment' as const, comment, row: comment })),
+        ...responses.map((response) => ({ kind: 'response' as const, response, row: response })),
+      ].sort(
+        (a, b) =>
+          a.row.createdAt.getTime() - b.row.createdAt.getTime() || a.row.id.localeCompare(b.row.id),
+      )
+      const page = merged.slice(0, limit)
+      return {
+        entries: page.map(({ row: _row, ...entry }) => entry),
+        nextCursor: cursorFor(page.at(-1)?.row, merged.length > limit),
+      }
+    },
+    { isolationLevel: 'repeatable read', accessMode: 'read only' },
   )
-  const page = merged.slice(0, limit)
-  return {
-    entries: page.map(({ row: _row, ...entry }) => entry),
-    nextCursor: cursorFor(page.at(-1)?.row, merged.length > limit),
-  }
 }
+
 export async function listReviewQueue(
   actorId: string,
   {
@@ -352,18 +352,8 @@ export async function listReviewQueue(
   const t = feedbackPost
   const rows = await getDatabase()
     .select({
-      id: t.id,
-      title: t.title,
+      ...publicPostFields,
       excerpt: sql<string>`left(${t.description}, 240)`,
-      tags: postTagsField,
-      status: t.status,
-      createdAt: t.createdAt,
-      author: { name: user.name },
-      category: {
-        id: feedbackCategory.id,
-        slug: feedbackCategory.slug,
-        name: feedbackCategory.name,
-      },
     })
     .from(t)
     .innerJoin(user, eq(user.id, t.authorId))

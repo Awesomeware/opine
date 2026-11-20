@@ -1,21 +1,16 @@
+import {
+  withMigrationDatabase,
+  applyMigrations,
+} from '../../../tests/helpers/migration-database.ts'
 import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
 import { after, afterEach, test } from 'node:test'
-import { fileURLToPath } from 'node:url'
-import { readMigrationFiles } from 'drizzle-orm/migrator'
-import { Client } from 'pg'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
 import { user } from '../../auth/server/schema.ts'
 import { createMember } from '../../auth/tests/fixtures.ts'
 import { createCategory, createFeedbackPost } from '../tests/fixtures.ts'
 import { feedbackCategory, feedbackComment, feedbackPost, feedbackWriteReceipt } from './schema.ts'
-import {
-  createComment,
-  editComment,
-  getComment,
-  listComments,
-  replayLegacyComment,
-} from './participation.ts'
+import { createComment, editComment, getComment, listComments } from './participation.ts'
 import { FeedbackWriteError } from './writes.ts'
 
 const databaseUrl = process.env.OPINE_TEST_DATABASE_URL
@@ -189,26 +184,8 @@ test('typed creates deduplicate and cannot reuse a request key with another cont
 })
 
 test('the contribution migration preserves existing comments and successful untyped write receipts', async () => {
-  // Reuse the suite's container, but keep the pre-upgrade schema in its own database.
-  const name = `opine_upgrade_${randomUUID().replaceAll('-', '')}`
-  const control = new Client({ connectionString: databaseUrl })
-  await control.connect()
-  const isolatedUrl = new URL(databaseUrl)
-  isolatedUrl.pathname = `/${name}`
-  const isolated = new Client({ connectionString: isolatedUrl.toString() })
-  let connected = false
-  let created = false
-  try {
-    await control.query(`create database "${name}"`)
-    created = true
-    await isolated.connect()
-    connected = true
-    const migrations = readMigrationFiles({
-      migrationsFolder: fileURLToPath(new URL('../../../drizzle', import.meta.url)),
-    })
-    assert.ok(migrations.length >= 4)
-    for (const migration of migrations.slice(0, 3))
-      for (const statement of migration.sql) await isolated.query(statement)
+  await withMigrationDatabase(async (isolated) => {
+    await applyMigrations(isolated, 0, 3)
     const actorId = randomUUID()
     const postId = randomUUID()
     const commentId = randomUUID()
@@ -236,7 +213,7 @@ test('the contribution migration preserves existing comments and successful unty
     )
     const beforeComment = (await isolated.query('select * from feedback_comment')).rows[0]
     const beforeReceipt = (await isolated.query('select * from feedback_write_receipt')).rows[0]
-    for (const statement of migrations[3]!.sql) await isolated.query(statement)
+    await applyMigrations(isolated, 3, 4)
     assert.deepEqual((await isolated.query('select * from feedback_comment')).rows[0], {
       ...beforeComment,
       type: null,
@@ -245,46 +222,5 @@ test('the contribution migration preserves existing comments and successful unty
       (await isolated.query('select * from feedback_write_receipt')).rows[0],
       beforeReceipt,
     )
-  } finally {
-    if (connected) await isolated.end()
-    if (created) await control.query(`drop database "${name}"`)
-    await control.end()
-  }
-})
-
-test('pre-upgrade body-only retries replay receipts without allowing new untyped contributions', async () => {
-  const { member, post } = await discussion()
-  const input = { body: 'Already submitted before the upgrade' }
-  const [legacy] = await getDatabase()
-    .insert(feedbackComment)
-    .values({ postId: post.id, authorId: member.user.id, ...input })
-    .returning()
-  assert.ok(legacy)
-  const requestId = randomUUID()
-  const result = { id: legacy.id, version: 1 }
-  const requestHash = createHash('sha256')
-    .update(JSON.stringify({ operation: 'create-comment', input: { postId: post.id, ...input } }))
-    .digest('hex')
-  await getDatabase().insert(feedbackWriteReceipt).values({
-    actorId: member.user.id,
-    requestId,
-    operation: 'create-comment',
-    requestHash,
-    result,
   })
-  assert.deepEqual(await replayLegacyComment(member.user.id, post.id, input, requestId), result)
-  await assert.rejects(
-    replayLegacyComment(member.user.id, post.id, { body: 'Changed old request' }, requestId),
-    conflict,
-  )
-  await assert.rejects(
-    createComment(member.user.id, post.id, { ...input, type: 'context' }, requestId),
-    conflict,
-  )
-  assert.equal(await replayLegacyComment(member.user.id, post.id, input, randomUUID()), null)
-  const other = await createMember()
-  assert.equal(await replayLegacyComment(other.user.id, post.id, input, requestId), null)
-  assert.equal((await getDatabase().select().from(feedbackComment)).length, 1)
-  assert.equal((await getDatabase().select().from(feedbackWriteReceipt)).length, 1)
-  assert.equal((await getComment(post.id, legacy.id))?.type, null)
 })

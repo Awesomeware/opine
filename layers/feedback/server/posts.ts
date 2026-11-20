@@ -3,18 +3,10 @@ import { and, count, desc, eq, gte, ilike, lt, or, sql } from 'drizzle-orm'
 import { getDatabase } from '../../../server/db/index.ts'
 import { user } from '../../auth/server/schema.ts'
 import type { PostInput } from '../shared/post-input.ts'
-import type { ListPostsInput } from './list-input.ts'
-import { feedbackWrite, positiveInteger } from './writes.ts'
+import { cursorFor, type ListPostsInput } from './list-input.ts'
+import { feedbackWrite, positiveInteger, FeedbackWriteError } from './writes.ts'
 import { postTagsField, replacePostTags } from './tags.ts'
 import { feedbackCategory, feedbackFollow, feedbackPost } from './schema.ts'
-
-export class PostingRateLimitError extends Error {
-  retryAfterSeconds: number
-  constructor(seconds: number) {
-    super('Please wait before submitting more feedback.')
-    this.retryAfterSeconds = seconds
-  }
-}
 
 // The caller supplies an authenticated internal user ID and validated input.
 export async function createPost(
@@ -40,7 +32,12 @@ export async function createPost(
             gte(feedbackPost.createdAt, new Date(Date.now() - windowSeconds * 1000)),
           ),
         )
-      if (recent && recent.count >= max) throw new PostingRateLimitError(windowSeconds)
+      if (recent && recent.count >= max)
+        throw new FeedbackWriteError(
+          429,
+          'Please wait before submitting more feedback.',
+          windowSeconds,
+        )
       const [category] = await transaction
         .select({ id: feedbackCategory.id })
         .from(feedbackCategory)
@@ -59,7 +56,7 @@ export async function createPost(
   )
 }
 
-const publicFields = {
+export const publicPostFields = {
   tags: postTagsField,
   id: feedbackPost.id,
   title: feedbackPost.title,
@@ -72,7 +69,7 @@ const publicFields = {
 export async function getPost(id: string, viewerId?: string) {
   const [post] = await getDatabase()
     .select({
-      ...publicFields,
+      ...publicPostFields,
       description: feedbackPost.description,
       desiredImprovement: feedbackPost.desiredImprovement,
       updatedAt: feedbackPost.updatedAt,
@@ -100,7 +97,7 @@ export async function listPosts({
   // Escape LIKE metacharacters so search terms are literal, including % and _.
   const pattern = q ? `%${q.replace(/[\\%_]/g, '\\$&')}%` : undefined
   const posts = await getDatabase()
-    .select({ ...publicFields, excerpt: sql<string>`left(${feedbackPost.description}, 240)` })
+    .select({ ...publicPostFields, excerpt: sql<string>`left(${feedbackPost.description}, 240)` })
     .from(feedbackPost)
     .innerJoin(user, eq(user.id, feedbackPost.authorId))
     .innerJoin(feedbackCategory, eq(feedbackCategory.id, feedbackPost.categoryId))
@@ -129,11 +126,6 @@ export async function listPosts({
   const last = page.at(-1)
   return {
     posts: page,
-    nextCursor:
-      more && last
-        ? Buffer.from(
-            JSON.stringify({ createdAt: last.createdAt.toISOString(), id: last.id }),
-          ).toString('base64url')
-        : null,
+    nextCursor: cursorFor(last, more),
   }
 }

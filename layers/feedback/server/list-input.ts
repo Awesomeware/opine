@@ -3,6 +3,7 @@ import { isUuid } from '../shared/post-input.ts'
 import { isPostStatus, type PostStatus } from '../shared/status.ts'
 
 export type PostCursor = { createdAt: string; id: string }
+
 export type ListPostsInput = {
   q?: string
   category?: string
@@ -33,6 +34,29 @@ export function parseListInput(
   const status = query.status || undefined
   if (status !== undefined && !isPostStatus(status))
     return { success: false, message: 'Invalid status.' }
+  const parsed = parsePaginationInput({
+    ...(query.cursor !== undefined ? { cursor: query.cursor } : {}),
+    ...(query.limit !== undefined ? { limit: query.limit } : {}),
+  })
+  return parsed.success
+    ? {
+        success: true,
+        data: { ...parsed.data, q: q || undefined, category: category || undefined, status },
+      }
+    : parsed
+}
+
+export function parsePaginationInput(
+  query: Record<string, unknown>,
+):
+  | { success: true; data: { cursor?: PostCursor; limit: number } }
+  | { success: false; message: string } {
+  if (
+    Object.keys(query).some(
+      (key) => !['cursor', 'limit'].includes(key) || typeof query[key] !== 'string',
+    )
+  )
+    return { success: false, message: 'Invalid pagination.' }
   const limit = query.limit === undefined ? 20 : Number(query.limit)
   if (
     !Number.isInteger(limit) ||
@@ -69,10 +93,7 @@ export function parseListInput(
       return { success: false, message: 'Invalid page cursor.' }
     }
   }
-  return {
-    success: true,
-    data: { q: q || undefined, category: category || undefined, status, cursor, limit },
-  }
+  return { success: true as const, data: { cursor, limit } }
 }
 
 export function parseCommentListInput(
@@ -85,7 +106,7 @@ export function parseCommentListInput(
   const { type, ...pagination } = query
   if ('type' in query && !isContributionType(type))
     return { success: false, message: 'Invalid contribution type.' }
-  const parsed = parseListInput(pagination)
+  const parsed = parsePaginationInput(pagination)
   if (!parsed.success) return parsed
   return {
     success: true,
@@ -107,6 +128,7 @@ export function parseDiscussionListInput(query: Record<string, unknown>) {
   }
   return parseCommentListInput(query)
 }
+
 export function parseReviewInput(query: Record<string, unknown>) {
   if (
     Object.keys(query).some(
@@ -131,6 +153,7 @@ export function parseReviewInput(query: Record<string, unknown>) {
       }
     : parsed
 }
+
 export function parseNotificationListInput(query: Record<string, unknown>) {
   if (
     Object.keys(query).some((key) => !['unread', 'cursor', 'limit'].includes(key)) ||
@@ -138,11 +161,19 @@ export function parseNotificationListInput(query: Record<string, unknown>) {
   )
     return { success: false as const, message: 'Invalid notification filters.' }
   const { unread, ...rest } = query
-  const parsed = parseListInput(rest)
+  const parsed = parsePaginationInput(rest)
   return parsed.success
     ? {
         success: true as const,
         data: { cursor: parsed.data.cursor, limit: parsed.data.limit, unread: unread === 'true' },
       }
     : parsed
+}
+
+export function cursorFor(row: { id: string; createdAt: Date } | undefined, more: boolean) {
+  return more && row
+    ? Buffer.from(JSON.stringify({ id: row.id, createdAt: row.createdAt.toISOString() })).toString(
+        'base64url',
+      )
+    : null
 }

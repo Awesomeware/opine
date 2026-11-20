@@ -8,7 +8,7 @@ import type {
   CommentEditInput,
   PostEditInput,
 } from '../shared/participation-input.ts'
-import type { PostCursor } from './list-input.ts'
+import { cursorFor, type PostCursor } from './list-input.ts'
 import {
   feedbackComment,
   feedbackOfficialResponse,
@@ -54,22 +54,6 @@ export async function createComment(
       return comment!
     },
     { env: 'FEEDBACK_COMMENT_MAX', fallback: 10 },
-  )
-}
-// This path can only recover an already committed pre-types write, never create a comment.
-export async function replayLegacyComment(
-  actorId: string,
-  postId: string,
-  input: { body: string },
-  requestId: string,
-) {
-  return feedbackWrite<{ id: string; version: number } | null>(
-    actorId,
-    requestId,
-    'create-comment',
-    { postId, ...input },
-    (transaction) => requirePost(transaction, postId),
-    async () => null,
   )
 }
 export async function editPost(
@@ -250,13 +234,14 @@ export async function listComments(
     type,
   }: { cursor?: PostCursor; limit?: number; type?: ContributionType } = {},
   viewerId?: string,
+  database: Pick<FeedbackTransaction, 'select'> = getDatabase(),
 ) {
-  const posts = await getDatabase()
+  const posts = await database
     .select({ id: feedbackPost.id })
     .from(feedbackPost)
     .where(eq(feedbackPost.id, postId))
   if (!posts.length) throw new FeedbackWriteError(404, 'Feedback not found.')
-  const comments = await getDatabase()
+  const comments = await database
     .select(commentFields(viewerId))
     .from(feedbackComment)
     .innerJoin(user, eq(user.id, feedbackComment.authorId))
@@ -281,12 +266,7 @@ export async function listComments(
   const last = page.at(-1)
   return {
     comments: page,
-    nextCursor:
-      comments.length > limit && last
-        ? Buffer.from(
-            JSON.stringify({ createdAt: last.createdAt.toISOString(), id: last.id }),
-          ).toString('base64url')
-        : null,
+    nextCursor: cursorFor(last, comments.length > limit),
   }
 }
 export async function getReactions(postId: string, viewerId?: string) {

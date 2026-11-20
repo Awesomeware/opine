@@ -12,14 +12,16 @@ test('participation input trims content and rejects forged fields, invalid versi
     success: true,
     data: { body: 'Useful feedback', type: 'context' },
   })
-  for (const input of [
-    { body: '' },
-    { body: 'a'.repeat(10001) },
-    { body: 'bad\0text' },
-    { body: 'ok', authorId: 'forged' },
-    null,
-  ])
-    assert.equal(validateCommentInput(input).success, false)
+  for (const body of ['', 'a'.repeat(10001), 'bad\0text']) {
+    const result = validateCommentInput({ body, type: 'context' })
+    assert.equal(result.success, false)
+    if (!result.success) assert.deepEqual(Object.keys(result.fieldErrors), ['body'])
+  }
+  for (const input of [{ body: 'ok', type: 'context', authorId: 'forged' }, null]) {
+    const result = validateCommentInput(input)
+    assert.equal(result.success, false)
+    if (!result.success) assert.ok(result.fieldErrors.form)
+  }
   assert.equal(validateCommentInput({ body: 'a'.repeat(10000), type: 'context' }).success, true)
   for (const version of [0, -1, 1.5, '1', 2147483647, undefined])
     assert.equal(validateCommentEditInput({ body: 'updated', version }).success, false)

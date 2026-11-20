@@ -36,7 +36,6 @@ export type FeedbackComment = {
   version: number
   canEdit: boolean
 }
-export type FeedbackCommentsPage = { comments: FeedbackComment[]; nextCursor: string | null }
 
 export type OfficialResponse = {
   id: string

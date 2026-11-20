@@ -1,10 +1,12 @@
+import { Client } from 'pg'
+import {
+  withMigrationDatabase,
+  applyMigrations,
+} from '../../../tests/helpers/migration-database.ts'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { after, afterEach, test } from 'node:test'
-import { fileURLToPath } from 'node:url'
 import { eq, sql } from 'drizzle-orm'
-import { readMigrationFiles } from 'drizzle-orm/migrator'
-import { Client } from 'pg'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
 import { user } from '../../auth/server/schema.ts'
 import { setUserRole } from '../../auth/server/roles.ts'
@@ -69,25 +71,8 @@ async function discussion() {
 
 // Keep the suite's container while exercising a real upgrade from the prior schema.
 test('the outcomes migration preserves existing posts, comments, follows, and receipts', async () => {
-  const name = `opine_outcomes_upgrade_${randomUUID().replaceAll('-', '')}`
-  const control = new Client({ connectionString: databaseUrl })
-  await control.connect()
-  const isolatedUrl = new URL(databaseUrl)
-  isolatedUrl.pathname = `/${name}`
-  const isolated = new Client({ connectionString: isolatedUrl.toString() })
-  let connected = false
-  let created = false
-  try {
-    await control.query(`create database "${name}"`)
-    created = true
-    await isolated.connect()
-    connected = true
-    const migrations = readMigrationFiles({
-      migrationsFolder: fileURLToPath(new URL('../../../drizzle', import.meta.url)),
-    })
-    assert.ok(migrations.length >= 5)
-    for (const migration of migrations.slice(0, 4))
-      for (const statement of migration.sql) await isolated.query(statement)
+  await withMigrationDatabase(async (isolated) => {
+    await applyMigrations(isolated, 0, 4)
     const actorId = randomUUID()
     const postId = randomUUID()
     const commentId = randomUUID()
@@ -117,18 +102,13 @@ test('the outcomes migration preserves existing posts, comments, follows, and re
     const before = await Promise.all(
       preserved.map(async (table) => (await isolated.query(`select * from ${table}`)).rows),
     )
-    for (const migration of migrations.slice(4))
-      for (const statement of migration.sql) await isolated.query(statement)
+    await applyMigrations(isolated, 4)
     const afterPost = (await isolated.query('select * from feedback_post')).rows[0]
     for (const [key, value] of Object.entries(beforePost)) assert.deepEqual(afterPost[key], value)
     assert.equal(afterPost.workflow_version, 1)
     for (const [index, table] of preserved.entries())
       assert.deepEqual((await isolated.query(`select * from ${table}`)).rows, before[index])
-  } finally {
-    if (connected) await isolated.end()
-    if (created) await control.query(`drop database "${name}"`)
-    await control.end()
-  }
+  })
 })
 
 test('official publication atomically changes status and notifies each follower once across concurrent retries', async () => {
@@ -563,4 +543,47 @@ test('category corrections are authorized, conflict-safe, audited once, and inde
     status(400),
   )
   assert.equal((await getDatabase().select().from(feedbackNotification)).length, 0)
+})
+
+test('discussion pages use one snapshot when publication commits between source reads', async () => {
+  const { author, manager, post } = await discussion()
+  const writer = new Client({ connectionString: databaseUrl })
+  await writer.connect()
+  let pending: ReturnType<typeof listDiscussion> | undefined
+  try {
+    await writer.query('begin')
+    // Let the comment SELECT finish, then hold the response SELECT at the table lock.
+    await writer.query('lock table feedback_official_response in access exclusive mode')
+    pending = listDiscussion(post.id, { limit: 1 })
+    const deadline = Date.now() + 4000
+    while (true) {
+      const waiting = await writer.query(`select 1 from pg_stat_activity
+        where datname = current_database() and pid <> pg_backend_pid()
+          and wait_event_type = 'Lock' and query like '%feedback_official_response%'
+          and query like 'select%'`)
+      if (waiting.rowCount) break
+      assert.ok(Date.now() < deadline, 'discussion must reach the response SELECT')
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    await writer.query(
+      `insert into feedback_comment (post_id, author_id, body, type, created_at)
+       values ($1, $2, 'Concurrent comment', 'context', '2026-01-01T00:00:00Z')`,
+      [post.id, author.user.id],
+    )
+    await writer.query(
+      `insert into feedback_official_response (post_id, author_id, body, created_at)
+       values ($1, $2, 'First response', '2026-01-01T00:00:01Z'),
+              ($1, $2, 'Second response', '2026-01-01T00:00:02Z')`,
+      [post.id, manager.user.id],
+    )
+    await writer.query('commit')
+    assert.deepEqual(await pending, { entries: [], nextCursor: null })
+    const nextRead = await listDiscussion(post.id, { limit: 1 })
+    assert.equal(nextRead.entries[0]?.kind, 'comment')
+    assert.ok(nextRead.nextCursor)
+  } finally {
+    await writer.query('rollback')
+    await pending?.catch(() => {})
+    await writer.end()
+  }
 })

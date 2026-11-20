@@ -1,9 +1,10 @@
+import {
+  withMigrationDatabase,
+  applyMigrations,
+} from '../../../tests/helpers/migration-database.ts'
 import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
 import { after, afterEach, test } from 'node:test'
-import { fileURLToPath } from 'node:url'
-import { readMigrationFiles } from 'drizzle-orm/migrator'
-import { Client } from 'pg'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
 import { user, userRole } from '../../auth/server/schema.ts'
@@ -174,25 +175,8 @@ test('tag disabling and assignment serialize without attaching an already disabl
 })
 
 test('tag migration leaves existing post content and versions untouched with no assigned tags', async () => {
-  const databaseUrl = process.env.OPINE_TEST_DATABASE_URL!
-  const name = `opine_tag_upgrade_${randomUUID().replaceAll('-', '')}`
-  const control = new Client({ connectionString: databaseUrl })
-  await control.connect()
-  const url = new URL(databaseUrl)
-  url.pathname = `/${name}`
-  const isolated = new Client({ connectionString: url.toString() })
-  let created = false
-  let connected = false
-  try {
-    await control.query(`create database "${name}"`)
-    created = true
-    await isolated.connect()
-    connected = true
-    const migrations = readMigrationFiles({
-      migrationsFolder: fileURLToPath(new URL('../../../drizzle', import.meta.url)),
-    })
-    for (const migration of migrations.slice(0, 5))
-      for (const statement of migration.sql) await isolated.query(statement)
+  await withMigrationDatabase(async (isolated) => {
+    await applyMigrations(isolated, 0, 5)
     const actorId = randomUUID()
     await isolated.query('insert into auth_user (id, name, email) values ($1, $2, $3)', [
       actorId,
@@ -204,14 +188,10 @@ test('tag migration leaves existing post content and versions untouched with no 
       [actorId],
     )
     const before = (await isolated.query('select * from feedback_post')).rows
-    for (const statement of migrations[5]!.sql) await isolated.query(statement)
+    await applyMigrations(isolated, 5, 6)
     assert.deepEqual((await isolated.query('select * from feedback_post')).rows, before)
     assert.equal((await isolated.query('select * from feedback_post_tag')).rows.length, 0)
     const tags = (await isolated.query('select id, name from feedback_tag order by id')).rows
     assert.deepEqual(tags, defaultFeedbackTags)
-  } finally {
-    if (connected) await isolated.end()
-    if (created) await control.query(`drop database "${name}"`)
-    await control.end()
-  }
+  })
 })

@@ -1,3 +1,4 @@
+import { FeedbackWriteError } from './writes.ts'
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
@@ -10,7 +11,7 @@ import { user } from '../../auth/server/schema.ts'
 import { createMember } from '../../auth/tests/fixtures.ts'
 import { createCategory, createFeedbackPost } from '../tests/fixtures.ts'
 import { listCategories } from './categories.ts'
-import { createPost, getPost, listPosts, PostingRateLimitError } from './posts.ts'
+import { createPost, getPost, listPosts } from './posts.ts'
 import { feedbackCategory, feedbackFollow, feedbackPost } from './schema.ts'
 
 assert.ok(process.env.OPINE_TEST_DATABASE_URL, 'Run with pnpm test:integration.')
@@ -229,7 +230,8 @@ test('concurrent submissions cannot exceed the per-member allowance', async () =
   assert.equal(results.filter((result) => result.status === 'fulfilled').length, maximum)
   const failures = results.filter((result) => result.status === 'rejected')
   assert.equal(failures.length, 2)
-  for (const failure of failures) assert.ok(failure.reason instanceof PostingRateLimitError)
+  for (const failure of failures)
+    assert.ok(failure.reason instanceof FeedbackWriteError && failure.reason.statusCode === 429)
   assert.equal((await getDatabase().select().from(feedbackPost)).length, maximum)
   assert.equal((await getDatabase().select().from(feedbackFollow)).length, maximum)
 })

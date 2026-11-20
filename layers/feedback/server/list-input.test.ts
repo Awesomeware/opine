@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { parseListInput, parseCommentListInput } from './list-input.ts'
+import { parseListInput, parseCommentListInput, parsePaginationInput } from './list-input.ts'
 
 test('list requests bound filters and page sizes and reject malformed cursors', () => {
   const cursor = {
@@ -59,4 +59,13 @@ test('discussion filters accept only one declared contribution type and bounded 
     { cursor: 'bad' },
   ])
     assert.equal(parseCommentListInput(query).success, false)
+})
+
+test('plain pagination rejects filters belonging to other resources', () => {
+  assert.deepEqual(parsePaginationInput({ limit: '2' }), {
+    success: true,
+    data: { limit: 2, cursor: undefined },
+  })
+  for (const query of [{ type: 'question' }, { q: 'text' }, { category: 'general' }])
+    assert.equal(parsePaginationInput(query).success, false)
 })

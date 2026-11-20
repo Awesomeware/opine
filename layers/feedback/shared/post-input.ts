@@ -6,6 +6,7 @@ export type PostInput = {
   tagIds?: string[]
   categoryId: string
 }
+
 export type PostFieldErrors = Partial<Record<keyof PostInput | 'form', string>>
 export function isUuid(value: unknown): value is string {
   return (
@@ -14,17 +15,18 @@ export function isUuid(value: unknown): value is string {
   )
 }
 
-export function validatePostInput(
+export function validatePostContent(
   input: unknown,
-): { success: true; data: PostInput } | { success: false; fieldErrors: PostFieldErrors } {
+):
+  | { success: true; data: Omit<PostInput, 'categoryId'> }
+  | { success: false; fieldErrors: PostFieldErrors } {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     return { success: false, fieldErrors: { form: 'Enter your feedback below.' } }
   const fields = input as Record<string, unknown>
   const fieldErrors: PostFieldErrors = {}
   if (
     Object.keys(fields).some(
-      (key) =>
-        !['title', 'description', 'desiredImprovement', 'categoryId', 'tagIds'].includes(key),
+      (key) => !['title', 'description', 'desiredImprovement', 'tagIds'].includes(key),
     )
   ) {
     fieldErrors.form = 'The submission contains unexpected fields.'
@@ -54,17 +56,31 @@ export function validatePostInput(
       fieldErrors.tagIds = 'Choose up to 100 valid tags.'
     else tagIds = [...new Set(fields.tagIds.map((id) => id.toLowerCase()))].sort()
   }
-  if (!isUuid(fields.categoryId)) fieldErrors.categoryId = 'Choose a category.'
-  if (Object.keys(fieldErrors).length || !isUuid(fields.categoryId))
-    return { success: false, fieldErrors }
+  if (Object.keys(fieldErrors).length) return { success: false, fieldErrors }
   return {
     success: true,
     data: {
       title,
       description,
       desiredImprovement,
-      categoryId: fields.categoryId,
       ...(tagIds !== undefined ? { tagIds } : {}),
     },
+  }
+}
+
+export function validatePostInput(
+  input: unknown,
+): { success: true; data: PostInput } | { success: false; fieldErrors: PostFieldErrors } {
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    return { success: false, fieldErrors: { form: 'Enter your feedback below.' } }
+  const { categoryId, ...content } = input as Record<string, unknown>
+  const parsed = validatePostContent(content)
+  const fieldErrors: PostFieldErrors = parsed.success ? {} : parsed.fieldErrors
+  if (!isUuid(categoryId)) fieldErrors.categoryId = 'Choose a category.'
+  if (!parsed.success || !isUuid(categoryId)) return { success: false, fieldErrors }
+  const { tagIds, ...contentData } = parsed.data
+  return {
+    success: true,
+    data: { ...contentData, categoryId, ...(tagIds !== undefined ? { tagIds } : {}) },
   }
 }

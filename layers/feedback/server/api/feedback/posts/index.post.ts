@@ -1,5 +1,5 @@
 import { validatePostInput } from '../../../../shared/post-input.ts'
-import { createPost, PostingRateLimitError } from '../../../posts.ts'
+import { createPost } from '../../../posts.ts'
 import { feedbackActor, feedbackResponse } from '../../../http.ts'
 
 export default defineEventHandler(async (event) => {
@@ -11,25 +11,17 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Check your feedback.',
       data: { fieldErrors: parsed.fieldErrors },
     })
-  try {
-    const post = await feedbackResponse(event, () => createPost(actorId, parsed.data, requestId))
-    if (!post)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Choose an available category.',
-        data: {
-          fieldErrors: {
-            categoryId: 'This category is no longer available. Choose another category.',
-          },
+  const post = await feedbackResponse(event, () => createPost(actorId, parsed.data, requestId))
+  if (!post)
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Choose an available category.',
+      data: {
+        fieldErrors: {
+          categoryId: 'This category is no longer available. Choose another category.',
         },
-      })
-    setResponseStatus(event, 201)
-    return post
-  } catch (error) {
-    if (error instanceof PostingRateLimitError) {
-      setResponseHeader(event, 'Retry-After', error.retryAfterSeconds)
-      throw createError({ statusCode: 429, statusMessage: error.message })
-    }
-    throw error
-  }
+      },
+    })
+  setResponseStatus(event, 201)
+  return post
 })
