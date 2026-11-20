@@ -66,7 +66,7 @@ layers/feedback/app/components/
 
 Scoped styles prevent a component's selectors from leaking outward, but global CSS and inherited properties can still affect it. Keep global defaults restrained and load exactly the same foundations in Storybook and Nuxt.
 
-## Components and migration
+## Components
 
 Buttons, status badges, and notices now use `UiButton`, `UiBadge`, and `UiNotice` in the application. `UiButton` defaults to `type="button"`; form actions must explicitly use `type="submit"`. Set `busy` for an operation in progress and `disabled` for an unavailable action. A notice does not announce itself automatically: its caller chooses `role="status"` or `role="alert"` when appropriate.
 
@@ -74,7 +74,7 @@ The [approved visual direction](design/README.md) now drives the shared theme, a
 
 `FeedbackPostRow` and `FeedbackOfficialResponse` render from props. Their link slots let the application provide `NuxtLink` while standalone stories use ordinary anchors. Preserve client-side navigation when using these components in Nuxt so local editor and pagination state survives. `FeedbackOutcome` composes its proposal slot, status/follow sidebar, latest response, and manager disclosures; `FeedbackReactions` owns the reaction controls and retry state near the proposal.
 
-Root `app/assets/css/main.css` still contains common page/form layout, legacy form controls, and link-button classes. Shell, feedback row, proposal, discussion, official-response, and contribution-choice styling is scoped to its owner. Existing short color variables remain aliases during migration. As those components are extracted, move their styles beside them and remove the obsolete global rules. Do not load the legacy application stylesheet in Storybook to hide an undeclared component dependency.
+Root `app/assets/css/main.css` owns application page/form layout. Shared native form controls, field help/errors, and button foundations belong to the UI layer and load in both Nuxt and Storybook. Shell and feature presentation stays scoped to its owner. Do not load the application stylesheet in Storybook to hide an undeclared component dependency.
 
 `FeedbackTagPicker` uses native checkboxes with no default selection. It can retain disabled tags already assigned to a post and expose unavailable saved selections for removal. `FeedbackTags` renders non-interactive public labels; these are distinct from status badges and discussion filters. Both accept data through props and have isolated stories.
 
@@ -84,7 +84,7 @@ Separate imports, props/events, related state, effects, and functions with blank
 
 Complex forms and asynchronous workflows belong in feature-local composables. The component renders state, manages focus, and emits events. Small typed API modules own URLs, methods, and request/response shapes; plain helpers own stateless input conversion. Keep simple `useFetch` reads local when extraction adds no clarity. An ordinary `$fetch` mutation is appropriate inside the operation's API function; automatic refetch must not replay a write.
 
-Use the feedback request-scope helper for manual reads: a new request supersedes the previous result, and disposal invalidates all callbacks. Give independent reads separate scopes and independent operations separate busy/error state. Keep successful writes distinct from failed refreshes. Post/account identity is fixed for a mounted workflow; callers key components by identity or explicitly recreate that workflow when it changes.
+Use the feedback request-scope helper for manual reads: a new request supersedes the previous result, and disposal invalidates all callbacks. Give independent reads separate scopes and independent operations separate busy/error state. Keep successful writes distinct from failed refreshes. Apply confirmed mutation results, including returned versions, directly to the saved baseline. Refresh parent lists once; a failed list refresh must not block subsequent edits or require a special saved-state recovery flow. Post/account identity is fixed for a mounted workflow; callers key components by identity or explicitly recreate that workflow when it changes.
 
 Keep form input and unchanged retry keys in memory for the current mount. Do not save drafts or pending requests in browser storage or restore older browser state. Reloading, leaving a form, cancellation, and account changes may discard unsaved input. Same-page failures retain entered text; conflicts require explicit review of current saved content. API DTOs come from shared contracts, with explicit form conversions.
 

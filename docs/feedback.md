@@ -127,11 +127,19 @@ Edit requests include the loaded version. A mismatch returns 409 and preserves t
 
 Every feedback write requires a UUID `Idempotency-Key` header. The browser keeps the key in memory for the mounted operation. Successful changes and receipts commit atomically. Replaying the same actor/key and normalized operation/input returns the original result before checking quotas or edit versions; different input with the same key returns 409. Current authorization is still enforced. Receipts contain only a fingerprint and IDs/version result, not old content, and currently have no expiry. The browser uses a new key when the intended input changes. Reactions and following refresh the actual server state after uncertain replies.
 
-A body-only POST from before contribution types were introduced can replay an existing matching successful receipt. It cannot create a new untyped comment. If no receipt exists, the server requires a type. The current frontend always creates typed contributions and does not restore pre-upgrade browser requests. Type is part of the fingerprint for new submissions and explicit type edits.
+Every comment create request must include a valid contribution type, including retries. The body-only pre-upgrade replay path is retired; historical comments and receipts remain stored. Type is part of the fingerprint for new submissions and explicit type edits. Omitted type on edit and omitted tag IDs retain their existing meanings and fingerprints.
 
 Official updates and category corrections use `workflow_version`, independent of author text `version`. Conflicting changes return 409 before overwriting the current workflow. Current community-manager authorization is checked transactionally before receipt replay, so a revoked role cannot replay an official write. Replaying an earlier follow receipt does not undo a later unfollow.
 
-Outcome reads use one repeatable-read snapshot for status/version, featured response, and status explanation. Publication timestamps are assigned after locking the post and made strictly newer than its previous official response at millisecond precision. Comments waiting for publication also receive a timestamp after that response, preserving chronology and follow-up eligibility. Actor locks use `FOR NO KEY UPDATE` so notification foreign keys can reference other concurrently active members without introducing a fanout lock cycle.
+## Persistence and concurrency
+
+Creation inserts the post, tags, and author follow atomically. Category availability is checked under a shared row lock; selected tag rows are locked while validating assignments. An actor row lock serializes writes, including successful-post limits. Mutations and receipts commit together, with authorization before replay and replay before quota/version checks. Receipt fingerprints include operation and target; results hold only resource IDs and versions. Keep receipts until an explicit retention decision.
+
+Official publication locks the post and atomically writes the immutable response, optional status delta, follower notifications, and receipt. An unchanged status stores no delta. Follow changes take the same post lock; replay returns the recorded result without applying it again. Category correction shares the workflow version and writes its own audit. Author edits use an independent version. Current community-manager authority is checked inside the actor transaction; administrator alone is insufficient. Actor locks use `FOR NO KEY UPDATE`, allowing notification foreign keys to reference other active members while still conflicting with role-management locks.
+
+Outcome reads use one repeatable-read snapshot for status/version, featured response, and status explanation. Discussion reads use one snapshot for comments and official responses so a concurrent insert cannot be skipped between source reads. Each source is bounded before merging. Public post reads also keep text and tags coherent. Responses explicitly select public fields.
+
+Post lists sort by `(created_at DESC, id DESC)`; comments and discussion sort ascending. Filters apply before pagination, and each list reads an extra row to determine whether another page exists. Millisecond timestamp precision matches JavaScript cursor serialization. Publication timestamps are assigned after locking the post, strictly later than prior responses and comments. Comments waiting for publication receive a timestamp after that response, preserving chronology and follow-up eligibility. Notifications inherit the publication timestamp; ordinary comments never notify.
 
 ## Posting limits
 
@@ -143,12 +151,4 @@ Limits return 429 with `Retry-After`. Authentication and origin checks apply bef
 
 ## Verification
 
-```sh
-pnpm test
-pnpm test:integration
-pnpm test:e2e
-```
-
-The feedback integration suite verifies atomic creation and rollback, author privacy, deletion restrictions, category configuration, search, pagination, concurrent limits, reaction switching/removal, retry deduplication, and edit conflicts. It also checks typed filtering before pagination, tied timestamps, legacy links, type-only edits, and pre-upgrade receipt recovery. An upgrade test creates a temporary database in the same suite container, applies migrations through #4, seeds an untyped comment and receipt, then verifies the contribution-type migration preserves both. It does not start another container. Official workflow tests cover atomic fanout rollback, role revocation, retries, concurrent managers, workflow conflicts, follow membership, private inbox pagination/read state, category audit, and review-queue selection. The browser suite covers official publication and follow notifications as well as publication, ephemeral forms, public sharing, filters, pagination, validation, mobile layout, comments, reactions, conflict review, and retries after a lost response.
-
-The browser runner then stops the first app process, restarts the same PostgreSQL container, and starts a fresh app process at the same origin. A second phase opens the exact saved public link and verifies the original session and follow, edited content and versions, reactions, comment links, official outcomes, notifications, and write receipts. Both phases belong to one logical suite and share one database container; temporary session fixtures are deleted after the suite.
+See [Testing](testing.md) for commands, coverage, migration checks, and the dedicated database/application restart scenario. Database tests always use disposable suite databases.

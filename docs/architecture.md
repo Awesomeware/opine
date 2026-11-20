@@ -128,6 +128,8 @@ Colocate Node-compatible tests with their implementation. Keep them outside fram
 
 Use `*.test.ts` for lightweight Node tests, `*.integration.ts` for database integration tests, and `*.e2e.ts` for Playwright browser journeys. Lightweight tests use Node's recursive discovery without Docker or `.env` loading. Node tests run without Nuxt auto-imports or aliases; use explicit imports and Node-compatible code.
 
-Database-backed files belong to explicit logical suites in `tests/suites.ts`. Each suite gets a fresh PostgreSQL container with committed migrations applied. A suite may include multiple files, so adding a file need not increase container count. Independent suites run in parallel with bounded concurrency; tests within a suite run serially and share its database. Keep suites cohesive and clean up scenario data. Each E2E suite also owns a separate application server.
+[Testing](testing.md) owns the suite-isolation, lifecycle, concurrency, and restart-scenario rules. Run lint, formatting checks, typecheck, build, and relevant tests for code changes; verify formatting and links for documentation changes.
 
-See [Testing](testing.md) for setup, commands, lifecycle, and adding suites. Run lint, formatting checks, typecheck, build, and relevant tests for code changes; verify formatting and links for documentation changes.
+## Documentation ownership
+
+Keep architecture and module boundaries here. Feature READMEs list ownership and public entrypoints; link from them to canonical domain behavior rather than repeating locks, compatibility policies, and retention rules. [UI development](ui.md) owns component/workflow conventions, [Testing](testing.md) owns verification practices, and [requirements](../requirements.md) owns product scope. Contributor instructions should point to these documents. Completed implementation plans belong in Git history rather than a second set of current rules.

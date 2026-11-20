@@ -59,33 +59,35 @@ Follow [layers/auth/README.md](layers/auth/README.md) for the feature's public e
 
 ## Feedback boundaries
 
-Follow [layers/feedback/README.md](layers/feedback/README.md). Create the post and initial author follow in one transaction. Preserve contributions when credentials or users are removed; author/category foreign keys currently restrict deletion. Public responses select only public fields. Keep feedback timestamps at millisecond precision so pagination cursors preserve stored ordering. Require UUID idempotency keys on feedback writes and commit receipts with mutations; authorize before replay. Keep only current post/comment text, `edited_at`, and a version for conflicts—no revision history. Reactions are one Agree or Disagree per account/post and never affect ranking or visibility. Official publication atomically saves the response, optional status delta, follower notifications, and receipt. Require current community-manager authority before replay; administrator alone is insufficient. Use independent workflow versions for official updates/category corrections, and serialize follows with publication on the post row.
+Use [layers/feedback/README.md](layers/feedback/README.md) for ownership and public endpoints. Follow the canonical domain rules in [docs/feedback.md](docs/feedback.md), especially [retention](docs/feedback.md#contribution-retention), [editing and retries](docs/feedback.md#editing-and-safe-retries), and [concurrency](docs/feedback.md#persistence-and-concurrency). Update those rules alongside behavior changes rather than copying them here.
 
-Tags belong to the feedback feature. Administrators manage the vocabulary; authors control post assignments. Preserve disabled tags on existing posts, permit their removal, and reject new assignments of disabled tags. Post text and tags share one edit version and atomic receipt. Preserve omitted `tagIds` in legacy request fingerprints; on edit, omission preserves tags and an explicit empty array clears them.
-
-Frontend form state is ephemeral. Do not persist drafts or pending requests in browser storage, add restoration paths, or introduce offline replay. Reloading or leaving a form may discard unsaved input. Keep unchanged retry keys only in memory for the mounted operation, and retain explicit review of conflicting edits.
+Frontend form state is ephemeral; follow [UI workflow conventions](docs/ui.md#vue-component-readability). Keep authorization, transactions, conflict checks, and write receipts on the server.
 
 ## Product direction
 
-Follow the revised scope in [requirements.md](requirements.md). New ordinary contributions require Context or example, Different view, Suggestion, or Question, with corresponding prompts, labels, and discussion filters. Keep the author's proposal, official team response, and status distinct; Agree / Disagree is secondary. Filters organize one flat discussion. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred. Legacy untyped comments remain NULL and display Unspecified; never guess their type. Apply type filters before pagination and resolve direct comment links independently of the selected filter. Omitted type on edit preserves classification. Body-only legacy creates may only replay existing receipts, never create new untyped comments. The official-response/status panel, Official responses filter, review queue, follow controls, private inbox, and category audit are implemented. Keep immutable official responses separate from editable ordinary comments. Distinguish planned behavior from the current implementation in feature documentation.
+Follow [requirements.md](requirements.md) for product scope and [docs/TODO.md](docs/TODO.md) for implementation status. Keep proposals, typed discussion, official responses, and status distinct. Preserve historical unclassified comments without guessing their type. New comment requests always require a type, including retries; body-only pre-upgrade replay is retired.
 
-Follow [Visual direction](docs/design/README.md): the O encloses the tree, followed by lowercase pine. Use compact rows, quiet secondary actions, and distinct official responses. Prioritize desktop with simple narrow-screen reflow. The mockup does not add nested replies, statuses, summaries, or other features.
+Follow [Visual direction](docs/design/README.md): the O encloses the tree, followed by lowercase pine. Prioritize desktop with simple narrow-screen reflow. Mockups do not expand the agreed feature scope.
 
 ## Programming guidelines
 
 - Code clarity comes first. Use descriptive names, straightforward control flow, and small, cohesive functions. Keep code concise without making it cryptic.
 - Separate imports, component contracts, cohesive state groups, functions, and effects with blank lines. Within long handlers, separate validation, requests, and results. Use braces for nested conditionals and loops; avoid compressed template branches and multi-statement event expressions.
 - Keep complex client workflows in feature-local composables. Components own rendering, focus, and emitted events; typed API modules own HTTP details. Simple page reads may stay local. Use plain functions for stateless transformations and retain scoped component CSS.
-- Give independent reads, writes, and refreshes separate loading/error state. Guard asynchronous results against disposal and stale reads with the feature's request-scope helper. A successful mutation and failed refresh are distinct outcomes.
+- Use confirmed mutation results to advance local versions and saved values; do not require a second fetch before the form can be used again. Give independent reads, writes, and refreshes separate loading/error state. Guard asynchronous results against disposal and stale reads with the feature's request-scope helper. A successful mutation and failed refresh are distinct outcomes.
 - Use domain contracts for API responses rather than types derived from form state. Check errors at the transport boundary. Prefer explicit post/comment contracts over mode switches inferred from optional props.
 - Document reusable composable contracts and subtle invariants: account/resource lifetime, in-memory request-key reuse, and conflict review. Explain intent rather than narrating obvious statements. Preserve behavior with focused regression tests before extracting workflows.
 - Prefer TypeScript inference and types derived from Drizzle schemas. Add explicit types or interfaces when they clarify a meaningful contract; avoid duplicating the same shape across layers. Preserve type safety without unnecessary assertions or `any`.
-- Introduce abstractions only when they make existing code easier to understand or modify. Avoid speculative extensibility, generic frameworks, and unnecessary wrappers or layers.
+- For cleanup, write a bounded plan and add regression coverage for missing behavior before editing. Prefer deletion and existing helpers; share small validation/query primitives without coupling one command to another through fabricated input. Introduce abstractions only when they make existing code easier to understand or modify. Avoid speculative extensibility, generic frameworks, and unnecessary wrappers or layers.
 - Keep related code together. Extract shared helpers and components when there is a concrete benefit, not merely to create more files.
 - Use existing dependencies and framework conventions. Add dependencies only for a demonstrated need.
 - Keep database access, credentials, and authorization on the server. Validate external input at its boundary.
 - Write comments to explain intent or non-obvious constraints. Keep changes focused on the current task.
-- Test meaningful behavior and failure cases. For code changes, run lint, formatting checks, typecheck, build, and relevant tests; for documentation changes, check formatting and links.
+- Test meaningful behavior and failure cases. Negative validation cases start from valid input and invalidate one field, asserting the intended error. Keep ordinary journeys independent; dedicated restart scenarios own persistence handoffs. For code changes, run lint, formatting checks, typecheck, build, and relevant tests; for documentation changes, check formatting and links.
+
+## Documentation
+
+Keep one canonical home for each rule: product scope in `requirements.md`, architecture in `docs/architecture.md`, domain behavior in feature documentation, UI conventions in `docs/ui.md`, and test lifecycle in `docs/testing.md`. Feature READMEs describe ownership and public entrypoints and link to those rules. Remove completed cleanup plans once their lasting guidance is incorporated; Git retains the history.
 
 ## Git commits
 

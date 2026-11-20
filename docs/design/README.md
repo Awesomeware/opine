@@ -10,7 +10,7 @@ The approved [mockup](feedback-direction.png) is the visual reference for the fe
 - Present the author's proposal as open reading text. Place status and follow controls in a supporting desktop column. Show the latest official response above the discussion, using a labelled teal surface and accent rule. Filters must never hide the featured response or current status.
 - Use flat contribution entries, a small identifying symbol and explicit type label, and underline-style filter buttons. Filters remain views of one chronological discussion; selection and keyboard focus must remain visible.
 - Keep Agree and Disagree neutral and secondary, with separate labelled counts. Use quiet Copy link and edit actions. Give following and adding a typed contribution more emphasis.
-- Keep response publication and category correction available to community managers through compact disclosure controls. Preserve authorization, drafts, uncertain-write recovery, conflict review, and explicit publication.
+- Keep response publication and category correction available to community managers through compact disclosure controls. Preserve authorization, validation, same-page retries, conflict review, and explicit publication. Form state follows [UI conventions](../ui.md#vue-component-readability).
 
 ## Scope and practical adaptations
 

@@ -6,7 +6,7 @@ This layer owns categories, posts, follows, comments, reactions, official respon
 
 Components render forms and feedback, manage focus, and emit events. Feature-local `app/composables/` owns submission, explicit post/comment editing, discussion, and management workflows. `app/api/` owns typed HTTP calls; `app/utils/` contains pure form conversions. These remain internal to this feature.
 
-Create request scopes during setup. Mount account/resource workflows with stable identities and remount when those identities change; submission watches session changes explicitly. Each independent read stream invalidates stale results without cancelling committed server writes. Read errors and mutation outcomes remain separate, so a failed refresh can be retried without repeating a confirmed write. See [UI conventions](../../docs/ui.md) and the [cleanup verification](../../docs/vue-refactor.md).
+Create request scopes during setup. Mount account/resource workflows with stable identities and remount when those identities change; submission watches session changes explicitly. Each independent read stream invalidates stale results without cancelling committed server writes. Read errors and mutation outcomes remain separate, so a failed refresh can be retried without repeating a confirmed write. See [UI conventions](../../docs/ui.md).
 
 ## Public entrypoints
 
@@ -35,14 +35,14 @@ Tag endpoints (implemented in `server/tags.ts`):
 - `POST /api/feedback/tags` requires current administrator access and `{ name }`.
 - `PATCH /api/feedback/tags/:id` requires current administrator access and `{ name, isActive, version }`. Tag writes use the same origin, idempotency, and authorization-before-replay rules as other feedback writes.
 
-Post list/detail results include `tags`. Create input may omit `tagIds` for an empty selection; edit omission preserves existing assignments, while `[]` clears them. Normalize supplied IDs as a sorted set without changing legacy omitted-field fingerprints. Lock selected tag rows while validating availability. Disabled tags may be retained or removed on existing posts, never newly added. Text and assignment edits share one version and transaction; public reads must return a coherent snapshot. Vocabulary management never grants authority to edit other authors' posts. See [tag administration](../../docs/feedback.md#tags).
+Post list/detail results include `tags`. See [tag rules and administration](../../docs/feedback.md#tags) for assignment, disabled-tag, version, and omitted-field semantics.
 
 Official workflow endpoints (implemented in `server/outcomes.ts`):
 
 - `GET /api/feedback/posts/:id/outcome` returns current `status`, workflow `version`, `latestResponse`, the latest status-changing `statusResponse`, viewer `following`, and `canRespond`.
 - `POST /api/feedback/posts/:id/responses` requires current community-manager access and `{ body, version, status? }`. It returns `{ id, version }`; omitted status preserves the current status. Ordinary privileged comments are never automatically official.
 - `GET /api/feedback/posts/:id/responses/:responseId` returns the immutable public response for direct links.
-- `GET /api/feedback/posts/:id/discussion` merges comments and official responses chronologically. Optional `type` accepts the four ordinary types or `team`; omission selects All. It returns discriminated `entries` and `nextCursor`; each source is bounded before merging. The older comments API still returns only comments.
+- `GET /api/feedback/posts/:id/discussion` merges comments and official responses chronologically. Optional `type` accepts the four ordinary types or `team`; omission selects All. It returns discriminated `entries` and `nextCursor`; both sources share one consistent snapshot and are bounded before merging. The older comments API still returns only comments.
 - `PUT /api/feedback/posts/:id/follow` accepts `{ following: boolean }` and sets the member's subscription explicitly.
 - `GET /api/feedback/notifications` is private to the session owner. It accepts `unread=true|false`, cursor, and limit; returns notifications and the owner's total `unreadCount`. `PATCH /api/feedback/notifications/:notificationId` accepts `{ read: true }` and cannot read another member's item.
 - `GET /api/feedback/review` requires community-manager access. It accepts category slug, status (default `new`, or `all`), `followUp=true|false`, cursor, and limit. Results are oldest-first. Follow-up requires an ordinary comment newer than the latest response, from an author who is not currently a community manager; unanswered posts are excluded.
@@ -52,34 +52,14 @@ Official workflow endpoints (implemented in `server/outcomes.ts`):
 
 All writes require a member session, the configured origin, and a UUID idempotency key. Viewer-aware reads are `no-store`; public projections expose `canEdit` rather than user IDs. Input validators live in `shared/participation-input.ts`; `shared/contribution-types.ts` owns type values, labels, and prompts. The page uses `?contribution=<type>` for its filter and a separate `comment` query parameter for a direct link. A linked contribution outside the selected filter is resolved independently and labelled accordingly. HTTP entrypoints use `server/http.ts`; use cases in `server/participation.ts` enforce ownership. `server/writes.ts` owns the common transaction and receipt logic.
 
-## Persistence and concurrency
+## Domain rules
 
-Creation inserts the post, tag assignments, and its author follow in one transaction. Category selection takes a shared row lock so disabling a category cannot race past creation's availability check. Submissions by one author lock that user's row, making the successful-post rate limit effective across concurrent requests and application instances.
+[Feedback documentation](../../docs/feedback.md) is the canonical source for schema and behavior:
 
-Author and category references use restrictive deletion. Removing authentication credentials or a session does not remove posts. Post and comment authors use restrictive foreign keys. A user record with contributions cannot be physically deleted until an explicit retention/anonymization workflow is implemented. Disabling a category preserves its existing posts. Posts with comments cannot be physically deleted. Removable follows and reactions cascade on post/user deletion; private write receipts cascade on user deletion. No public delete operation exists in this step.
+- [Retention and public attribution](../../docs/feedback.md#contribution-retention).
+- [Discussion and reactions](../../docs/feedback.md#discussion-and-reactions).
+- [Editing, versions, receipts, and compatibility](../../docs/feedback.md#editing-and-safe-retries).
+- [Transactions, locks, snapshots, and ordering](../../docs/feedback.md#persistence-and-concurrency).
+- [Posting limits](../../docs/feedback.md#posting-limits).
 
-Post pagination orders by `(created_at DESC, id DESC)` and fetches one extra row to determine whether another page exists. Feedback timestamps use millisecond precision to match JavaScript dates exactly; cursor serialization must not discard stored timestamp precision. Reset the cursor when filters change. Public list/detail responses explicitly select public fields rather than serializing user rows.
-
-Comment pagination orders by `(created_at ASC, id ASC)`, with type filtering applied before the limit. Migration `0003_contribution_types.sql` leaves existing comments unclassified (NULL), displayed as Unspecified. New submissions must select a type; do not infer one from old text.
-
-Write receipts use `(actor_id, request_id)` as their primary key. An actor row lock serializes concurrent requests; mutation and receipt commit atomically. Authorization precedes replay, replay precedes rate and version checks, and changed input with an existing key conflicts. Receipt hashes include operation and target. Results contain resource IDs/versions only; never retain previous text. Keep receipts until an explicit retention decision, since expiring them weakens retry guarantees.
-
-Body-only pre-upgrade create requests have a replay-only path: authenticate, authorize, and recover a matching receipt, or reject the missing type. This path must never insert a new untyped contribution. New receipt fingerprints include type; edit omission remains distinct from an explicit type selection.
-
-Edits compare the loaded version before changing current content. Actual text, tag-selection, or type changes increment the version and set `edited_at`; no-op saves leave both unchanged. There are no revision tables. Author edits never change category/status. Comments, reactions, and edit limits count persisted requests and survive restarts. Reaction counts do not affect feedback ordering.
-
-## Official workflow invariants
-
-Response publication locks the post and compares its separate `workflow_version`; author text edits keep their independent `version`. Response, optional status change, notification fanout, and receipt are atomic. Category correction shares the workflow version but writes a separate audit. Actual status deltas retain previous/new status; unchanged statuses store no delta. Official responses are immutable: corrections publish a new response.
-
-Authorize the current community-manager role before replay inside the actor transaction; administrator alone is insufficient. `FOR NO KEY UPDATE` serializes actor writes while allowing notification foreign-key checks against other active members, and conflicts with role-management locks. Follow writes serialize on the same post lock as publication. Receipt replay returns its old result without reapplying an old subscription state.
-
-Outcome reads use a repeatable-read snapshot. Assign response creation time after the post lock, strictly later than prior responses and comments at millisecond precision; comments created after a response must remain chronologically later even when their transaction started before it. Notifications inherit the response publication time. Never notify for ordinary comments.
-
-## Planned and deferred behavior
-
-Required contribution types, the Official responses filter, prominent official status/response, review queue, following, and in-platform notifications are implemented. Keep the proposal distinct and Agree / Disagree secondary. See [requirements](../../requirements.md) for release scope. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred.
-
-Moderation and account anonymization must be implemented before the public pilot. Never infer moderation or official-response authority from the administrator role. Email, push, and Discord notifications are deferred.
-
-Keep forms and request keys in memory for the current account and mounted operation. Reloading, leaving a form, or cancelling discards unsaved edits; the frontend does not save or restore drafts or pending requests. Disable duplicate clicks while requests are in flight and reuse the key for unchanged same-page retries. Refresh simple controls from the server after uncertain replies. Edit conflicts preserve the currently entered text and require explicit review before retrying against a newer version.
+For product scope and deferred work, see [requirements](../../requirements.md) and [the implementation plan](../../docs/TODO.md). For browser state and request lifetimes, see [UI conventions](../../docs/ui.md#vue-component-readability). Verification commands and suite ownership live in [Testing](../../docs/testing.md).
