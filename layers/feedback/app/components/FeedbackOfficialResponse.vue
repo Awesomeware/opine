@@ -4,17 +4,20 @@ import type { OfficialResponse } from '../../shared/contracts'
 import { statusLabels } from '../../shared/status'
 import FeedbackText from './FeedbackText.vue'
 import FeedbackStatusBadge from './FeedbackStatusBadge.vue'
+
 const props = defineProps<{
   response: OfficialResponse
   featured?: boolean
   linked?: boolean
   outside?: boolean
 }>()
+
 const responseHref = computed(
   () =>
     `/feedback/${props.response.postId}?response=${props.response.id}#response-${props.response.id}`,
 )
 </script>
+
 <template>
   <article
     :id="featured ? undefined : `response-${response.id}`"
@@ -29,20 +32,22 @@ const responseHref = computed(
       <FeedbackStatusBadge v-if="response.status" :status="response.status" />
     </header>
     <p class="response-byline">
-      <strong>{{ response.author.name }}</strong> ·
-      <time :datetime="response.createdAt">{{
-        new Date(response.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })
-      }}</time>
+      <strong>{{ response.author.name }}</strong>
+      ·
+      <time :datetime="response.createdAt">
+        {{ new Date(response.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
+      </time>
     </p>
     <FeedbackText :text="response.body" />
     <footer>
       <slot name="link" :href="responseHref"><a :href="responseHref">Response link</a></slot>
-      <span v-if="response.status && response.previousStatus" class="status-change"
-        >{{ statusLabels[response.previousStatus] }} → {{ statusLabels[response.status] }}</span
-      >
+      <span v-if="response.status && response.previousStatus" class="status-change">
+        {{ statusLabels[response.previousStatus] }} → {{ statusLabels[response.status] }}
+      </span>
     </footer>
   </article>
 </template>
+
 <style scoped>
 .official-response {
   background: var(--color-official-background);

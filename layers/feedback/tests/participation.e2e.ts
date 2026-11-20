@@ -521,3 +521,54 @@ test('an uncertain reaction is retried explicitly after reload without toggling 
     await member.cleanup()
   }
 })
+
+test('malformed saved reactions are reported and discarded without sending a mutation', async ({
+  page,
+}) => {
+  const member = await createMember()
+  const category = await createCategory()
+  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const storageKey = `opine.feedback.pending.reaction.${member.user.id}.${post.id}`
+  let writes = 0
+
+  try {
+    await page.context().addCookies([member.cookie])
+    await page.goto(`/feedback/${post.id}`)
+    await expect(page.getByRole('button', { name: /^Agree 0$/ })).toBeEnabled()
+    await page.evaluate(
+      ({ key, requestId }) => {
+        sessionStorage.setItem(key, JSON.stringify({ payload: '{}', key: requestId }))
+      },
+      { key: storageKey, requestId: randomUUID() },
+    )
+    await page.route(`**/api/feedback/posts/${post.id}/reactions`, async (route) => {
+      if (route.request().method() === 'PUT') {
+        writes++
+      }
+      await route.continue()
+    })
+    await page.getByRole('link', { name: '← All feedback' }).click()
+    await page.getByRole('link', { name: post.title, exact: true }).click()
+
+    const reactions = page.getByRole('region', { name: 'Reactions', exact: true })
+    await expect(reactions.getByRole('alert')).toContainText(
+      'An invalid saved reaction was discarded.',
+    )
+    await expect(reactions.getByRole('button', { name: /Agree/ })).toBeEnabled()
+    await expect(reactions.getByRole('button', { name: 'Retry pending reaction' })).toHaveCount(0)
+    expect(writes).toBe(0)
+    expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBeNull()
+
+    await reactions.getByRole('button', { name: /Agree/ }).click()
+    await expect(reactions.getByRole('button', { name: /Agree/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(writes).toBe(1)
+  } finally {
+    const database = getDatabase()
+    await database.delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+    await database.delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await member.cleanup()
+  }
+})

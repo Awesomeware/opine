@@ -295,3 +295,89 @@ test('optional tags survive drafts and a lost submission reply, then author tag-
     }
   }
 })
+
+test('a confirmed tag edit survives catalog refresh failure without repeating the mutation', async ({
+  page,
+  request,
+}) => {
+  const admin = await createMember({ roles: ['administrator'] })
+  const database = getDatabase()
+  const suffix = randomUUID().slice(0, 8)
+  const names = [`Refresh initial ${suffix}`, `Refresh saved ${suffix}`, `Refresh next ${suffix}`]
+  const versions: number[] = []
+  let failCatalog = false
+  let catalogReads = 0
+
+  try {
+    const created = await request.post('/api/feedback/tags', {
+      headers: headers(admin.cookieHeader),
+      data: { name: names[0] },
+    })
+    expect(created.status()).toBe(201)
+    const [tag] = await database.select().from(feedbackTag).where(eq(feedbackTag.name, names[0]!))
+    expect(tag).toBeDefined()
+
+    await page.route(`**/api/feedback/tags/${tag!.id}`, async (route) => {
+      if (route.request().method() === 'PATCH') {
+        versions.push(route.request().postDataJSON().version)
+      }
+      await route.continue()
+    })
+    await page.route('**/api/feedback/tags', async (route) => {
+      catalogReads++
+      if (failCatalog) {
+        await route.abort('failed')
+      } else {
+        await route.continue()
+      }
+    })
+
+    await page.context().addCookies([admin.cookie])
+    await page.goto('/feedback/tags')
+    const row = page.getByRole('region', { name: `${names[0]} tag`, exact: true })
+    const nameInput = row.getByLabel('Tag name', { exact: true })
+    await expect(nameInput).toHaveValue(names[0]!)
+
+    failCatalog = true
+    await nameInput.fill(names[1]!)
+    await row.getByRole('button', { name: 'Save tag', exact: true }).click()
+    await expect(row.getByText('Tag saved.', { exact: true })).toBeVisible()
+    await expect(row.getByRole('alert')).toContainText('Unable to load the latest tag.')
+    await expect(
+      page.getByText('Unable to load tag management. Please retry.', { exact: false }),
+    ).toBeVisible()
+    await expect(nameInput).toHaveAttribute('readonly', '')
+    await expect(row.getByLabel('Available for new selections')).toBeDisabled()
+    await expect(row.getByRole('button', { name: 'Save tag', exact: true })).toBeDisabled()
+    expect(versions).toEqual([1])
+
+    // Confirmation cleared the receipt even though fetching the new version failed.
+    expect(
+      await page.evaluate(
+        (key) => sessionStorage.getItem(key),
+        `opine.feedback.pending.tags.edit.${admin.user.id}.${tag!.id}`,
+      ),
+    ).toBeNull()
+    const [saved] = await database.select().from(feedbackTag).where(eq(feedbackTag.id, tag!.id))
+    expect(saved).toMatchObject({ name: names[1], version: 2 })
+
+    const readsBeforeRetry = catalogReads
+    failCatalog = false
+    await row.getByRole('button', { name: 'Retry latest tag', exact: true }).click()
+    await expect(row.getByRole('alert')).toHaveCount(0)
+    await expect(nameInput).toBeEditable()
+    await expect(nameInput).toHaveValue(names[1]!)
+    expect(catalogReads).toBeGreaterThan(readsBeforeRetry)
+    expect(versions).toEqual([1])
+
+    await nameInput.fill(names[2]!)
+    await row.getByRole('button', { name: 'Save tag', exact: true }).click()
+    await expect(page.getByRole('region', { name: `${names[2]} tag`, exact: true })).toBeVisible()
+    expect(versions).toEqual([1, 2])
+    const [updated] = await database.select().from(feedbackTag).where(eq(feedbackTag.id, tag!.id))
+    expect(updated).toMatchObject({ name: names[2], version: 3 })
+  } finally {
+    await database.delete(feedbackTag).where(inArray(feedbackTag.name, names))
+    await admin.cleanup()
+  }
+})

@@ -78,6 +78,18 @@ Root `app/assets/css/main.css` still contains common page/form layout, legacy fo
 
 `FeedbackTagPicker` uses native checkboxes with no default selection. It can retain disabled tags already assigned to a post and expose unavailable saved selections for removal. `FeedbackTags` renders non-interactive public labels; these are distinct from status badges and discussion filters. Both accept data through props and have isolated stories.
 
+## Vue component readability
+
+Separate imports, props/events, related state, effects, and functions with blank lines. Keep dependent state close to its use rather than enforcing a rigid file-wide ordering. Use braces around nested control flow, named event handlers for coordination, and short intent comments where the reason is not evident from the code. Reusable composables document their lifetime and guarantees.
+
+Complex forms and asynchronous workflows belong in feature-local composables. The component renders state, manages focus, and emits events. Small typed API modules own URLs, methods, and request/response shapes; plain helpers own stateless input conversion. Keep simple `useFetch` reads local when extraction adds no clarity. An ordinary `$fetch` mutation is appropriate inside the operation's API function; automatic refetch must not replay a write.
+
+Use the feedback request-scope helper for manual reads: a new request supersedes the previous result, and disposal invalidates all callbacks. Give independent reads separate scopes and independent operations separate busy/error state. Keep successful writes distinct from failed refreshes. Post/account identity is fixed for a mounted workflow; callers key components by identity or explicitly recreate that workflow when it changes.
+
+When an operation persists pending writes, preserve its exact payload and key across uncertain responses. Browser persistence is a product choice, not a requirement for every control. Decode browser storage as unknown, preserve omitted legacy fields, and keep drafts during conflict review. API DTOs come from shared contracts; form models are explicit conversions rather than claimed API shapes.
+
+Vue templates use Oxfmt's whitespace-insensitive layout so nested elements remain readable. `FeedbackText.vue` is deliberately excluded: its adjacent link/text segments must preserve the user's exact whitespace. The component test checks the full text content to protect this exception. Review rendered spacing when changing templates with inline text.
+
 ## Stories and checks
 
 Colocate `*.stories.ts` with components. Nuxt discovers only Vue component files in these layers; stories are development inputs and must not enter the production component registry. Use stable, realistic fixtures and explicit examples for relevant states such as disabled, busy, error, long content, and narrow layouts. Keep server factories and real account data out of stories.

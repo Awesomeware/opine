@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import type { FeedbackTag } from '../../shared/contracts'
+
 defineProps<{ tags: FeedbackTag[] }>()
 </script>
+
 <template>
   <ul v-if="tags.length" class="tags" aria-label="Tags">
     <li v-for="tag in tags" :key="tag.id">{{ tag.name }}</li>
   </ul>
 </template>
+
 <style scoped>
 .tags {
   display: flex;

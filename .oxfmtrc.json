@@ -2,5 +2,14 @@
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "semi": false,
   "singleQuote": true,
-  "ignorePatterns": ["pnpm-lock.yaml", "drizzle/meta/**"]
+  "ignorePatterns": ["pnpm-lock.yaml", "drizzle/meta/**"],
+  "overrides": [
+    {
+      "files": ["**/*.vue"],
+      "excludeFiles": ["**/FeedbackText.vue"],
+      "options": {
+        "htmlWhitespaceSensitivity": "ignore"
+      }
+    }
+  ]
 }

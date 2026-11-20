@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { FeedbackOutcome } from '../../shared/contracts'
-import { statusLabels, postStatuses, isPostStatus, type PostStatus } from '../../shared/status'
-import { validateOfficialResponseInput } from '../../shared/outcome-input'
-import { useFeedbackWrite, feedbackWriteError } from '../composables/useFeedbackWrite'
+import { statusLabels, postStatuses } from '../../shared/status'
+import { useOfficialPublication } from '../composables/useOfficialPublication'
+import { useFeedbackFollowing } from '../composables/useFeedbackFollowing'
+
 const props = defineProps<{
   postId: string
   owner: string | null
@@ -10,162 +10,36 @@ const props = defineProps<{
   categoryName: string
 }>()
 const emit = defineEmits<{ published: [] }>()
-const endpoint = `/api/feedback/posts/${props.postId}`
-const outcome = ref<FeedbackOutcome | null>(null)
-const error = ref('')
-const busy = ref(false)
-const message = ref('')
-const bodyError = ref('')
-const conflict = ref(false)
-const latest = ref<FeedbackOutcome | null>(null)
-const form = reactive({ body: '', status: '' as PostStatus | '', version: 0 })
-const draftKey = `opine.feedback.response.${props.owner}.${props.postId}`
-const write = useFeedbackWrite(`response.${props.owner}.${props.postId}`)
-const followWrite = useFeedbackWrite(`follow.${props.owner}.${props.postId}`)
-let active = true
-let initialized = false
-onBeforeUnmount(() => {
-  active = false
-})
-try {
-  const saved = JSON.parse(sessionStorage.getItem(draftKey) ?? 'null')
-  if (props.owner && saved && typeof saved.body === 'string' && Number.isInteger(saved.version)) {
-    form.body = saved.body
-    form.status = isPostStatus(saved.status) ? saved.status : ''
-    form.version = saved.version
-    initialized = true
-  }
-} catch {
-  message.value = 'Your response draft could not be restored.'
-}
-watch(
+
+const {
+  outcome,
+  reviewing,
+  reviewError,
+  error,
+  busy,
+  message,
+  bodyError,
+  conflict,
+  latest,
   form,
-  () => {
-    if (!props.owner) return
-    try {
-      sessionStorage.setItem(draftKey, JSON.stringify(form))
-    } catch {
-      message.value = 'Your draft cannot be saved in this browser. Keep this page open.'
-    }
-  },
-  { flush: 'sync' },
-)
-async function load() {
-  try {
-    const result = await $fetch<FeedbackOutcome>(`${endpoint}/outcome`)
-    if (!active) return
-    outcome.value = result
-    error.value = ''
-    if (!initialized) {
-      form.version = result.version
-      initialized = true
-    }
-  } catch {
-    if (active) error.value = 'Unable to load the official response and follow state.'
-  }
+  write,
+  load,
+  publish,
+  loadLatest,
+  acceptLatest,
+} = useOfficialPublication(props, () => emit('published'))
+const {
+  busy: followBusy,
+  message: followMessage,
+  write: followWrite,
+  follow,
+  retryFollow,
+} = useFeedbackFollowing(props, load)
+
+function categorySaved() {
+  void load()
+  emit('published')
 }
-async function follow(payload: { following: boolean }) {
-  if (busy.value || !props.owner) return
-  busy.value = true
-  message.value = ''
-  try {
-    await $fetch(`${endpoint}/follow`, {
-      method: 'PUT',
-      body: payload,
-      headers: followWrite.headers(payload),
-      retry: 0,
-    })
-    if (!active) return
-    followWrite.complete()
-    await load()
-  } catch (failure) {
-    if (active) message.value = feedbackWriteError(failure)
-  } finally {
-    busy.value = false
-  }
-}
-function retryFollow() {
-  const payload = followWrite.pendingBody.value as { following: boolean } | null
-  if (payload) void follow(payload)
-}
-async function publish(retry = false) {
-  if (busy.value || conflict.value || !props.owner) return
-  const payload = retry
-    ? (write.pendingBody.value as { body: string; status?: PostStatus; version: number })
-    : {
-        body: form.body.trim(),
-        ...(form.status ? { status: form.status } : {}),
-        version: form.version,
-      }
-  bodyError.value = ''
-  const parsed = validateOfficialResponseInput(payload)
-  if (!parsed.success) {
-    bodyError.value = parsed.fieldErrors.body ?? ''
-    message.value = 'Please check the highlighted fields.'
-    return
-  }
-  busy.value = true
-  message.value = ''
-  try {
-    const result = await $fetch<{ id: string }>(`${endpoint}/responses`, {
-      method: 'POST',
-      body: payload,
-      headers: write.headers(payload),
-      retry: 0,
-    })
-    if (!active) return
-    write.complete()
-    form.body = ''
-    form.status = ''
-    initialized = false
-    await load()
-    if (!active) return
-    try {
-      sessionStorage.removeItem(draftKey)
-    } catch {
-      /* Published. */
-    }
-    emit('published')
-    await navigateTo({
-      path: `/feedback/${props.postId}`,
-      query: { response: result.id },
-      hash: `#response-${result.id}`,
-    })
-  } catch (failure) {
-    if (!active) return
-    if ((failure as { statusCode?: number }).statusCode === 409) {
-      conflict.value = true
-      message.value =
-        'The team workflow changed. Your draft is preserved. Review the latest outcome before publishing.'
-    } else {
-      if ((failure as { statusCode?: number }).statusCode === 400) write.complete()
-      message.value = feedbackWriteError(failure)
-    }
-  } finally {
-    busy.value = false
-  }
-}
-async function loadLatest() {
-  busy.value = true
-  try {
-    const result = await $fetch<FeedbackOutcome>(`${endpoint}/outcome`)
-    if (active) latest.value = result
-  } catch {
-    if (active) message.value = 'Unable to load the latest outcome. Please retry.'
-  } finally {
-    busy.value = false
-  }
-}
-function acceptLatest() {
-  if (!latest.value) return
-  outcome.value = latest.value
-  form.version = latest.value.version
-  latest.value = null
-  conflict.value = false
-  write.complete()
-  message.value = 'Latest outcome reviewed. Review your preserved draft before publishing.'
-}
-onMounted(load)
 </script>
 <template>
   <section aria-label="Feedback overview" class="overview">
@@ -174,7 +48,8 @@ onMounted(load)
       <aside aria-label="Status and following" class="status-summary">
         <strong class="category-name">{{ categoryName }}</strong>
         <p v-if="error" role="alert">
-          {{ error }} <UiButton variant="quiet" @click="load">Retry outcome</UiButton>
+          {{ error }}
+          <UiButton variant="quiet" @click="load">Retry outcome</UiButton>
         </p>
         <template v-if="outcome">
           <h2>Current status</h2>
@@ -190,16 +65,18 @@ onMounted(load)
               query: { response: outcome.statusResponse.id },
               hash: `#response-${outcome.statusResponse.id}`,
             }"
-            >Why this status?</NuxtLink
           >
+            Why this status?
+          </NuxtLink>
           <UiButton
             v-if="owner"
             variant="primary"
-            :busy="busy"
-            :disabled="!!followWrite.pendingBody.value"
+            :busy="followBusy"
+            :disabled="followBusy || !!followWrite.pendingBody.value"
             @click="follow({ following: !outcome.following })"
-            >{{ outcome.following ? 'Unfollow updates' : 'Follow updates' }}</UiButton
           >
+            {{ outcome.following ? 'Unfollow updates' : 'Follow updates' }}
+          </UiButton>
           <p class="follow-help">
             {{
               owner
@@ -210,10 +87,12 @@ onMounted(load)
           <UiButton
             v-if="followWrite.pendingBody.value"
             variant="quiet"
-            :busy="busy"
+            :busy="followBusy"
             @click="retryFollow"
-            >Retry pending follow change</UiButton
           >
+            Retry pending follow change
+          </UiButton>
+          <p v-if="followMessage" role="alert">{{ followMessage }}</p>
           <p v-if="followWrite.warning.value">{{ followWrite.warning.value }}</p>
         </template>
         <p v-else-if="!error" role="status">Loading status…</p>
@@ -225,10 +104,9 @@ onMounted(load)
         v-if="outcome.latestResponse"
         :response="outcome.latestResponse"
         featured
-        ><template #link="{ href }"
-          ><NuxtLink :to="href">Response link</NuxtLink></template
-        ></FeedbackOfficialResponse
       >
+        <template #link="{ href }"><NuxtLink :to="href">Response link</NuxtLink></template>
+      </FeedbackOfficialResponse>
       <div v-else class="awaiting-response">
         <h2>Official response</h2>
         <p>No official response yet.</p>
@@ -236,10 +114,10 @@ onMounted(load)
       <div v-if="owner && outcome.canRespond" class="management-tools">
         <details class="response-composer">
           <summary>
-            <span>Publish an official response</span
-            ><span v-if="form.body || write.pendingBody.value" class="draft-indicator">
-              · Saved draft</span
-            >
+            <span>Publish an official response</span>
+            <span v-if="form.body || write.pendingBody.value" class="draft-indicator">
+              · Saved draft
+            </span>
           </summary>
           <form
             class="response-form"
@@ -249,8 +127,8 @@ onMounted(load)
           >
             <p>This is a public official response. Corrections require a new response.</p>
             <div class="field">
-              <label for="official-response-body">Official response</label
-              ><textarea
+              <label for="official-response-body">Official response</label>
+              <textarea
                 id="official-response-body"
                 :aria-invalid="!!bodyError"
                 :aria-describedby="bodyError ? 'official-response-error' : undefined"
@@ -265,8 +143,8 @@ onMounted(load)
               {{ bodyError }}
             </p>
             <div class="field">
-              <label for="official-response-status">Status change</label
-              ><select
+              <label for="official-response-status">Status change</label>
+              <select
                 id="official-response-status"
                 v-model="form.status"
                 :disabled="busy || !!write.pendingBody.value"
@@ -279,21 +157,24 @@ onMounted(load)
             </div>
             <p v-if="write.warning.value">{{ write.warning.value }}</p>
             <div v-if="conflict">
-              <UiButton type="button" :busy="busy" @click="loadLatest"
-                >Load latest outcome</UiButton
-              >
+              <p v-if="reviewError" role="alert">{{ reviewError }}</p>
+              <UiButton type="button" :busy="reviewing" @click="loadLatest">
+                Load latest outcome
+              </UiButton>
               <div v-if="latest">
                 <p>Current status: {{ statusLabels[latest.status] }}</p>
                 <FeedbackOfficialResponse
                   v-if="latest.latestResponse"
                   :response="latest.latestResponse"
                   featured
-                  ><template #link="{ href }"
-                    ><NuxtLink :to="href">Response link</NuxtLink></template
-                  ></FeedbackOfficialResponse
-                ><UiButton type="button" @click="acceptLatest"
-                  >I’ve reviewed the latest outcome</UiButton
                 >
+                  <template #link="{ href }">
+                    <NuxtLink :to="href">Response link</NuxtLink>
+                  </template>
+                </FeedbackOfficialResponse>
+                <UiButton type="button" @click="acceptLatest">
+                  I’ve reviewed the latest outcome
+                </UiButton>
               </div>
             </div>
             <UiButton
@@ -320,10 +201,7 @@ onMounted(load)
           :post-id="postId"
           :category-id="categoryId"
           :version="outcome.version"
-          @saved="
-            load();
-            emit('published')
-          "
+          @saved="categorySaved"
         />
       </div>
     </template>

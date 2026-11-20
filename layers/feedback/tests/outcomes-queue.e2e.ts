@@ -136,3 +136,71 @@ test('a disabled category rejection preserves the correction form and permits a 
     await manager.cleanup()
   }
 })
+
+test('review queue reports a missing category catalog and can retry it independently', async ({
+  page,
+}) => {
+  const manager = await createMember({ roles: ['community-manager'] })
+  const category = await createCategory({ name: 'Recoverable category' })
+  try {
+    await page.context().addCookies([manager.cookie])
+    await page.route('**/api/feedback/categories', (route) =>
+      route.fulfill({ status: 503, json: {} }),
+    )
+    await page.goto('/feedback/review')
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'Unable to load categories.' }),
+    ).toBeVisible()
+    await expect(page.getByLabel('Category', { exact: true })).toBeDisabled()
+    await page.unroute('**/api/feedback/categories')
+    await page.getByRole('button', { name: 'Retry categories', exact: true }).click()
+    await expect(page.getByLabel('Category', { exact: true })).toBeEnabled()
+    await page.getByLabel('Category', { exact: true }).selectOption(category.slug)
+  } finally {
+    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await manager.cleanup()
+  }
+})
+
+test('a successful category correction keeps a failed history refresh visible without replaying the write', async ({
+  page,
+}) => {
+  const manager = await createMember({ roles: ['community-manager'] })
+  const original = await createCategory()
+  const replacement = await createCategory({ name: 'Correction with history outage' })
+  const post = await createFeedbackPost({ authorId: manager.user.id, categoryId: original.id })
+  const database = getDatabase()
+  let writes = 0
+  page.on('request', (request) => {
+    if (request.method() === 'PATCH' && request.url().endsWith(`/posts/${post.id}/category`))
+      writes++
+  })
+  try {
+    await page.context().addCookies([manager.cookie])
+    await page.goto(`/feedback/${post.id}`)
+    await page.getByText('Correct category', { exact: true }).click()
+    await page.getByLabel('Corrected category', { exact: true }).selectOption(replacement.id)
+    await page.route(`**/posts/${post.id}/category-history*`, (route) =>
+      route.fulfill({ status: 503, json: {} }),
+    )
+    await page.getByRole('button', { name: 'Save category correction', exact: true }).click()
+    await expect(page.getByText('Category corrected.', { exact: true })).toBeVisible()
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'Unable to load category history.' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Retry pending category correction', exact: true }),
+    ).toHaveCount(0)
+    await page.unroute(`**/posts/${post.id}/category-history*`)
+    await page.getByRole('button', { name: 'Retry category history', exact: true }).click()
+    await expect(page.locator('details.category-correction ol')).toContainText(replacement.name)
+    expect(writes).toBe(1)
+  } finally {
+    await database.delete(feedbackCategoryChange).where(eq(feedbackCategoryChange.postId, post.id))
+    await database.delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+    await database
+      .delete(feedbackCategory)
+      .where(inArray(feedbackCategory.id, [original.id, replacement.id]))
+    await manager.cleanup()
+  }
+})

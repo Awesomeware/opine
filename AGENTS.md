@@ -72,6 +72,11 @@ Follow [Visual direction](docs/design/README.md): the O encloses the tree, follo
 ## Programming guidelines
 
 - Code clarity comes first. Use descriptive names, straightforward control flow, and small, cohesive functions. Keep code concise without making it cryptic.
+- Separate imports, component contracts, cohesive state groups, functions, and effects with blank lines. Within long handlers, separate validation, requests, and results. Use braces for nested conditionals and loops; avoid compressed template branches and multi-statement event expressions.
+- Keep complex client workflows in feature-local composables. Components own rendering, focus, and emitted events; typed API modules own HTTP details. Simple page reads may stay local. Use plain functions for stateless transformations and retain scoped component CSS.
+- Give independent reads, writes, and refreshes separate loading/error state. Guard asynchronous results against disposal and stale reads with the feature's request-scope helper. A successful mutation and failed refresh are distinct outcomes.
+- Use domain contracts for API responses rather than types derived from form state. Parse stored JSON as unknown and check errors at the transport boundary. Prefer explicit post/comment contracts over mode switches inferred from optional props.
+- Document reusable composable contracts and subtle invariants: account/resource lifetime, exact pending payloads, legacy omissions, and conflict review. Explain intent rather than narrating obvious statements. Preserve behavior with focused regression tests before extracting workflows.
 - Prefer TypeScript inference and types derived from Drizzle schemas. Add explicit types or interfaces when they clarify a meaningful contract; avoid duplicating the same shape across layers. Preserve type safety without unnecessary assertions or `any`.
 - Introduce abstractions only when they make existing code easier to understand or modify. Avoid speculative extensibility, generic frameworks, and unnecessary wrappers or layers.
 - Keep related code together. Extract shared helpers and components when there is a concrete benefit, not merely to create more files.

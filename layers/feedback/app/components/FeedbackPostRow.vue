@@ -2,8 +2,10 @@
 import FeedbackTags from './FeedbackTags.vue'
 import FeedbackStatusBadge from './FeedbackStatusBadge.vue'
 import type { FeedbackPostSummary } from '../../shared/contracts'
+
 defineProps<{ post: FeedbackPostSummary }>()
 </script>
+
 <template>
   <article class="post-row">
     <div class="post-content">
@@ -13,16 +15,19 @@ defineProps<{ post: FeedbackPostSummary }>()
       <p class="row-excerpt">{{ post.excerpt }}</p>
       <FeedbackTags :tags="post.tags" />
       <p class="row-byline">
-        <span>{{ post.category.name }}</span><span aria-hidden="true"> · </span
-        ><span>{{ post.author.name }}</span><span aria-hidden="true"> · </span
-        ><time :datetime="post.createdAt">{{
-          new Date(post.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })
-        }}</time>
+        <span>{{ post.category.name }}</span>
+        <span aria-hidden="true">·</span>
+        <span>{{ post.author.name }}</span>
+        <span aria-hidden="true">·</span>
+        <time :datetime="post.createdAt">
+          {{ new Date(post.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
+        </time>
       </p>
     </div>
     <FeedbackStatusBadge class="row-status" :status="post.status" />
   </article>
 </template>
+
 <style scoped>
 .post-row {
   display: flex;
@@ -58,6 +63,9 @@ h2 :slotted(a:hover) {
   overflow-wrap: anywhere;
 }
 .row-byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.35em;
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.8rem;

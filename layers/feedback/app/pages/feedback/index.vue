@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useRequestScope } from '../../composables/useRequestScope'
 import { statusLabels, postStatuses } from '../../../shared/status'
 import type { FeedbackCategory, FeedbackPage, FeedbackPostSummary } from '../../../shared/contracts'
 
 useHead({ title: 'Community feedback · Opine' })
+
 const route = useRoute()
 const query = computed(() => ({
   q: typeof route.query.q === 'string' ? route.query.q : '',
@@ -10,32 +12,45 @@ const query = computed(() => ({
   status: typeof route.query.status === 'string' ? route.query.status : '',
   limit: 20,
 }))
+
+// Draft filter controls become active only when applied to the URL.
 const filters = reactive({
   q: query.value.q,
   category: query.value.category,
   status: query.value.status,
 })
+
 watch(query, (value) => Object.assign(filters, value))
+
 const { data: categories, error: categoriesError } = useFetch<{ categories: FeedbackCategory[] }>(
   '/api/feedback/categories',
 )
 const { data, pending, error, refresh } = useFetch<FeedbackPage>('/api/feedback/posts', { query })
+
+const pagination = useRequestScope()
 const extraPosts = ref<FeedbackPostSummary[]>([])
 const nextCursor = ref<string | null>(null)
 const loadingMore = ref(false)
 const moreError = ref('')
+
 watch(
   data,
   (value) => {
+    pagination.startRequest()
+    loadingMore.value = false
     moreError.value = ''
     extraPosts.value = []
     nextCursor.value = value?.nextCursor ?? null
   },
   { immediate: true },
 )
+
 watch(query, () => {
+  pagination.startRequest()
+  loadingMore.value = false
   moreError.value = ''
 })
+
 const posts = computed(() => [...(data.value?.posts ?? []), ...extraPosts.value])
 
 async function applyFilters() {
@@ -50,23 +65,32 @@ async function applyFilters() {
 }
 
 async function loadMore() {
-  if (!nextCursor.value || loadingMore.value) return
-  const currentQuery = JSON.stringify(query.value)
+  if (!nextCursor.value || loadingMore.value) {
+    return
+  }
+
+  const isCurrent = pagination.startRequest()
   loadingMore.value = true
   moreError.value = ''
+
   try {
     const page = await $fetch<FeedbackPage>('/api/feedback/posts', {
       query: { ...query.value, cursor: nextCursor.value },
     })
-    if (currentQuery !== JSON.stringify(query.value)) return
+    if (!isCurrent()) {
+      return
+    }
+
     extraPosts.value.push(...page.posts)
     nextCursor.value = page.nextCursor
   } catch {
-    if (currentQuery === JSON.stringify(query.value)) {
+    if (isCurrent()) {
       moreError.value = 'Unable to load more feedback. Please try again.'
     }
   } finally {
-    loadingMore.value = false
+    if (isCurrent()) {
+      loadingMore.value = false
+    }
   }
 }
 </script>
@@ -81,12 +105,12 @@ async function loadMore() {
     </div>
     <form class="filters" role="search" @submit.prevent="applyFilters">
       <div class="field search-field">
-        <label for="search">Search feedback</label
-        ><input id="search" v-model="filters.q" type="search" placeholder="Find feedback…" />
+        <label for="search">Search feedback</label>
+        <input id="search" v-model="filters.q" type="search" placeholder="Find feedback…" />
       </div>
       <div class="field">
-        <label for="category-filter">Category</label
-        ><select id="category-filter" v-model="filters.category">
+        <label for="category-filter">Category</label>
+        <select id="category-filter" v-model="filters.category">
           <option value="">All categories</option>
           <option
             v-for="category in categories?.categories"
@@ -98,8 +122,8 @@ async function loadMore() {
         </select>
       </div>
       <div class="field">
-        <label for="status-filter">Status</label
-        ><select id="status-filter" v-model="filters.status">
+        <label for="status-filter">Status</label>
+        <select id="status-filter" v-model="filters.status">
           <option value="">All statuses</option>
           <option v-for="status in postStatuses" :key="status" :value="status">
             {{ statusLabels[status] }}
@@ -126,9 +150,9 @@ async function loadMore() {
       <ol v-else class="feedback-list">
         <li v-for="post in posts" :key="post.id">
           <FeedbackPostRow :post="post">
-            <template #title
-              ><NuxtLink :to="`/feedback/${post.id}`">{{ post.title }}</NuxtLink></template
-            >
+            <template #title>
+              <NuxtLink :to="`/feedback/${post.id}`">{{ post.title }}</NuxtLink>
+            </template>
           </FeedbackPostRow>
         </li>
       </ol>

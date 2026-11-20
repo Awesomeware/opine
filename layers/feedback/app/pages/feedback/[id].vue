@@ -1,23 +1,40 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import FeedbackPostEditor from '../../components/FeedbackPostEditor.vue'
 import { authClient } from '../../../../auth/app/auth-client'
 import type { FeedbackPost } from '../../../shared/contracts'
 
 const route = useRoute()
 const session = authClient.useSession()
 const owner = computed(() => session.value.data?.user.id ?? null)
+
 const editing = ref(false)
 const discussion = ref<{ refresh: () => Promise<void>; focusComposer: () => void } | null>(null)
+
 watch(owner, () => {
   editing.value = false
   data.value = undefined
   refresh()
 })
+
 const { data, pending, error, refresh } = useFetch<{ post: FeedbackPost }>(
   () => `/api/feedback/posts/${encodeURIComponent(String(route.params.id))}`,
 )
 const post = computed(() => data.value?.post)
 useHead(() => ({ title: post.value ? `${post.value.title} · Opine` : 'Feedback · Opine' }))
+
 const shareMessage = ref('')
+
+function refreshPublished() {
+  discussion.value?.refresh()
+  refresh()
+}
+
+function finishEditing() {
+  editing.value = false
+  refresh()
+}
+
 async function copyLink() {
   try {
     await navigator.clipboard.writeText(
@@ -35,15 +52,15 @@ async function copyLink() {
     <NuxtLink class="back-link" to="/feedback">← All feedback</NuxtLink>
     <p v-if="pending && !post" role="status">Loading feedback…</p>
     <div v-else-if="error && !post" class="panel empty-state" role="alert">
-      <template v-if="error.statusCode === 404"
-        ><h1>Feedback not found</h1>
-        <p>This feedback is not available. Browse other feedback from the community.</p></template
-      >
-      <template v-else
-        ><h1>Unable to load feedback</h1>
+      <template v-if="error.statusCode === 404">
+        <h1>Feedback not found</h1>
+        <p>This feedback is not available. Browse other feedback from the community.</p>
+      </template>
+      <template v-else>
+        <h1>Unable to load feedback</h1>
         <p>Please try again.</p>
-        <UiButton type="button" @click="refresh()">Retry</UiButton></template
-      >
+        <UiButton type="button" @click="refresh()">Retry</UiButton>
+      </template>
     </div>
     <FeedbackOutcome
       v-if="post"
@@ -52,10 +69,7 @@ async function copyLink() {
       :category-name="post.category.name"
       :post-id="post.id"
       :owner="owner"
-      @published="
-        discussion?.refresh();
-        refresh()
-      "
+      @published="refreshPublished"
     >
       <template #proposal>
         <article class="proposal-article">
@@ -63,49 +77,46 @@ async function copyLink() {
           <h1>{{ post.title }}</h1>
           <FeedbackTags :tags="post.tags" />
           <p class="byline">
-            <strong>{{ post.author.name }}</strong><span aria-hidden="true"> · </span
-            ><time :datetime="post.createdAt">{{
-              new Date(post.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })
-            }}</time
-            ><span v-if="post.editedAt" :title="new Date(post.editedAt).toLocaleString()">
-              · Edited</span
-            >
+            <strong>{{ post.author.name }}</strong>
+            <span aria-hidden="true">·</span>
+            <time :datetime="post.createdAt">
+              {{ new Date(post.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' }) }}
+            </time>
+            <span v-if="post.editedAt" :title="new Date(post.editedAt).toLocaleString()">
+              · Edited
+            </span>
           </p>
-          <FeedbackEditor
+          <FeedbackPostEditor
             v-if="editing && owner"
             :key="owner"
             :owner="owner"
-            :endpoint="`/api/feedback/posts/${post.id}`"
-            :title="post.title"
-            :tags="post.tags"
-            :description="post.description"
-            :desired-improvement="post.desiredImprovement"
-            :version="post.version"
-            @saved="
-              editing = false;
-              refresh()
-            "
+            :post="post"
+            @saved="finishEditing"
             @cancel="editing = false"
           />
           <div v-else class="prose">
             <FeedbackText :text="post.description" />
-            <template v-if="post.desiredImprovement"
-              ><h2>Suggested improvement</h2>
-              <FeedbackText :text="post.desiredImprovement"
-            /></template>
+            <template v-if="post.desiredImprovement">
+              <h2>Suggested improvement</h2>
+              <FeedbackText :text="post.desiredImprovement" />
+            </template>
           </div>
           <FeedbackReactions
             :post-id="post.id"
             :owner="owner"
             @contribute="discussion?.focusComposer()"
           >
-            <UiButton variant="quiet" @click="copyLink"><UiIcon name="link" /> Copy link</UiButton>
+            <UiButton variant="quiet" @click="copyLink">
+              <UiIcon name="link" />
+              Copy link
+            </UiButton>
             <UiButton
               v-if="post.canEdit && owner && !editing"
               variant="quiet"
               @click="editing = true"
-              >Edit feedback</UiButton
             >
+              Edit feedback
+            </UiButton>
           </FeedbackReactions>
           <p v-if="shareMessage" role="status" class="share-message">{{ shareMessage }}</p>
         </article>
@@ -147,6 +158,9 @@ h1 {
   font-weight: 400;
 }
 .byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.35em;
   font-size: 0.8rem;
   color: var(--color-text-muted);
   margin: 0 0 1rem;

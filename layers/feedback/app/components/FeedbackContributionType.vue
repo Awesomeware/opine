@@ -6,9 +6,12 @@ import {
   contributionPrompts,
   type ContributionType,
 } from '../../shared/contribution-types'
+
 defineProps<{ name: string; disabled?: boolean; error?: string; legacy?: boolean }>()
+
 const model = defineModel<ContributionType | ''>({ required: true })
 </script>
+
 <template>
   <fieldset :disabled="disabled" :aria-describedby="error ? `${name}-error` : undefined">
     <legend>Contribution type</legend>
@@ -27,6 +30,7 @@ const model = defineModel<ContributionType | ''>({ required: true })
     <p v-if="error" :id="`${name}-error`" class="field-error">{{ error }}</p>
   </fieldset>
 </template>
+
 <style scoped>
 fieldset {
   border: 0;

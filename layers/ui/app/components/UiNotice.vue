@@ -2,7 +2,9 @@
 import { ref } from 'vue'
 
 withDefaults(defineProps<{ as?: 'p' | 'div' }>(), { as: 'p' })
+
 const element = ref<HTMLElement | null>(null)
+
 // Forms focus their error summary after validation without exposing component internals.
 defineExpose({ focus: () => element.value?.focus() })
 </script>

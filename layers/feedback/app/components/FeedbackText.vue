@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 const props = defineProps<{ text: string }>()
+
 const parts = computed(() =>
   props.text.split(/(https?:\/\/[^\s<>]+)/g).map((text) => {
     try {
@@ -13,6 +14,7 @@ const parts = computed(() =>
   }),
 )
 </script>
+
 <template>
   <p class="feedback-text">
     <template v-for="(part, index) in parts" :key="index"
@@ -23,6 +25,7 @@ const parts = computed(() =>
     >
   </p>
 </template>
+
 <style scoped>
 .feedback-text {
   white-space: pre-wrap;

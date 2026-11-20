@@ -2,6 +2,12 @@
 
 This layer owns categories, posts, follows, comments, reactions, official responses, notifications, category-change audit records, and write receipts. Its schema lives in `server/schema.ts`, aggregated by the root database schema. It consumes the shared database pool and auth's public identity/session entrypoints. The approved schema and local operations are described in [Feedback](../../docs/feedback.md).
 
+## Browser workflows
+
+Components render forms and feedback, manage focus, and emit events. Feature-local `app/composables/` owns submission, explicit post/comment editing, discussion, and management workflows. `app/api/` owns typed HTTP calls; `app/utils/` checks stored input before restoring drafts. These remain internal to this feature.
+
+Create request scopes during setup. Mount account/resource workflows with stable identities and remount when those identities change; submission watches session changes explicitly. Each independent read stream invalidates stale results without cancelling committed server writes. Read errors and mutation outcomes remain separate, so a failed refresh can be retried without repeating a confirmed write. See [UI conventions](../../docs/ui.md) and the [cleanup verification](../../docs/vue-refactor.md).
+
 ## Public entrypoints
 
 - `GET /api/feedback/categories` lists categories in configured order, including inactive categories needed for browsing older feedback.

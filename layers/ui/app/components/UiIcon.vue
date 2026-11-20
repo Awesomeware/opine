@@ -10,6 +10,7 @@ defineProps<{
     | 'question'
     | 'search'
 }>()
+
 const paths = {
   agree: 'M7 10v11H3V10h4Zm0 1 5-8c2 0 2 2 1 6h6a2 2 0 0 1 2 2l-2 8a2 2 0 0 1-2 2H7',
   disagree: 'M7 14V3H3v11h4Zm0-1 5 8c2 0 2-2 1-6h6a2 2 0 0 0 2-2l-2-8a2 2 0 0 0-2-2H7',

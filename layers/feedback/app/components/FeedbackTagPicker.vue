@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { FeedbackTag } from '../../shared/contracts'
+
 const props = withDefaults(
   defineProps<{
     tags: FeedbackTag[]
@@ -11,7 +12,9 @@ const props = withDefaults(
   }>(),
   { retainedIds: () => [] },
 )
+
 const model = defineModel<string[]>({ required: true })
+
 const choices = computed(() =>
   props.tags.filter(
     (tag) => tag.isActive || props.retainedIds.includes(tag.id) || model.value.includes(tag.id),
@@ -20,10 +23,18 @@ const choices = computed(() =>
 const unknownIds = computed(() =>
   model.value.filter((id) => !props.tags.some((tag) => tag.id === id)),
 )
+
 function toggle(id: string, checked: boolean) {
   model.value = checked ? [...model.value, id] : model.value.filter((value) => value !== id)
 }
+
+function changeTag(id: string, event: Event) {
+  if (event.target instanceof HTMLInputElement) {
+    toggle(id, event.target.checked)
+  }
+}
 </script>
+
 <template>
   <fieldset :disabled="disabled" :aria-describedby="`${name}-help${error ? ` ${name}-error` : ''}`">
     <legend>Tags (optional)</legend>
@@ -37,19 +48,21 @@ function toggle(id: string, checked: boolean) {
           :checked="model.includes(tag.id)"
           :disabled="!tag.isActive && !retainedIds.includes(tag.id) && !model.includes(tag.id)"
           :aria-invalid="!!error"
-          @change="toggle(tag.id, ($event.target as HTMLInputElement).checked)"
+          @change="changeTag(tag.id, $event)"
         />
-        {{ tag.name }}<span v-if="!tag.isActive"> (inactive)</span>
+        {{ tag.name }}
+        <span v-if="!tag.isActive">(inactive)</span>
       </label>
-      <label v-for="id in unknownIds" :key="id"
-        ><input type="checkbox" :name="name" checked @change="toggle(id, false)" />Unavailable tag
-        (remove)</label
-      >
+      <label v-for="id in unknownIds" :key="id">
+        <input type="checkbox" :name="name" checked @change="toggle(id, false)" />
+        Unavailable tag (remove)
+      </label>
     </div>
     <p v-if="!choices.length && !unknownIds.length" class="help">No tags are available.</p>
     <p v-if="error" :id="`${name}-error`" class="error">{{ error }}</p>
   </fieldset>
 </template>
+
 <style scoped>
 fieldset {
   border: 0;

@@ -37,10 +37,12 @@ Use the native generator rather than maintaining a parallel `new-layer.sh`. It r
 ```text
 layers/feedback/
   nuxt.config.ts
-  app/pages/feedback/
-    index.vue                Public list and filters
-    new.vue                  Authenticated submission
-    [id].vue                 Public detail and sharing
+  app/
+    pages/feedback/          Public list/detail and authenticated entrypoints
+    components/              Rendering, focus, and user events
+    composables/             Feature workflows, drafts, retries, and request state
+    api/                     Typed browser HTTP operations and error decoding
+    utils/                   Checked stored inputs and pure form transformations
   server/
     api/feedback/            HTTP entrypoints
     posts.ts                 Creation and public queries
@@ -72,7 +74,9 @@ Storybook uses Vue/Vite to render the same components with deterministic props, 
 
 ## A vertical slice: create feedback
 
-The feature's `new.vue` page owns the submission form and calls `POST /api/feedback/posts`. The endpoint reads the request and authenticated session and delegates creation to `server/posts.ts`.
+The feature's `new.vue` page renders the submission form. `useFeedbackSubmission` owns its validation, account-scoped draft, and retry lifecycle; `app/api/posts.ts` sends the typed `POST /api/feedback/posts` request. The endpoint reads the request and authenticated session and delegates creation to `server/posts.ts`.
+
+These browser folders separate responsibilities within the feature, without adding another Nuxt layer or a generic service framework. Simple reads may stay in pages. Post and comment editors accept their own domain contracts, and independent reads and writes keep separate loading/error states. See [UI development](ui.md) for component conventions.
 
 The create operation owns authoritative input validation, participation authorization, and the transaction that writes the post and its initial follow. It returns the result needed by the endpoint. Client-side validation can reuse browser-safe input rules, but server validation and authorization remain mandatory. Creation, follow controls, and notifications are implemented. Optional tags belong to the feedback feature; their vocabulary and assignment use cases share the existing post transaction and author edit version.
 

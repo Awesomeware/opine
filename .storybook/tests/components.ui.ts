@@ -41,7 +41,9 @@ test('feedback text preserves line breaks and protects contributed links', async
   await page.goto(story('feedback-text--default'))
   const text = page.locator('.feedback-text')
   await expect(text).toHaveCSS('white-space', 'pre-wrap')
-  expect(await text.textContent()).toContain('\n')
+  expect(await text.textContent()).toBe(
+    'Please make the quest tracker easier to read.\nExample: https://example.com/feedback\n<script>alert("example")</script> and javascript:alert(1) are plain text.',
+  )
   await expect(text).toContainText('<script>alert("example")</script>')
   await expect(text).toContainText('javascript:alert(1)')
   await expect(text.locator('script')).toHaveCount(0)
