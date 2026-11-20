@@ -17,7 +17,7 @@ The app runs at <http://localhost:3000>. See [README.md](README.md) for setup de
 
 - `pnpm lint` / `pnpm lint:fix` — check code with oxlint / apply fixes.
 - `pnpm format` / `pnpm format:check` — format with oxfmt / check formatting.
-- `pnpm typecheck` — check TypeScript and Vue templates.
+- `pnpm typecheck` — check application/server TypeScript, Vue templates, tests, and operational scripts.
 - `pnpm test` — run lightweight Node tests without Docker or loading `.env`.
 - `pnpm test:integration` — run database suites against fresh Testcontainers PostgreSQL instances.
 - `pnpm test:e2e` — build and run Playwright browser suites against fresh databases and application servers.
@@ -55,7 +55,7 @@ Follow [docs/testing.md](docs/testing.md). Each logical integration or E2E suite
 
 ## Authentication boundaries
 
-Follow [layers/auth/README.md](layers/auth/README.md) for the feature's public entrypoints. Resolve the caller with `getAccess(headers)` and enforce permissions on the server for every protected operation. Use internal user IDs for ownership. Every authenticated user is a member; administrator and community-manager roles are independent. Never trust client-supplied actor IDs or role claims, enable automatic account linking, or import test session fixtures into production code.
+Follow [layers/auth/README.md](layers/auth/README.md) for the feature's public entrypoints. Resolve the caller with `getAccess(headers)` and enforce permissions on the server for every protected operation. For role-sensitive mutations, recheck authority inside the transaction under locks that coordinate with role changes; an earlier HTTP permission check is insufficient. Use internal user IDs for ownership. Every authenticated user is a member; administrator and community-manager roles are independent. Never trust client-supplied actor IDs or role claims, enable automatic account linking, or import test session fixtures into production code.
 
 ## Feedback boundaries
 

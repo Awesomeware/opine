@@ -2,13 +2,16 @@
 
 Use the Node and pnpm versions pinned in `.nvmrc` and `package.json`.
 
-| Command                    | Scope                                            | Requirements                        |
-| -------------------------- | ------------------------------------------------ | ----------------------------------- |
-| `pnpm test`                | Lightweight `*.test.ts` tests discovered by Node | Installed dependencies              |
-| `pnpm test:integration`    | Database integration suites                      | Running Docker-compatible runtime   |
-| `pnpm test:e2e`            | Production build and Playwright browser suites   | Docker runtime and Chromium         |
-| `pnpm test:ui`             | Storybook build and component browser checks     | Installed dependencies and Chromium |
-| `pnpm storybook:typecheck` | Standalone component/story TypeScript checks     | Installed dependencies              |
+| Command                    | Scope                                                  | Requirements                        |
+| -------------------------- | ------------------------------------------------------ | ----------------------------------- |
+| `pnpm typecheck`           | Application, server, Vue templates, tests, and scripts | Installed dependencies              |
+| `pnpm test`                | Lightweight `*.test.ts` tests discovered by Node       | Installed dependencies              |
+| `pnpm test:integration`    | Database integration suites                            | Running Docker-compatible runtime   |
+| `pnpm test:e2e`            | Production build and Playwright browser suites         | Docker runtime and Chromium         |
+| `pnpm test:ui`             | Storybook build and component browser checks           | Installed dependencies and Chromium |
+| `pnpm storybook:typecheck` | Standalone component/story TypeScript checks           | Installed dependencies              |
+
+`pnpm typecheck` first generates/checks Nuxt types, then checks `tsconfig.tests.json` for operational scripts, root and feature test code, and the application Playwright configuration. Browser callbacks use DOM types. Storybook retains its separate component/story typecheck.
 
 Install the browser with `pnpm exec playwright install chromium`. On Linux, `pnpm exec playwright install --with-deps chromium` also installs required system packages when needed. Docker Compose is for local development and is not needed for tests. The first database-backed run downloads the PostgreSQL image if it is not cached.
 
@@ -39,7 +42,7 @@ An E2E suite can declare `restartFiles` for a second phase. After its ordinary t
 
 - Lightweight tests cover database configuration, pool lifecycle, suite scheduling, the independent role permission matrix, safe auth diagnostics, and feedback/filter/participation/official-workflow validation.
 - The `database` integration suite covers real queries, reconnecting after pool shutdown, migration history and reapplication, and test-data persistence across connections. It also exercises the example-data/reset CLI, concurrent and repeated seeding, preservation of existing content, reset confirmation failures, full application-data removal, and reseeding. Destructive checks use only its disposable database; fresh-schema checks use another database in that same container.
-- The `authentication` integration suite covers Discord callbacks with controlled provider responses, internal identity persistence, rejected implicit linking, OAuth state, session expiry/revocation/sign-out, role mutations, the operator CLI, and HTTP rate limits.
+- The `authentication` integration suite covers Discord callbacks with controlled provider responses, internal identity persistence, rejected implicit linking, OAuth state, session expiry/revocation/sign-out, transactional role authorization, concurrent role mutations, the operator CLI, and HTTP rate limits. Browser checks include a delayed role-change request completed after the actor's administrator role is revoked.
 - The `feedback` integration suite covers atomic post/follow rollback, author privacy, restrictive deletion, category configuration, literal search, exact pagination, concurrent submission limits, atomic receipts and retry deduplication, author-only edits, conflict detection, reaction changes, contribution-type filtering before pagination, type edits, legacy comments, rejected body-only creates, and preserved omitted-field receipt fingerprints. Official-workflow tests cover atomic response/status/notification rollback, concurrent managers, revoked-role replay denial, workflow conflicts, subscription changes, private inbox pagination/read state, category audits, and review-queue follow-up rules.
 - The `application-smoke` browser suite checks the rendered page and database readiness, Discord redirect initiation, session reload/sign-out, server authorization boundaries, CSRF protection, and rejection of forged rate-limit IP headers. It also covers feedback publication, discarding unsaved forms on reload/navigation, public links, filtering, pagination, mobile overflow checks, comments and direct links, edit-conflict review, same-page retry after a lost response, official response/status publication, follow notifications, queue authorization, and the database/app restart phase.
 

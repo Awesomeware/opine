@@ -50,7 +50,7 @@ PostgreSQL data lives in the Compose-managed `postgres_data` volume. `docker com
 | `pnpm lint:fix`              | Apply automatic lint fixes.                                      |
 | `pnpm format`                | Format source files and documentation with oxfmt.                |
 | `pnpm format:check`          | Check formatting without modifying files.                        |
-| `pnpm typecheck`             | Check application and server TypeScript.                         |
+| `pnpm typecheck`             | Check application, server, tests, and scripts.                   |
 | `pnpm test`                  | Run lightweight Node tests without Docker.                       |
 | `pnpm test:integration`      | Run isolated PostgreSQL integration suites.                      |
 | `pnpm test:e2e`              | Build and run isolated Playwright browser suites.                |
