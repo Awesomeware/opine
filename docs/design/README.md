@@ -18,7 +18,9 @@ Desktop is the priority. Stack columns and wrap controls at narrow widths withou
 
 The image's **Implemented** is represented by the existing **Delivered** status. The pictured **Reply** actions are **Comment link** permalinks; nested replies remain deferred. Use **Official response(s)** consistently for explicitly published team communication. The internal `team` discussion-filter value remains compatible with existing URLs. An ordinary comment from a manager is still an ordinary contribution.
 
-Use genuine stored content and dates. Initials may identify contributors decoratively, but do not add profile images, fabricated activity counts, popularity scores, tags, curated summaries, related posts, or new statuses. The existing flat discussion, four required contribution types, plain-text editor, and permission model remain unchanged.
+Use genuine stored content and dates. Initials may identify contributors decoratively, but do not add profile images, fabricated activity counts, popularity scores, curated summaries, related posts, or new statuses. The existing flat discussion, four required contribution types, plain-text editor, and permission model remain unchanged.
+
+Tags are a subsequent approved scope addition: show author-selected tags as quiet labels on feedback rows and the proposal. Keep them visually distinct from status and contribution types. Selection uses optional checkboxes; tag management is an administrator action.
 
 ## Implementation and verification
 

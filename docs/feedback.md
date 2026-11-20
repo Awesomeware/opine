@@ -1,6 +1,6 @@
 # Feedback: schema and local use
 
-The feedback layer provides public browsing, stable links, authenticated submission, typed contributions, discussion filters, reactions, and author editing. The interface uses dark navy surfaces, gold accents, serif headings, and a centered responsive layout. Official responses and current status appear above the discussion. Members can follow outcomes and read an in-platform notification inbox; community managers have a review queue and category correction controls.
+The feedback layer provides public browsing, stable links, authenticated submission, typed contributions, discussion filters, reactions, author editing, and optional tags. The interface uses matte charcoal surfaces, gold accents, serif headings, and a centered responsive layout. Official responses and current status appear above the discussion. Members can follow outcomes and read an in-platform notification inbox; community managers have a review queue and category correction controls.
 
 ## Structured participation
 
@@ -56,6 +56,18 @@ Slugs use lowercase letters, digits, and separating hyphens, up to 80 characters
 
 Inactive categories remain visible on old posts and in browsing filters. They cannot receive new submissions. Physical deletion is blocked while posts reference a category. These commands require database operator access; a category administration screen is not included yet.
 
+## Tags
+
+Administrators can open **Tags** in the main navigation (`/feedback/tags`) to create, rename, disable, or re-enable tags. Community-manager access alone does not grant this permission. Names are trimmed, 1–40 characters, and unique without regard to case. Renaming updates the label wherever the tag appears; concurrent management changes require reviewing the latest version before saving.
+
+Migrations install **Gameplay**, **UI**, **Class-specific**, **Combat**, and **$$$** (money/cash shop). Existing feedback starts with no tags. Tags supplement the required category; authors select zero or more on submission and can change the selection through **Edit feedback**. Selected tags appear on list rows and the proposal. Tag filtering is deferred.
+
+Disabled tags remain on existing posts but cannot be newly assigned. An author may keep or remove a disabled tag already attached to their post. Disabling and renaming do not mark the post as edited; changing its assignments does. There is no tag deletion action and no administrator override of author selections.
+
+The post, tags, and initial author follow commit together. Post edits use one version and transaction for text and tags. Omitted `tagIds` preserves assignments on edit and means none on creation; explicit `[]` clears them. Legacy request fingerprints retain omission so pending requests from before tags were introduced can still be retried. Tag IDs are normalized as a set, with a 100-ID request bound. This is a safety bound, not a required selection count.
+
+Reset restores the five initial tags. Example seeding adds tags only to newly inserted example posts and respects disabled tags; repeating it does not replenish tags removed from existing examples.
+
 ## Tables
 
 Authentication remains in [the auth schema](../layers/auth/server/schema.ts). Feedback references the internal `auth_user.id`, never a Discord ID or email address. All feedback timestamps are `timestamptz(3)`; created timestamps default to now, and operations maintain update/edit timestamps explicitly.
@@ -88,6 +100,13 @@ Post statuses are `new`, `reviewing`, `planned`, `delivered`, `not_planned`, and
 
 Indexes support newest-first browsing, category/status filtering, author lookup, and user follows. Pagination uses creation time plus ID to handle equal timestamps deterministically. Search currently uses literal case-insensitive substring matching across title and description; it has no dedicated full-text search index. Reassess search indexing with actual data volume rather than changing search semantics accidentally.
 
+The tag tables extend this schema:
+
+| Table               | Fields and constraints                                                                                                                              |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `feedback_tag`      | UUID `id`; unique case-insensitive text `name`; boolean `is_active`; positive integer `version`.                                                    |
+| `feedback_post_tag` | Composite primary key `(post_id, tag_id)`; post deletion cascades assignments; referenced tag deletion is restricted. An index supports tag lookup. |
+
 ## Contribution retention
 
 Deleting a user must not delete their contributions. Author foreign keys currently block physical deletion when posts, comments, official responses, or category audit records exist. Posts with comments also cannot be physically deleted. Removable reactions, follows, and private write receipts are not retained if their account is eventually deleted. A future explicit anonymization/deletion workflow must decide how to retain attribution and handle personal data before the public pilot. There is no self-service deletion endpoint.
@@ -102,7 +121,7 @@ Each signed-in member may select Agree or Disagree, change their choice, or sele
 
 ## Editing and safe retries
 
-Authors may edit their own post text and ordinary comments. Post category and status are excluded. A text or contribution-type change increments `version` and sets `edited_at`; an unchanged save does neither. Authors may change their contribution type. Omitting type from a comment edit preserves the existing classification, including NULL on legacy comments; explicitly clearing it is rejected. There are no original-content copies or revision tables. Existing reactions and comments remain attached after edits.
+Authors may edit their own post text, tag selections, and ordinary comments. Post category and status are excluded. A text, tag-selection, or contribution-type change increments `version` and sets `edited_at`; an unchanged save does neither. Authors may change their contribution type. Omitting type from a comment edit preserves the existing classification, including NULL on legacy comments; explicitly clearing it is rejected. There are no original-content copies or revision tables. Existing reactions and comments remain attached after edits.
 
 Edit requests include the loaded version. A mismatch returns 409 and preserves the draft. The interface requires loading and reviewing the latest saved content before retrying an edit against its new version.
 

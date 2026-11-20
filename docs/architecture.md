@@ -48,6 +48,7 @@ layers/feedback/
     writes.ts                Atomic mutations and retry receipts
     http.ts                  Authenticated HTTP boundary and error mapping
     categories.ts            Category reads and operator configuration
+    tags.ts                  Administrator vocabulary and post tag assignments
     list-input.ts            Filter and pagination validation
     schema.ts                Feedback and participation tables
     posts.integration.ts     Database behavior tests
@@ -73,7 +74,7 @@ Storybook uses Vue/Vite to render the same components with deterministic props, 
 
 The feature's `new.vue` page owns the submission form and calls `POST /api/feedback/posts`. The endpoint reads the request and authenticated session and delegates creation to `server/posts.ts`.
 
-The create operation owns authoritative input validation, participation authorization, and the transaction that writes the post and its initial follow. It returns the result needed by the endpoint. Client-side validation can reuse browser-safe input rules, but server validation and authorization remain mandatory. This is implemented in TODO #3; follow controls and notifications remain scheduled for #5.
+The create operation owns authoritative input validation, participation authorization, and the transaction that writes the post and its initial follow. It returns the result needed by the endpoint. Client-side validation can reuse browser-safe input rules, but server validation and authorization remain mandatory. Creation, follow controls, and notifications are implemented. Optional tags belong to the feedback feature; their vocabulary and assignment use cases share the existing post transaction and author edit version.
 
 Keep the operation's Drizzle queries near that behavior. Introduce a helper, service, or repository only when it makes existing code easier to understand or removes meaningful duplication. A small endpoint may contain its entire operation without an extra wrapper.
 

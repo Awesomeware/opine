@@ -10,8 +10,8 @@ These journeys cover only the reduced first version in [requirements.md](require
 
 ## Contribute to feedback
 
-- V1-J04: As a community member, I can sign in with Discord and submit a title, my feedback, one category, and an optional suggested improvement without supplying bug-report metadata.
-- V1-J05: As a community member, I can edit my own post or ordinary comment, with an Edited indicator and protection against conflicting edits, without retaining previous text.
+- V1-J04: As a community member, I can sign in with Discord and submit a title, my feedback, one category, optional tags, and an optional suggested improvement without supplying bug-report metadata.
+- V1-J05: As a community member, I can edit my own post text and tags or ordinary comment, with an Edited indicator and protection against conflicting edits, without retaining previous text.
 - V1-J06: As a community member, I can choose, change, or remove one Agree / Disagree reaction on a post, with separate counts and no effect on visibility or ranking.
 - V1-J07: As a community member, I can explicitly choose Context or example, Different view, Suggestion, or Question, see guidance for that choice, and add a flat contribution displaying its type.
 - V1-J08: As a visitor, I can read All contributions chronologically or filter by Context, Different views, Suggestions, Questions, or Official responses, including results beyond the first page.
@@ -37,6 +37,8 @@ These journeys cover only the reduced first version in [requirements.md](require
 - V1-J19: As an affected member, I can read the reason for a moderation action and find an external contact to request review, including while my participation is suspended.
 - V1-J20: As an administrator, I can grant and revoke privileged roles without automatically making my own contributions official.
 - V1-J21: As an administrator, I can configure the installation's name, categories, rules, community link, and moderation-review contact through the documented configuration mechanism.
+
+- V1-J22: As an administrator, I can create, rename, disable, and re-enable tags. Disabled tags remain readable on existing posts, while authors choose which available tags describe their own feedback.
 
 ## Operate an independent installation
 

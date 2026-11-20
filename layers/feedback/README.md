@@ -7,7 +7,7 @@ This layer owns categories, posts, follows, comments, reactions, official respon
 - `GET /api/feedback/categories` lists categories in configured order, including inactive categories needed for browsing older feedback.
 - `GET /api/feedback/posts` lists public posts newest first. It accepts `q`, category slug, status, `limit` (1–50, default 20), and an opaque cursor. Search is a case-insensitive literal substring of the title or description, including literal `%` and `_` characters. Results contain an excerpt and public author name, without private account fields.
 - `GET /api/feedback/posts/:id` returns the public post, its category, and the author's current display name. Invalid or missing IDs return 404.
-- `POST /api/feedback/posts` requires a member session and the configured same-origin `Origin` header, plus a UUID `Idempotency-Key`. It accepts only title, description, optional suggested improvement, and category ID. The server supplies author, status, identity, and timestamps. Success returns 201 with `{ id }`.
+- `POST /api/feedback/posts` requires a member session and the configured same-origin `Origin` header, plus a UUID `Idempotency-Key`. It accepts only title, description, optional suggested improvement, category ID, and optional tag IDs. The server supplies author, status, identity, and timestamps. Success returns 201 with `{ id }`.
 
 The `server/posts.ts` functions are internal use cases. In particular, `createPost` expects an already-authenticated internal user ID and validated input; it must not be exposed directly to arbitrary client-supplied authors. Future features must preserve this boundary.
 
@@ -15,13 +15,21 @@ The `server/posts.ts` functions are internal use cases. In particular, `createPo
 
 Additional endpoints:
 
-- `PATCH /api/feedback/posts/:id` accepts title, description, optional desired improvement, and loaded version. Only the author may edit text; category/status are forbidden.
+- `PATCH /api/feedback/posts/:id` accepts title, description, optional desired improvement, optional tag IDs, and loaded version. Only the author may edit text and tags; category/status are forbidden.
 - `GET /api/feedback/posts/:id/comments` accepts optional `type` (`context`, `different_view`, `suggestion`, `question`), an opaque cursor, and limit (1–50, default 20). Type filtering happens before chronological pagination. Omitting type includes legacy unclassified comments.
 - `GET /api/feedback/posts/:id/comments/:commentId` resolves a direct comment link without loading preceding pages.
 - `POST /api/feedback/posts/:id/comments` requires body text, at most 10,000 characters, and one of the four contribution types.
 - `PATCH /api/feedback/posts/:id/comments/:commentId` accepts body, loaded version, and optional type; only its author may edit it. Omitted type preserves the current value, including legacy NULL; explicit NULL is rejected.
 - `GET /api/feedback/posts/:id/reactions` returns separate agree/disagree counts and the current viewer's choice.
 - `PUT /api/feedback/posts/:id/reactions` accepts `kind: 'agree' | 'disagree' | null`, explicitly setting or removing the member's reaction.
+
+Tag endpoints (implemented in `server/tags.ts`):
+
+- `GET /api/feedback/tags` returns `{ tags }`, including inactive entries for existing assignments. Tags have `id`, `name`, `isActive`, and `version`.
+- `POST /api/feedback/tags` requires current administrator access and `{ name }`.
+- `PATCH /api/feedback/tags/:id` requires current administrator access and `{ name, isActive, version }`. Tag writes use the same origin, idempotency, and authorization-before-replay rules as other feedback writes.
+
+Post list/detail results include `tags`. Create input may omit `tagIds` for an empty selection; edit omission preserves existing assignments, while `[]` clears them. Normalize supplied IDs as a sorted set without changing legacy omitted-field fingerprints. Lock selected tag rows while validating availability. Disabled tags may be retained or removed on existing posts, never newly added. Text and assignment edits share one version and transaction; public reads must return a coherent snapshot. Vocabulary management never grants authority to edit other authors' posts. See [tag administration](../../docs/feedback.md#tags).
 
 Official workflow endpoints (implemented in `server/outcomes.ts`):
 
@@ -40,7 +48,7 @@ All writes require a member session, the configured origin, and a UUID idempoten
 
 ## Persistence and concurrency
 
-Creation inserts the post and its author follow in one transaction. Category selection takes a shared row lock so disabling a category cannot race past creation's availability check. Submissions by one author lock that user's row, making the successful-post rate limit effective across concurrent requests and application instances.
+Creation inserts the post, tag assignments, and its author follow in one transaction. Category selection takes a shared row lock so disabling a category cannot race past creation's availability check. Submissions by one author lock that user's row, making the successful-post rate limit effective across concurrent requests and application instances.
 
 Author and category references use restrictive deletion. Removing authentication credentials or a session does not remove posts. Post and comment authors use restrictive foreign keys. A user record with contributions cannot be physically deleted until an explicit retention/anonymization workflow is implemented. Disabling a category preserves its existing posts. Posts with comments cannot be physically deleted. Removable follows and reactions cascade on post/user deletion; private write receipts cascade on user deletion. No public delete operation exists in this step.
 
@@ -52,7 +60,7 @@ Write receipts use `(actor_id, request_id)` as their primary key. An actor row l
 
 Body-only pre-upgrade create requests have a replay-only path: authenticate, authorize, and recover a matching receipt, or reject the missing type. This path must never insert a new untyped contribution. New receipt fingerprints include type; edit omission remains distinct from an explicit type selection.
 
-Edits compare the loaded version before changing current content. Actual text or type changes increment the version and set `edited_at`; no-op saves leave both unchanged. There are no revision tables. Author edits never change category/status. Comments, reactions, and edit limits count persisted requests and survive restarts. Reaction counts do not affect feedback ordering.
+Edits compare the loaded version before changing current content. Actual text, tag-selection, or type changes increment the version and set `edited_at`; no-op saves leave both unchanged. There are no revision tables. Author edits never change category/status. Comments, reactions, and edit limits count persisted requests and survive restarts. Reaction counts do not affect feedback ordering.
 
 ## Official workflow invariants
 
@@ -64,7 +72,7 @@ Outcome reads use a repeatable-read snapshot. Assign response creation time afte
 
 ## Planned and deferred behavior
 
-Required contribution types, the Team responses filter, prominent official status/response, review queue, following, and in-platform notifications are implemented. Keep the proposal distinct and Agree / Disagree secondary. See [requirements](../../requirements.md) for release scope. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred.
+Required contribution types, the Official responses filter, prominent official status/response, review queue, following, and in-platform notifications are implemented. Keep the proposal distinct and Agree / Disagree secondary. See [requirements](../../requirements.md) for release scope. Summaries, curated highlights, nested replies, and separate conversation threads remain deferred.
 
 Moderation and account anonymization must be implemented before the public pilot. Never infer moderation or official-response authority from the administrator role. Email, push, and Discord notifications are deferred.
 

@@ -71,6 +71,14 @@ Community-maintained summaries, curated highlights, nested replies, and separate
 - [x] Keep manager tools available on demand and preserve existing workflows.
 - [x] Verify isolated stories and full application journeys, with a basic narrow-screen check.
 
+## 5b. Add author-selected tags
+
+- [ ] Add admin-defined tags and optional post assignments, with the five initial tags.
+- [ ] Let administrators create, rename, disable, and re-enable tags.
+- [ ] Let authors select tags on creation and edit, with draft, retry, and conflict protection.
+- [ ] Display tags in feedback rows and detail views using the existing visual direction.
+- [ ] Verify authorization, migrations, reset/seed behavior, isolated controls, and full journeys.
+
 ## Before a public pilot
 
 - [ ] Implement the basic moderation requirements.
