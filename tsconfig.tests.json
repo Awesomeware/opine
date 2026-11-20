@@ -1,0 +1,15 @@
+{
+  "extends": "./.nuxt/tsconfig.server.json",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+  },
+  "include": [
+    "./scripts/**/*.ts",
+    "./tests/**/*.ts",
+    "./layers/*/tests/**/*.ts",
+    "./playwright.config.ts",
+    "./.nuxt/types/nitro.d.ts"
+  ]
+}
