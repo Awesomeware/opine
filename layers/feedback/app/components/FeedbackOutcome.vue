@@ -165,11 +165,11 @@ onMounted(load)
 <template>
   <section aria-label="Team response and status" class="outcome">
     <p v-if="error" role="alert">
-      {{ error }} <button type="button" @click="load">Retry outcome</button>
+      {{ error }} <UiButton type="button" @click="load">Retry outcome</UiButton>
     </p>
     <template v-if="outcome">
       <h2>Team response and status</h2>
-      <p><strong class="status-badge">{{ statusLabels[outcome.status] }}</strong></p>
+      <p><UiBadge as="strong">{{ statusLabels[outcome.status] }}</UiBadge></p>
       <p v-if="outcome.status === 'new'">
         Awaiting initial review. New does not mean the team has acknowledged this feedback.
       </p>
@@ -188,26 +188,28 @@ onMounted(load)
         featured
       />
       <p v-else>No official response yet.</p>
-      <button
+      <UiButton
         v-if="owner"
-        class="button-primary"
+        variant="primary"
         type="button"
+        :busy="busy"
         :disabled="busy || !!followWrite.pendingBody.value"
         @click="follow({ following: !outcome.following })"
       >
         {{ outcome.following ? 'Unfollow updates' : 'Follow updates' }}
-      </button>
+      </UiButton>
       <p class="field-help">
         Follow to receive notifications when the team publishes an official response.
       </p>
-      <button
+      <UiButton
         v-if="followWrite.pendingBody.value"
         type="button"
+        :busy="busy"
         :disabled="busy"
         @click="retryFollow"
       >
         Retry pending follow change
-      </button>
+      </UiButton>
       <p v-if="message" role="alert">{{ message }}</p>
       <p v-if="followWrite.warning.value">{{ followWrite.warning.value }}</p>
       <FeedbackCategoryCorrection
@@ -261,27 +263,34 @@ onMounted(load)
         </div>
         <p v-if="write.warning.value">{{ write.warning.value }}</p>
         <div v-if="conflict">
-          <button type="button" :disabled="busy" @click="loadLatest">Load latest outcome</button>
+          <UiButton type="button" :busy="busy" @click="loadLatest">Load latest outcome</UiButton>
           <div v-if="latest">
             <p>Current status: {{ statusLabels[latest.status] }}</p>
             <FeedbackOfficialResponse
               v-if="latest.latestResponse"
               :response="latest.latestResponse"
               featured
-            /><button type="button" @click="acceptLatest">I’ve reviewed the latest outcome</button>
+            /><UiButton type="button" @click="acceptLatest"
+              >I’ve reviewed the latest outcome</UiButton
+            >
           </div>
         </div>
-        <button
+        <UiButton
           v-if="write.pendingBody.value && !conflict"
           type="button"
+          :busy="busy"
           :disabled="busy"
           @click="publish(true)"
         >
           Retry pending official response
-        </button>
-        <button type="submit" :disabled="busy || conflict || !!write.pendingBody.value">
+        </UiButton>
+        <UiButton
+          type="submit"
+          :busy="busy"
+          :disabled="busy || conflict || !!write.pendingBody.value"
+        >
           {{ busy ? 'Publishing…' : 'Publish official response' }}
-        </button>
+        </UiButton>
       </form>
     </template>
   </section>

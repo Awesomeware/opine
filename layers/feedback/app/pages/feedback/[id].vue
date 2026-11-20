@@ -42,7 +42,7 @@ async function copyLink() {
       <template v-else
         ><h1>Unable to load feedback</h1>
         <p>Please try again.</p>
-        <button type="button" @click="refresh()">Retry</button></template
+        <UiButton type="button" @click="refresh()">Retry</UiButton></template
       >
     </div>
     <article v-else-if="post">
@@ -80,10 +80,10 @@ async function copyLink() {
         /></template>
       </div>
       <div class="detail-actions">
-        <button type="button" @click="copyLink">Copy link</button
-        ><button v-if="post.canEdit && owner && !editing" type="button" @click="editing = true">
+        <UiButton type="button" @click="copyLink">Copy link</UiButton
+        ><UiButton v-if="post.canEdit && owner && !editing" type="button" @click="editing = true">
           Edit feedback
-        </button>
+        </UiButton>
       </div>
       <p v-if="shareMessage" role="status">{{ shareMessage }}</p>
     </article>

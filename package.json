@@ -23,7 +23,11 @@
     "db:migrate": "drizzle-kit migrate",
     "db:check": "drizzle-kit check",
     "db:seed": "node scripts/database.ts seed",
-    "db:reset": "node scripts/database.ts reset"
+    "db:reset": "node scripts/database.ts reset",
+    "storybook": "storybook dev -p 6006 --disable-telemetry",
+    "storybook:build": "storybook build --disable-telemetry",
+    "test:ui": "pnpm storybook:build && playwright test --config .storybook/playwright.config.ts",
+    "storybook:typecheck": "vue-tsc --noEmit -p .storybook/tsconfig.json"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.7.25",
@@ -36,13 +40,17 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1",
+    "@storybook/vue3-vite": "10.6.7",
     "@testcontainers/postgresql": "^12.2.1",
     "@types/pg": "^8.23.1",
+    "@vitejs/plugin-vue": "6.0.11",
     "dotenv": "^18.0.10",
     "drizzle-kit": "^0.31.11",
     "oxfmt": "^0.79.0",
     "oxlint": "^1.94.0",
+    "storybook": "10.6.7",
     "typescript": "~6.0.3",
+    "vite": "8.3.8",
     "vue-tsc": "^3.3.14"
   },
   "engines": {

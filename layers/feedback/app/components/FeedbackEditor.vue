@@ -149,7 +149,7 @@ function acceptLatest() {
 </script>
 <template>
   <form class="panel feedback-form" novalidate @submit.prevent="save">
-    <button v-if="expired" type="button" @click="signIn">Sign in again</button>
+    <UiButton v-if="expired" type="button" @click="signIn">Sign in again</UiButton>
     <p v-if="message" role="alert">{{ message }}</p>
     <p v-if="write.warning.value">{{ write.warning.value }}</p>
     <template v-if="isPost"
@@ -223,7 +223,7 @@ function acceptLatest() {
       {{ error }}
     </p>
     <div v-if="conflict">
-      <button type="button" :disabled="busy" @click="loadLatest">Load latest version</button>
+      <UiButton type="button" :busy="busy" @click="loadLatest">Load latest version</UiButton>
       <div v-if="latest" class="latest">
         <h3>Latest saved content</h3>
         <template v-if="isPost"
@@ -234,13 +234,13 @@ function acceptLatest() {
         ><template v-else
           ><p>{{ latest.type ? contributionLabels[latest.type] : 'Unspecified' }}</p>
           <FeedbackText :text="latest.body" /></template
-        ><button type="button" @click="acceptLatest">I’ve reviewed the latest version</button>
+        ><UiButton type="button" @click="acceptLatest">I’ve reviewed the latest version</UiButton>
       </div>
     </div>
     <div class="form-actions">
-      <button type="submit" :disabled="busy || conflict">
-        {{ busy ? 'Saving…' : 'Save changes' }}</button
-      ><button type="button" :disabled="busy" @click="emit('cancel')">Cancel edit</button>
+      <UiButton type="submit" :busy="busy" :disabled="busy || conflict">
+        {{ busy ? 'Saving…' : 'Save changes' }}</UiButton
+      ><UiButton type="button" :busy="busy" @click="emit('cancel')">Cancel edit</UiButton>
     </div>
   </form>
 </template>

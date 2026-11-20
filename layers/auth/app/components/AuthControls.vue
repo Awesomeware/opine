@@ -55,13 +55,13 @@ async function retrySession() {
     <p v-if="session.isPending" role="status">Checking your session…</p>
     <template v-else-if="session.error">
       <p role="alert">Unable to check your session.</p>
-      <button type="button" :disabled="busy" @click="retrySession">Retry session</button>
+      <UiButton type="button" :busy="busy" @click="retrySession">Retry session</UiButton>
     </template>
     <template v-else-if="session.data">
       <p>Signed in as {{ session.data.user.name }}</p>
-      <button type="button" :disabled="busy" @click="signOut">Sign out</button>
+      <UiButton type="button" :busy="busy" @click="signOut">Sign out</UiButton>
     </template>
-    <button v-else type="button" :disabled="busy" @click="signIn">Sign in with Discord</button>
+    <UiButton v-else type="button" :busy="busy" @click="signIn">Sign in with Discord</UiButton>
     <p v-if="errorMessage" role="alert">{{ errorMessage }}</p>
   </div>
 </template>

@@ -63,6 +63,12 @@ Split `posts.ts` into individual use-case files when its size or complexity warr
 
 Nuxt layers merge into a single application. They provide physical grouping, while our import and naming conventions establish module boundaries. Use distinct feature routes and component names; do not use layer precedence to override another feature's implementation. See the official [layer structure](https://nuxt.com/docs/4.x/directory-structure/layers) and [layer priority](https://nuxt.com/docs/4.x/getting-started/layers#layer-priority) documentation.
 
+## Shared UI
+
+The local `layers/ui/` Nuxt layer owns reusable presentation: design tokens, global document defaults, and shared controls with colocated scoped CSS and stories. It is a shared dependency of feature layers and has no dependencies on product features, server code, authentication, or data fetching. The application shell remains in root `app/`. Feedback-specific components remain in the feedback layer, even when they have Storybook stories. See [UI development](ui.md) for the component and styling conventions.
+
+Storybook uses Vue/Vite to render the same components with deterministic props, slots, and events. It loads the UI layer's CSS directly, without starting Nuxt or PostgreSQL. Components intended for isolated stories import their Vue APIs and child components explicitly; application integration remains covered by Nuxt typechecking, builds, and browser journeys.
+
 ## A vertical slice: create feedback
 
 The feature's `new.vue` page owns the submission form and calls `POST /api/feedback/posts`. The endpoint reads the request and authenticated session and delegates creation to `server/posts.ts`.
@@ -75,7 +81,7 @@ Keep the operation's Drizzle queries near that behavior. Introduce a helper, ser
 
 ## Dependencies and runtime boundaries
 
-- Root `app/` owns the application shell and genuinely shared presentation. Root `server/` owns database infrastructure, lifecycle hooks, and operational endpoints.
+- Root `app/` owns the application shell; `layers/ui/` owns reusable presentation. Root `server/` owns database infrastructure, lifecycle hooks, and operational endpoints.
 - Features may consume shared infrastructure and another feature's intentional public functions or contracts. Use explicit imports and keep cross-feature dependencies acyclic. Document the public entrypoints and dependencies in a feature README when it exposes behavior to other features; no mandatory barrel or interface layer is required.
 - Keep cross-feature writes behind the owning feature's operations. A cross-feature read or foreign key may reference an explicitly exported schema definition when needed. Schema access must not bypass the owning feature's authorization rules.
 - Keep business logic out of globally auto-imported utility folders. Use relative imports within a feature and explicit, verified paths between modules. Verify generated aliases against the installed Nuxt version before using them for cross-feature imports.

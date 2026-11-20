@@ -54,6 +54,10 @@ PostgreSQL data lives in the Compose-managed `postgres_data` volume. `docker com
 | `pnpm test`                  | Run lightweight Node tests without Docker.                       |
 | `pnpm test:integration`      | Run isolated PostgreSQL integration suites.                      |
 | `pnpm test:e2e`              | Build and run isolated Playwright browser suites.                |
+| `pnpm storybook`             | Develop shared and feature UI at localhost:6006.                 |
+| `pnpm storybook:build`       | Build the static component catalog.                              |
+| `pnpm storybook:typecheck`   | Check stories independently of Nuxt auto-imports.                |
+| `pnpm test:ui`               | Build Storybook and run isolated component browser checks.       |
 | `pnpm feedback:category ...` | Configure category names, ordering, and availability.            |
 | `pnpm auth:role ...`         | Grant or revoke privileged roles as a database operator.         |
 | `pnpm layer:new <name>`      | Scaffold a local feature layer with Nuxt's built-in generator.   |
@@ -64,6 +68,8 @@ PostgreSQL data lives in the Compose-managed `postgres_data` volume. `docker com
 | `pnpm db:check`              | Check migration history consistency.                             |
 
 Oxlint checks Vue script blocks; `pnpm typecheck` also checks Vue templates.
+
+Shared controls and CSS foundations live in `layers/ui/`, with scoped component styles and colocated Storybook stories. Run `pnpm storybook` to explore them without starting a database or signing in. See [UI development](docs/ui.md) for ownership, styling conventions, and adding stories.
 
 ## Testing
 
@@ -123,7 +129,7 @@ Opine uses feature modules with vertical slices. See [Architecture](docs/archite
 app/
   app.vue                    Application shell
   pages/                     Root route redirect
-  components/                Reusable UI components
+  components/                Application shell components, when needed
   composables/               Client-side Vue helpers
   spa-loading-template.html  Initial SPA loading state
 server/
@@ -135,6 +141,8 @@ layers/<feature>/            Feature modules, introduced with their implementati
   app/                       Feature pages, components, and composables
   server/                    Feature endpoints, use cases, schema, and tests
   shared/                    Browser-safe feature contracts and validation
+layers/ui/                   Shared controls, scoped styles, tokens, and stories
+.storybook/                  Isolated Vue previews and component browser checks
 shared/                      Contracts genuinely shared across features and runtimes
 drizzle/                     Committed SQL migrations
 tests/                       Shared test harness, suite catalog, browser smoke tests

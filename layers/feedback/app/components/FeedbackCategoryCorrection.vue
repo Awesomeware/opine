@@ -155,26 +155,31 @@ onMounted(async () => {
       <p v-if="message" role="alert">{{ message }}</p>
       <p v-if="write.warning.value">{{ write.warning.value }}</p>
       <div v-if="conflict">
-        <button type="button" @click="review">Review category conflict</button>
+        <UiButton type="button" @click="review">Review category conflict</UiButton>
         <div v-if="latest">
           <p>Current category: {{ latestCategory }}</p>
           <FeedbackOfficialResponse
             v-if="latest.latestResponse"
             :response="latest.latestResponse"
             featured
-          /><button type="button" @click="accept">I’ve reviewed the category conflict</button>
+          /><UiButton type="button" @click="accept">I’ve reviewed the category conflict</UiButton>
         </div>
       </div>
-      <button
+      <UiButton
         v-if="write.pendingBody.value && !conflict"
         type="button"
+        :busy="busy"
         :disabled="busy"
         @click="save(true)"
       >
-        Retry pending category correction</button
-      ><button type="submit" :disabled="busy || conflict || !!write.pendingBody.value">
+        Retry pending category correction</UiButton
+      ><UiButton
+        type="submit"
+        :busy="busy"
+        :disabled="busy || conflict || !!write.pendingBody.value"
+      >
         Save category correction
-      </button>
+      </UiButton>
     </form>
     <h3>Category history</h3>
     <p v-if="!changes.length">No category corrections.</p>
@@ -184,9 +189,15 @@ onMounted(async () => {
         {{ change.actor.name }} · {{ new Date(change.createdAt).toLocaleString() }}
       </li>
     </ol>
-    <button v-if="cursor" type="button" :disabled="loadingHistory" @click="loadHistory(true)">
+    <UiButton
+      v-if="cursor"
+      type="button"
+      :busy="loadingHistory"
+      :disabled="loadingHistory"
+      @click="loadHistory(true)"
+    >
       Load more category history
-    </button>
+    </UiButton>
   </details>
 </template>
 <style scoped>

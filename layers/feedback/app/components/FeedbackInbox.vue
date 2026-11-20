@@ -88,21 +88,25 @@ onMounted(() => load())
 <template>
   <p>{{ unreadCount }} unread notifications. Only official team responses trigger notifications.</p>
   <nav aria-label="Filter notifications">
-    <button type="button" :aria-pressed="unread" @click="unread = true">Unread</button> <button
-      type="button"
-      :aria-pressed="!unread"
-      @click="unread = false"
-    >
+    <UiButton type="button" :aria-pressed="unread" @click="unread = true"
+      >Unread</UiButton
+    > <UiButton type="button" :aria-pressed="!unread" @click="unread = false">
       All notifications
-    </button>
+    </UiButton>
   </nav>
   <p v-if="error" role="alert">
-    {{ error }} <button type="button" @click="load()">Retry notifications</button>
+    {{ error }} <UiButton type="button" @click="load()">Retry notifications</UiButton>
   </p>
   <p v-if="write.warning.value">{{ write.warning.value }}</p>
-  <button v-if="write.pendingBody.value" type="button" :disabled="marking" @click="retryMark">
+  <UiButton
+    v-if="write.pendingBody.value"
+    type="button"
+    :busy="marking"
+    :disabled="marking"
+    @click="retryMark"
+  >
     Retry marking notification read
-  </button>
+  </UiButton>
   <p v-if="loading" role="status">Loading notifications…</p>
   <p v-else-if="loaded && !notifications.length">
     {{ unread ? 'No unread notifications.' : 'No notifications yet.' }}
@@ -128,17 +132,18 @@ onMounted(() => load())
         new Date(notification.createdAt).toLocaleString()
       }}</time>
       <p v-if="notification.readAt">Read</p>
-      <button
+      <UiButton
         v-else
         type="button"
+        :busy="marking"
         :disabled="marking || !!write.pendingBody.value"
         @click="mark(notification.id)"
       >
         Mark as read
-      </button>
+      </UiButton>
     </li>
   </ol>
-  <button v-if="cursor" type="button" :disabled="loading" @click="load(true)">
+  <UiButton v-if="cursor" type="button" :busy="loading" @click="load(true)">
     Load more notifications
-  </button>
+  </UiButton>
 </template>

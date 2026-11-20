@@ -24,6 +24,7 @@ test('a member publishes feedback and shares a public link', async ({
       .getByLabel('Title', { exact: true })
       .fill('Getting a group together takes most of my evening')
     await page.getByRole('button', { name: 'Submit feedback', exact: true }).click()
+    await expect(page.getByRole('main').getByRole('alert')).toBeFocused()
     await expect(page.getByLabel('Feedback', { exact: true })).toHaveAttribute(
       'aria-invalid',
       'true',

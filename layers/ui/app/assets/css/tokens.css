@@ -1,0 +1,39 @@
+:root {
+  --font-body: Arial, Helvetica, sans-serif;
+  --font-heading: Georgia, 'Times New Roman', serif;
+  --color-text: #f3f0e8;
+  --color-text-muted: #bbc3d2;
+  --color-background: #0b1020;
+  --color-surface: #141c2c;
+  --color-border: #3b465d;
+  --color-accent: #f1ce7c;
+  --color-error: #ffbbb4;
+  --color-focus: #f3d482;
+  --color-control: #1a2437;
+  --color-control-hover: #253149;
+  --color-control-border: #8993a7;
+  --color-action-start: #f6d894;
+  --color-action-end: #d9ac54;
+  --color-action-border: #ffe2a1;
+  --color-action-hover: #ffe1a0;
+  --color-on-action: #20190c;
+  --color-badge-text: #f2d68c;
+  --color-badge-background: #332f25;
+  --color-badge-border: #8d794c;
+  --color-notice-background: #302b27;
+  --color-notice-border: #ae8658;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --radius-control: 6px;
+  --radius-small: 5px;
+  --radius-panel: 8px;
+  /* Transitional aliases for feature styles awaiting their own migration. */
+  --gold: var(--color-accent);
+  --muted: var(--color-text-muted);
+  --border: var(--color-border);
+  --panel: var(--color-surface);
+}

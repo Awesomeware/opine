@@ -44,17 +44,30 @@ legend {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 0.35rem;
   padding: 0.65rem;
   cursor: pointer;
 }
 .type-options input {
   width: auto;
+  min-height: auto;
   margin: 0;
+  padding: 0;
+  accent-color: var(--color-accent);
 }
 .selected {
   outline: 2px solid currentColor;
   outline-offset: -2px;
+}
+.field-help {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.field-error {
+  color: var(--color-error);
+  font-size: 0.9rem;
+  margin: 0;
 }
 </style>

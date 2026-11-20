@@ -106,14 +106,14 @@ onMounted(async () => {
       </select>
     </div>
     <label><input v-model="filters.followUp" type="checkbox" /> Needs follow-up</label
-    ><button type="submit">Apply queue filters</button>
+    ><UiButton type="submit">Apply queue filters</UiButton>
   </form>
   <p class="field-help">
     Needs follow-up shows member comments since the latest official response. Select All statuses to
     check follow-up across the workflow.
   </p>
   <p v-if="error" role="alert">
-    {{ error }} <button type="button" @click="load()">Retry queue</button>
+    {{ error }} <UiButton type="button" @click="load()">Retry queue</UiButton>
   </p>
   <p v-if="loading" role="status">Loading queue…</p>
   <p v-else-if="loaded && !posts.length">No feedback needs review with these filters.</p>
@@ -124,7 +124,7 @@ onMounted(async () => {
       <p>{{ post.excerpt }}</p>
     </li>
   </ol>
-  <button v-if="cursor" type="button" :disabled="loading" @click="load(true)">
+  <UiButton v-if="cursor" type="button" :busy="loading" @click="load(true)">
     Load more review items
-  </button>
+  </UiButton>
 </template>

@@ -108,17 +108,17 @@ async function loadMore() {
           </option>
         </select>
       </div>
-      <button type="submit">Apply filters</button>
+      <UiButton type="submit">Apply filters</UiButton>
     </form>
     <p v-if="categoriesError" role="alert">
       Categories could not be loaded. You can still search feedback.
     </p>
     <p class="list-caption">Newest feedback first</p>
     <p v-if="pending" role="status">Loading feedback…</p>
-    <div v-else-if="error" class="panel notice" role="alert">
+    <UiNotice v-else-if="error" as="div" role="alert">
       <p>Unable to load feedback. Please try again.</p>
-      <button type="button" @click="refresh()">Retry</button>
-    </div>
+      <UiButton type="button" @click="refresh()">Retry</UiButton>
+    </UiNotice>
     <template v-else>
       <div v-if="!posts.length" class="panel empty-state">
         <h2>No feedback found</h2>
@@ -128,8 +128,7 @@ async function loadMore() {
       <ol v-else class="feedback-list">
         <li v-for="post in posts" :key="post.id" class="panel feedback-card">
           <div class="post-meta">
-            <span>{{ post.category.name }}</span
-            ><span class="status-badge">{{ statusLabels[post.status] }}</span>
+            <span>{{ post.category.name }}</span><UiBadge>{{ statusLabels[post.status] }}</UiBadge>
           </div>
           <h2><NuxtLink :to="`/feedback/${post.id}`">{{ post.title }}</NuxtLink></h2>
           <p class="excerpt">{{ post.excerpt }}</p>
@@ -143,9 +142,9 @@ async function loadMore() {
       </ol>
       <p v-if="moreError" role="alert">{{ moreError }}</p>
       <div v-if="nextCursor" class="load-more">
-        <button type="button" :disabled="loadingMore" @click="loadMore">
+        <UiButton type="button" :busy="loadingMore" @click="loadMore">
           {{ loadingMore ? 'Loading…' : 'Load more feedback' }}
-        </button>
+        </UiButton>
       </div>
     </template>
   </main>

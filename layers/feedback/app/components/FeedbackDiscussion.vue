@@ -307,43 +307,46 @@ onMounted(async () => {
 <template>
   <section class="reaction-summary" aria-label="Reactions">
     <div v-if="reactions" class="reaction-actions">
-      <button
+      <UiButton
         type="button"
         :aria-pressed="reactions.mine === 'agree'"
+        :busy="reacting"
         :disabled="!owner || reacting || !!reactionWrite.pendingBody.value"
         @click="react('agree')"
       >
-        <span aria-hidden="true">👍</span> Agree <span>{{ reactions.agree }}</span></button
-      ><button
+        <span aria-hidden="true">👍</span> Agree <span>{{ reactions.agree }}</span></UiButton
+      ><UiButton
         type="button"
         :aria-pressed="reactions.mine === 'disagree'"
+        :busy="reacting"
         :disabled="!owner || reacting || !!reactionWrite.pendingBody.value"
         @click="react('disagree')"
       >
         <span aria-hidden="true">👎</span> Disagree <span>{{ reactions.disagree }}</span>
-      </button>
+      </UiButton>
     </div>
     <p v-if="reactionWrite.pendingBody.value && !reacting">
       A reaction is awaiting confirmation.
-      <button type="button" @click="retryReaction">Retry pending reaction</button>
+      <UiButton type="button" @click="retryReaction">Retry pending reaction</UiButton>
     </p>
     <p class="field-help">
       Choose one response. Select it again to remove it. Reactions do not affect visibility or
       ranking.
     </p>
     <p v-if="reactionError" role="alert">
-      {{ reactionError }} <button type="button" @click="loadReactions">Reload reactions</button>
+      {{ reactionError }} <UiButton type="button" @click="loadReactions">Reload reactions</UiButton>
     </p>
     <p v-if="reactionWrite.warning.value">{{ reactionWrite.warning.value }}</p>
     <p v-if="explain && owner">
-      Want to explain? <button type="button" @click="commentInput?.focus()">Add a comment</button>
+      Want to explain?
+      <UiButton type="button" @click="commentInput?.focus()">Add a comment</UiButton>
     </p>
   </section>
   <section class="participation" aria-labelledby="comments-heading">
     <h2 id="comments-heading">Community contributions</h2>
     <nav class="discussion-filters" aria-label="Filter contributions">
-      <button type="button" :aria-pressed="!filter" @click="selectFilter()">All</button>
-      <button
+      <UiButton type="button" :aria-pressed="!filter" @click="selectFilter()">All</UiButton>
+      <UiButton
         v-for="kind in contributionTypes"
         :key="kind"
         type="button"
@@ -351,17 +354,17 @@ onMounted(async () => {
         @click="selectFilter(kind)"
       >
         {{ contributionFilterLabels[kind] }}
-      </button>
-      <button type="button" :aria-pressed="filter === 'team'" @click="selectFilter('team')">
+      </UiButton>
+      <UiButton type="button" :aria-pressed="filter === 'team'" @click="selectFilter('team')">
         Team responses
-      </button>
+      </UiButton>
     </nav>
     <p class="field-help">
       Oldest contributions and team responses first. Keep replies constructive and focused on the
       feedback.
     </p>
     <p v-if="error" role="alert">
-      {{ error }} <button type="button" @click="retryComments">Retry comments</button>
+      {{ error }} <UiButton type="button" @click="retryComments">Retry comments</UiButton>
     </p>
     <p v-if="loading">Loading comments…</p>
     <p v-else-if="loaded && !entries.length">
@@ -434,21 +437,27 @@ onMounted(async () => {
                 hash: `#comment-${comment.id}`,
               }"
               >Comment link</NuxtLink
-            ><button
+            ><UiButton
               v-if="comment.canEdit && owner && editing !== comment.id"
               type="button"
               @click="editing = comment.id"
             >
               Edit comment
-            </button>
+            </UiButton>
           </div>
         </article>
       </template></template
     >
-    <button v-if="nextCursor" type="button" :disabled="loading" @click="loadComments(true)">
+    <UiButton
+      v-if="nextCursor"
+      type="button"
+      :busy="loading"
+      :disabled="loading"
+      @click="loadComments(true)"
+    >
       Load more comments
-    </button>
-    <button v-if="expired" type="button" @click="signIn">Sign in again</button>
+    </UiButton>
+    <UiButton v-if="expired" type="button" @click="signIn">Sign in again</UiButton>
     <p v-if="message" role="alert">{{ message }}</p>
     <p v-if="commentWrite.warning.value">{{ commentWrite.warning.value }}</p>
     <form
@@ -459,9 +468,9 @@ onMounted(async () => {
     >
       <p v-if="legacyPending" role="status">
         An earlier submission is awaiting confirmation. Recover it before creating another comment.
-        <button type="button" :disabled="busy" @click="retryLegacyComment">
+        <UiButton type="button" :busy="busy" @click="retryLegacyComment">
           Recover earlier submission
-        </button>
+        </UiButton>
       </p>
       <FeedbackContributionType
         v-model="type"
@@ -487,11 +496,13 @@ onMounted(async () => {
       <p class="field-help">
         Your comment and display name will be public. Drafts stay in this browser tab.
       </p>
-      <button type="submit" :disabled="busy || !!legacyPending">
+      <UiButton type="submit" :busy="busy" :disabled="busy || !!legacyPending">
         {{ busy ? 'Submitting…' : 'Submit comment' }}
-      </button>
+      </UiButton>
     </form>
-    <p v-else><button type="button" @click="signIn">Sign in with Discord to participate</button></p>
+    <p v-else>
+      <UiButton type="button" @click="signIn">Sign in with Discord to participate</UiButton>
+    </p>
   </section>
 </template>
 <style scoped>

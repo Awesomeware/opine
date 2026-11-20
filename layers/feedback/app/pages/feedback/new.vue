@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UiNotice from '../../../../ui/app/components/UiNotice.vue'
 import { useFeedbackWrite } from '../../composables/useFeedbackWrite'
 import { authClient } from '../../../../auth/app/auth-client'
 import { postLimits, validatePostInput } from '../../../shared/post-input'
@@ -20,7 +21,7 @@ const form = reactive({ title: '', description: '', desiredImprovement: '', cate
 const fieldErrors = ref<Partial<Record<keyof typeof form, string>>>({})
 const busy = ref(false)
 const message = ref('')
-const errorSummary = ref<HTMLParagraphElement | null>(null)
+const errorSummary = ref<InstanceType<typeof UiNotice> | null>(null)
 const storageMessage = ref('')
 const draftOwner = ref<string | null>(null)
 let pendingWrite: ReturnType<typeof useFeedbackWrite> | null = null
@@ -163,7 +164,7 @@ async function publish() {
     <p class="intro">
       Tell us what could work better, what you’d like to see, or what’s already working well.
     </p>
-    <p v-if="message" ref="errorSummary" class="notice" role="alert" tabindex="-1">{{ message }}</p>
+    <UiNotice v-if="message" ref="errorSummary" role="alert" tabindex="-1">{{ message }}</UiNotice>
     <p v-if="route.query.signIn" role="alert">
       Sign-in was cancelled or could not be completed. You can try again.
     </p>
@@ -173,16 +174,16 @@ async function publish() {
     <div v-else-if="session.error" class="panel empty-state">
       <h2>Unable to check your session</h2>
       <p>Your saved draft is still available. Retry to continue posting.</p>
-      <button type="button" :disabled="busy" @click="retrySession">Retry posting session</button>
+      <UiButton type="button" :busy="busy" @click="retrySession">Retry posting session</UiButton>
     </div>
     <div v-else-if="!session.data" class="panel empty-state">
       <h2>Share feedback for the game</h2>
       <p>
         Sign in with Discord to share feedback. Your saved draft will be restored for your account.
       </p>
-      <button class="button-primary" type="button" :disabled="busy" @click="signIn">
+      <UiButton variant="primary" type="button" :busy="busy" @click="signIn">
         Sign in with Discord to post
-      </button>
+      </UiButton>
     </div>
     <form v-else class="panel feedback-form" novalidate @submit.prevent="publish">
       <p class="field-help">All fields are required except suggested improvement.</p>
@@ -242,7 +243,7 @@ async function publish() {
         <p v-if="categoriesPending" role="status">Loading categories…</p>
         <div v-else-if="categoriesError" role="alert">
           <p>Unable to load categories.</p>
-          <button type="button" @click="refresh()">Retry categories</button>
+          <UiButton type="button" @click="refresh()">Retry categories</UiButton>
         </div>
         <select
           id="post-category"
@@ -265,12 +266,13 @@ async function publish() {
         </p>
       </div>
       <div class="form-actions">
-        <button
+        <UiButton
           type="submit"
-          class="button-primary"
+          variant="primary"
+          :busy="busy"
           :disabled="busy || categoriesPending || !!categoriesError || !categories.length"
         >
-          {{ busy ? 'Submitting…' : 'Submit feedback' }}</button
+          {{ busy ? 'Submitting…' : 'Submit feedback' }}</UiButton
         ><NuxtLink to="/feedback">Back to feedback</NuxtLink>
       </div>
       <p class="field-help">

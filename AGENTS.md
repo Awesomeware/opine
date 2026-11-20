@@ -21,6 +21,9 @@ The app runs at <http://localhost:3000>. See [README.md](README.md) for setup de
 - `pnpm test` — run lightweight Node tests without Docker or loading `.env`.
 - `pnpm test:integration` — run database suites against fresh Testcontainers PostgreSQL instances.
 - `pnpm test:e2e` — build and run Playwright browser suites against fresh databases and application servers.
+- `pnpm storybook` / `pnpm storybook:build` — develop UI in isolation / build its static catalog.
+- `pnpm storybook:typecheck` — check components and stories independently of Nuxt's generated types.
+- `pnpm test:ui` — build Storybook and run component browser checks without a database.
 - `pnpm feedback:category upsert|enable|disable ...` — operator category configuration; see [feedback setup](docs/feedback.md).
 - `pnpm auth:role grant|revoke <user-id> <role>` — operator role management; see [authentication setup](docs/authentication.md).
 - `pnpm layer:new <name>` — scaffold a feature layer using the installed Nuxt CLI.
@@ -38,6 +41,9 @@ Follow [docs/architecture.md](docs/architecture.md). Opine uses feature modules 
 - Organize behavior around use cases within each feature. Keep validation, authorization, queries, and transactions close to the operation; introduce service or repository layers only for a concrete benefit.
 - Keep HTTP entrypoints focused on request/response handling and delegate substantial behavior to the feature's use-case code. Small endpoints can remain self-contained.
 - Keep the application shell, shared database pool, lifecycle hooks, and operational endpoints at the root. Extract shared code only when there is actual reuse.
+- Put reusable presentation in `layers/ui/`: shared tokens and document defaults, with component-owned `<style scoped>` CSS. Keep domain components and their stories in their feature layer. See [UI development](docs/ui.md).
+- UI primitives accept props, slots, and events; keep API calls, authentication, and feature dependencies out of the UI layer. Import Vue APIs and child components explicitly in components used by Storybook. Application and Storybook must load the same UI foundations.
+- Colocate deterministic `*.stories.ts` examples with components. Cover meaningful states and interactions without requiring a database; retain full application journeys for integration behavior. Keep story files out of Nuxt component discovery.
 - Use explicit imports for use cases and cross-feature dependencies. Consume another feature's intentional public functions or contracts, rather than its private implementation. Keep dependencies acyclic and avoid global auto-imports for business logic.
 - Keep database access, credentials, and authorization in `server/`. Feature `shared/` code must be safe for both browser and server and independent of Vue and Nitro runtime code.
 - Define tables with their owning feature. `server/db/schema.ts` only aggregates feature schema exports; `drizzle/` holds one application-wide migration history. Schema definitions must not import the database client or the aggregate schema.

@@ -1,34 +1,5 @@
-:root {
-  color-scheme: dark;
-  font-family: Arial, Helvetica, sans-serif;
-  color: #f3f0e8;
-  background: #0b1020;
-  font-synthesis: none;
-  line-height: 1.6;
-  --gold: #f1ce7c;
-  --muted: #bbc3d2;
-  --border: #3b465d;
-  --panel: #141c2c;
-}
-* {
-  box-sizing: border-box;
-}
-body {
-  margin: 0;
-  background: radial-gradient(ellipse at 50% 12%, #1a2135 0, transparent 65%);
-  min-height: 100vh;
-}
-a {
-  color: var(--gold);
-  text-underline-offset: 4px;
-}
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
-button,
+/* Application layout and legacy feature styles; shared UI lives in layers/ui. */
+/* Link buttons remain here until a shared navigation control is needed. */
 .button {
   display: inline-flex;
   justify-content: center;
@@ -44,14 +15,9 @@ button,
   font-weight: 600;
   line-height: 1.4;
 }
-button:hover,
 .button:hover {
   background: #253149;
-  border-color: var(--gold);
-}
-button:disabled {
-  opacity: 0.55;
-  cursor: wait;
+  border-color: var(--color-accent);
 }
 .button-primary {
   background: linear-gradient(#f6d894, #d9ac54);
@@ -62,32 +28,6 @@ button:disabled {
   background: #ffe1a0;
   color: #20190c;
 }
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: 3px solid #f3d482;
-  outline-offset: 4px;
-}
-h1,
-h2 {
-  font-family: Georgia, 'Times New Roman', serif;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-}
-h1 {
-  font-size: clamp(2.1rem, 5vw, 3.3rem);
-  margin: 8px 0 20px;
-  letter-spacing: -0.025em;
-}
-h2 {
-  font-size: 1.65rem;
-  margin: 12px 0;
-}
-p {
-  margin: 0 0 16px;
-}
 .site-header {
   display: flex;
   align-items: center;
@@ -95,7 +35,7 @@ p {
   max-width: 1400px;
   margin: auto;
   padding: 18px 32px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
 }
 .brand {
   display: flex;
@@ -131,7 +71,7 @@ p {
 }
 .account-controls button {
   font-size: 0.85rem;
-  min-height: 40px;
+  --ui-button-min-height: 40px;
 }
 .content-column {
   max-width: 900px;
@@ -150,21 +90,21 @@ p {
 }
 .eyebrow {
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--color-accent);
   font-size: 0.75rem;
   letter-spacing: 0.14em;
   font-weight: 700;
   margin: 0 0 10px;
 }
 .intro {
-  color: var(--muted);
+  color: var(--color-text-muted);
   font-size: 1.05rem;
   max-width: 660px;
   margin-bottom: 30px;
 }
 .panel {
   background: linear-gradient(135deg, #192233, #111929);
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
 }
 .filters {
@@ -212,7 +152,7 @@ textarea {
   line-height: 1.65;
 }
 .list-caption {
-  color: var(--muted);
+  color: var(--color-text-muted);
   font-size: 0.8rem;
   margin-bottom: 15px;
 }
@@ -231,7 +171,7 @@ textarea {
   text-decoration: none;
 }
 .feedback-card h2 a:hover {
-  color: var(--gold);
+  color: var(--color-accent);
   text-decoration: underline;
 }
 .post-meta {
@@ -239,21 +179,8 @@ textarea {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  color: var(--gold);
+  color: var(--color-accent);
   font-size: 0.8rem;
-}
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 3px 12px;
-  border: 1px solid #8d794c;
-  border-radius: 5px;
-  color: #f2d68c;
-  background: #332f25;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
 }
 .excerpt {
   color: #d5dce6;
@@ -262,7 +189,7 @@ textarea {
   white-space: pre-line;
 }
 .byline {
-  color: var(--muted);
+  color: var(--color-text-muted);
   font-size: 0.85rem;
   overflow-wrap: anywhere;
 }
@@ -281,13 +208,7 @@ textarea {
   text-align: center;
 }
 .empty-state p {
-  color: var(--muted);
-}
-.notice {
-  padding: 16px 20px;
-  border: 1px solid #ae8658;
-  border-radius: 6px;
-  background: #302b27;
+  color: var(--color-text-muted);
 }
 .back-link {
   display: inline-block;
@@ -301,7 +222,7 @@ textarea {
 }
 .field-help {
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--color-text-muted);
   margin: 0;
 }
 .field-error {
@@ -314,7 +235,7 @@ textarea {
 }
 .muted {
   font-weight: 400;
-  color: var(--muted);
+  color: var(--color-text-muted);
 }
 .form-actions {
   display: flex;
@@ -345,7 +266,7 @@ textarea {
   gap: 16px;
   padding-top: 24px;
   margin-top: 28px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-border);
 }
 .site-footer {
   text-align: center;
@@ -358,7 +279,7 @@ textarea {
   position: absolute;
   left: 16px;
   top: -80px;
-  background: var(--gold);
+  background: var(--color-accent);
   color: #101525;
   padding: 12px;
   z-index: 10;
@@ -391,7 +312,7 @@ textarea {
     font-size: 0.75rem;
   }
   .account-controls button {
-    padding: 8px 10px;
+    --ui-button-padding: 8px 10px;
   }
   .brand {
     font-size: 1.5rem;
