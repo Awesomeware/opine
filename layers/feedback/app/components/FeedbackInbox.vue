@@ -86,7 +86,7 @@ watch(unread, () => load())
 onMounted(() => load())
 </script>
 <template>
-  <p>{{ unreadCount }} unread notifications. Only official team responses trigger notifications.</p>
+  <p>{{ unreadCount }} unread notifications. Only official responses trigger notifications.</p>
   <nav aria-label="Filter notifications">
     <UiButton type="button" :aria-pressed="unread" @click="unread = true"
       >Unread</UiButton

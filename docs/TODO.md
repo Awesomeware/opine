@@ -64,12 +64,12 @@ Community-maintained summaries, curated highlights, nested replies, and separate
 
 ## 5a. Apply the approved visual direction
 
-- [ ] Align the documented scope and logo with the [approved mockup](design/README.md).
-- [ ] Apply shared typography, colors, controls, and the enclosed-tree wordmark.
-- [ ] Use compact feedback rows and a search/filter toolbar.
-- [ ] Distinguish proposal, official response, and contributions; place status/follow controls alongside the proposal on desktop.
-- [ ] Keep manager tools available on demand and preserve existing workflows.
-- [ ] Verify isolated stories and full application journeys, with a basic narrow-screen check.
+- [x] Align the documented scope and logo with the [approved mockup](design/README.md).
+- [x] Apply shared typography, colors, controls, and the enclosed-tree wordmark.
+- [x] Use compact feedback rows and a search/filter toolbar.
+- [x] Distinguish proposal, official response, and contributions; place status/follow controls alongside the proposal on desktop.
+- [x] Keep manager tools available on demand and preserve existing workflows.
+- [x] Verify isolated stories and full application journeys, with a basic narrow-screen check.
 
 ## Before a public pilot
 

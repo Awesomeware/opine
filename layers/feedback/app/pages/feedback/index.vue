@@ -75,13 +75,11 @@ async function loadMore() {
   <main id="main-content" class="content-column">
     <div class="page-heading">
       <div>
-        <p class="eyebrow">Help improve the game</p>
         <h1>Community feedback</h1>
       </div>
       <NuxtLink class="button button-primary" to="/feedback/new">Share feedback</NuxtLink>
     </div>
-    <p class="intro">Share feedback, suggest improvements, and discuss the game.</p>
-    <form class="panel filters" role="search" @submit.prevent="applyFilters">
+    <form class="filters" role="search" @submit.prevent="applyFilters">
       <div class="field search-field">
         <label for="search">Search feedback</label
         ><input id="search" v-model="filters.q" type="search" placeholder="Find feedback…" />
@@ -126,18 +124,12 @@ async function loadMore() {
         <NuxtLink to="/feedback/new">Share feedback</NuxtLink>
       </div>
       <ol v-else class="feedback-list">
-        <li v-for="post in posts" :key="post.id" class="panel feedback-card">
-          <div class="post-meta">
-            <span>{{ post.category.name }}</span><UiBadge>{{ statusLabels[post.status] }}</UiBadge>
-          </div>
-          <h2><NuxtLink :to="`/feedback/${post.id}`">{{ post.title }}</NuxtLink></h2>
-          <p class="excerpt">{{ post.excerpt }}</p>
-          <p class="byline">
-            <strong>{{ post.author.name }}</strong><span aria-hidden="true"> · </span
-            ><time :datetime="post.createdAt">{{
-              new Date(post.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })
-            }}</time>
-          </p>
+        <li v-for="post in posts" :key="post.id">
+          <FeedbackPostRow :post="post">
+            <template #title
+              ><NuxtLink :to="`/feedback/${post.id}`">{{ post.title }}</NuxtLink></template
+            >
+          </FeedbackPostRow>
         </li>
       </ol>
       <p v-if="moreError" role="alert">{{ moreError }}</p>
@@ -149,3 +141,77 @@ async function loadMore() {
     </template>
   </main>
 </template>
+
+<style scoped>
+.content-column {
+  max-width: 1040px;
+  padding-top: 34px;
+}
+.page-heading {
+  margin-bottom: 24px;
+  gap: 16px;
+}
+h1 {
+  margin: 0;
+  font-size: clamp(1.7rem, 3vw, 2.15rem);
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.filters .field {
+  flex: 1;
+  min-width: 150px;
+}
+.filters .search-field {
+  flex: 2;
+  min-width: 220px;
+}
+.filters label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+.filters input,
+.filters select {
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+.list-caption {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  margin-bottom: 8px;
+}
+.feedback-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid var(--color-border);
+}
+.empty-state {
+  padding: 36px;
+  text-align: center;
+}
+.load-more {
+  text-align: center;
+  margin: 28px 0;
+}
+@media (max-width: 650px) {
+  .page-heading {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .page-heading .button {
+    margin: 0;
+  }
+  .filters .field {
+    min-width: 140px;
+  }
+  .filters .search-field {
+    flex-basis: 100%;
+  }
+}
+</style>

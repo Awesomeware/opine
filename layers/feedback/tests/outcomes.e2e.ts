@@ -44,7 +44,7 @@ test('a typed contribution receives an official outcome and followers can read i
     const base = `/api/feedback/posts/${postId}`
     await page.context().addCookies([follower.cookie])
     await page.goto(`/feedback/${postId}`)
-    const outcome = page.getByRole('region', { name: 'Team response and status' })
+    const outcome = page.getByRole('region', { name: 'Feedback overview' })
     await expect(outcome).toContainText('Awaiting initial review')
     await page.getByRole('button', { name: 'Follow updates', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Unfollow updates', exact: true })).toBeVisible()
@@ -76,6 +76,8 @@ test('a typed contribution receives an official outcome and followers can read i
     await page.goto('/feedback/review')
     await expect(page.getByRole('heading', { name: 'Review queue', exact: true })).toBeVisible()
     await page.getByRole('link', { name: 'Make group invitations clearer', exact: true }).click()
+    await expect(page.getByLabel('Official response', { exact: true })).toBeHidden()
+    await page.getByText('Publish an official response', { exact: true }).click()
     const composer = page.getByRole('form', { name: 'Publish official response' })
     await composer
       .getByLabel('Official response', { exact: true })
@@ -88,7 +90,17 @@ test('a typed contribution receives an official outcome and followers can read i
     await page.getByRole('button', { name: 'Questions', exact: true }).click()
     await expect(outcome).toContainText(first.body)
     await expect(page.locator(`#comment-${commentId}`)).toBeVisible()
-    await page.getByRole('button', { name: 'Team responses', exact: true }).click()
+    await page.evaluate(() => Reflect.set(window, 'opineResponseNavigationMarker', 'same-document'))
+    await outcome.getByRole('link', { name: 'Response link', exact: true }).click()
+    await expect(page).toHaveURL(new RegExp(`response=${first.id}`))
+    await expect(page.locator(`#response-${first.id}`)).toBeVisible()
+    expect(await page.evaluate(() => Reflect.get(window, 'opineResponseNavigationMarker'))).toBe(
+      'same-document',
+    )
+    const officialFilter = page.getByRole('button', { name: 'Official responses', exact: true })
+    await officialFilter.click()
+    await expect(officialFilter).toHaveAttribute('aria-pressed', 'true')
+    await expect(outcome).toContainText(first.body)
     await expect(page.locator(`#response-${first.id}`)).toBeVisible()
     await expect(page.locator('article.comment')).toHaveCount(0)
     const contrasts = await page
@@ -124,6 +136,23 @@ test('a typed contribution receives an official outcome and followers can read i
       fullPage: true,
     })
     await page.setViewportSize({ width: 1280, height: 900 })
+    const proposalHeading = await page
+      .getByRole('heading', { name: 'Make group invitations clearer', exact: true })
+      .boundingBox()
+    const sidebar = await page
+      .getByRole('complementary', { name: 'Status and following' })
+      .boundingBox()
+    const featured = await outcome.locator('article.official-response').boundingBox()
+    const discussionHeading = await page
+      .getByRole('heading', { name: 'Community contributions', exact: true })
+      .boundingBox()
+    expect(proposalHeading).not.toBeNull()
+    expect(sidebar).not.toBeNull()
+    expect(featured).not.toBeNull()
+    expect(discussionHeading).not.toBeNull()
+    expect(sidebar!.x).toBeGreaterThan(proposalHeading!.x)
+    expect(featured!.y).toBeGreaterThan(proposalHeading!.y)
+    expect(discussionHeading!.y).toBeGreaterThan(featured!.y)
     await page.screenshot({
       path: testInfo.outputPath('official-outcome-desktop.png'),
       fullPage: true,
@@ -354,6 +383,8 @@ test('official response retries after a lost reply and conflict review preserve 
   try {
     await page.context().addCookies([cm.cookie])
     await page.goto(`/feedback/${post.id}`)
+    await expect(page.getByLabel('Official response', { exact: true })).toBeHidden()
+    await page.getByText('Publish an official response', { exact: true }).click()
     const composer = page.getByRole('form', { name: 'Publish official response' })
     await composer
       .getByLabel('Official response', { exact: true })
@@ -371,6 +402,7 @@ test('official response retries after a lost reply and conflict review preserve 
     ).toBeEnabled()
     await page.unroute(`**${base}/responses`)
     await page.reload()
+    await page.getByText('Publish an official response', { exact: true }).click()
     await composer
       .getByRole('button', { name: 'Retry pending official response', exact: true })
       .click()

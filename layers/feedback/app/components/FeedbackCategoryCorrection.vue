@@ -132,7 +132,7 @@ onMounted(async () => {
 })
 </script>
 <template>
-  <details class="panel category-correction">
+  <details class="category-correction">
     <summary>Correct category</summary>
     <form class="feedback-form" @submit.prevent="save()">
       <div class="field">
@@ -162,7 +162,10 @@ onMounted(async () => {
             v-if="latest.latestResponse"
             :response="latest.latestResponse"
             featured
-          /><UiButton type="button" @click="accept">I’ve reviewed the category conflict</UiButton>
+            ><template #link="{ href }"
+              ><NuxtLink :to="href">Response link</NuxtLink></template
+            ></FeedbackOfficialResponse
+          ><UiButton type="button" @click="accept">I’ve reviewed the category conflict</UiButton>
         </div>
       </div>
       <UiButton
@@ -202,7 +205,11 @@ onMounted(async () => {
 </template>
 <style scoped>
 .category-correction {
-  margin: 1rem 0;
-  padding: 1rem;
+  padding: 0.75rem 0;
+  font-size: 0.85rem;
+}
+summary {
+  cursor: pointer;
+  font-weight: 600;
 }
 </style>

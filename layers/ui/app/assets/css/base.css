@@ -5,14 +5,14 @@
   color: var(--color-text);
   background: var(--color-background);
   font-synthesis: none;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 * {
   box-sizing: border-box;
 }
 body {
   margin: 0;
-  background: radial-gradient(ellipse at 50% 12%, #1a2135 0, transparent 65%);
+  background: var(--color-background);
   min-height: 100vh;
 }
 a {
@@ -29,7 +29,8 @@ a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
-select:focus-visible {
+select:focus-visible,
+summary:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 4px;
 }
@@ -40,7 +41,7 @@ h2 {
   overflow-wrap: anywhere;
 }
 h1 {
-  font-size: clamp(2.1rem, 5vw, 3.3rem);
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
   margin: 8px 0 20px;
   letter-spacing: -0.025em;
 }

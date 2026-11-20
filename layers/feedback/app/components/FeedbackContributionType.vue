@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FeedbackContributionIcon from './FeedbackContributionIcon.vue'
 import {
   contributionTypes,
   contributionLabels,
@@ -17,6 +18,7 @@ const model = defineModel<ContributionType | ''>({ required: true })
     <div class="type-options">
       <label v-for="type in contributionTypes" :key="type" :class="{ selected: model === type }">
         <input v-model="model" type="radio" :name="name" :value="type" :aria-invalid="!!error" />
+        <FeedbackContributionIcon :type="type" />
         {{ contributionLabels[type] }}
       </label>
     </div>
@@ -41,24 +43,41 @@ legend {
   gap: 0.5rem;
 }
 .type-options label {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   border: 1px solid var(--color-border);
-  border-radius: 0.35rem;
-  padding: 0.65rem;
+  border-radius: var(--radius-control);
+  padding: 0.5rem 0.65rem;
+  min-height: 44px;
+  font-size: 0.85rem;
+  flex: 1 1 auto;
   cursor: pointer;
 }
 .type-options input {
-  width: auto;
-  min-height: auto;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: inherit;
   margin: 0;
+  min-height: 0;
   padding: 0;
-  accent-color: var(--color-accent);
 }
-.selected {
-  outline: 2px solid currentColor;
-  outline-offset: -2px;
+.type-options label.selected {
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+  color: var(--color-accent);
+}
+.type-options label:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+fieldset:disabled .type-options label {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .field-help {
   font-size: 0.85rem;

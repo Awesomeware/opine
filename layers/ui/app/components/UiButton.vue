@@ -1,7 +1,7 @@
 <script setup lang="ts">
 withDefaults(
   defineProps<{
-    variant?: 'default' | 'primary'
+    variant?: 'default' | 'primary' | 'quiet' | 'tab'
     type?: 'button' | 'submit' | 'reset'
     disabled?: boolean
     busy?: boolean
@@ -13,7 +13,7 @@ withDefaults(
 <template>
   <button
     class="ui-button"
-    :class="{ primary: variant === 'primary' }"
+    :class="variant"
     :type="type"
     :disabled="disabled || busy"
     :aria-busy="busy || undefined"
@@ -27,8 +27,9 @@ withDefaults(
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  min-height: var(--ui-button-min-height, 44px);
-  padding: var(--ui-button-padding, 9px 18px);
+  gap: 7px;
+  min-height: var(--ui-button-min-height, 38px);
+  padding: var(--ui-button-padding, 7px 14px);
   border: 1px solid var(--color-control-border);
   border-radius: var(--radius-control);
   background: var(--color-control);
@@ -50,12 +51,32 @@ withDefaults(
   cursor: wait;
 }
 .primary {
-  background: linear-gradient(var(--color-action-start), var(--color-action-end));
+  background: var(--color-action-start);
   border-color: var(--color-action-border);
   color: var(--color-on-action);
 }
 .primary:hover {
   background: var(--color-action-hover);
   color: var(--color-on-action);
+}
+.quiet,
+.tab {
+  border-color: transparent;
+  background: transparent;
+  font-weight: 400;
+}
+.quiet:hover,
+.tab:hover {
+  border-color: transparent;
+  background: var(--color-control-hover);
+}
+.tab {
+  border-radius: 0;
+  border-bottom: 3px solid transparent;
+}
+.tab[aria-pressed='true'] {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-text);
+  font-weight: 600;
 }
 </style>

@@ -8,11 +8,7 @@ import AuthControls from '../layers/auth/app/components/AuthControls.vue'
     <NuxtRouteAnnouncer />
     <header class="site-header">
       <NuxtLink class="brand" to="/feedback" aria-label="Opine home">
-        <svg viewBox="0 0 76 54" aria-hidden="true">
-          <circle cx="20" cy="31" r="14" fill="none" stroke="currentColor" stroke-width="5" />
-          <path d="M55 3 40 24h8L36 40h15v11h8V40h15L62 24h8Z" fill="currentColor" />
-        </svg>
-        <span>Opine</span>
+        <UiBrand />
       </NuxtLink>
       <FeedbackNavigation />
       <AuthControls />
@@ -21,3 +17,56 @@ import AuthControls from '../layers/auth/app/components/AuthControls.vue'
     <footer class="site-footer">Help shape the game with your feedback.</footer>
   </div>
 </template>
+
+<style scoped>
+.site-shell {
+  min-height: 100vh;
+}
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  max-width: 1180px;
+  min-height: 76px;
+  margin: auto;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--color-border);
+}
+.brand {
+  display: inline-flex;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+.site-footer {
+  max-width: 1124px;
+  margin: 0 auto;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  padding: 24px;
+  border-top: 1px solid var(--color-border);
+}
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -80px;
+  background: var(--color-accent);
+  color: var(--color-on-action);
+  padding: 12px;
+  z-index: 10;
+}
+.skip-link:focus {
+  top: 12px;
+}
+@media (max-width: 760px) {
+  .site-header {
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    padding: 12px 20px 0;
+  }
+  .site-header :deep(nav) {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+</style>

@@ -34,7 +34,7 @@ test('official responses, status explanations, follows, and read notifications s
     await page.goto(
       `/feedback/${saved.postId}?contribution=question&response=${saved.firstResponseId}#response-${saved.firstResponseId}`,
     )
-    const panel = page.getByRole('region', { name: 'Team response and status' })
+    const panel = page.getByRole('region', { name: 'Feedback overview' })
     await expect(panel).toContainText('Reviewing')
     await expect(panel).toContainText('We are collecting examples')
     await expect(page.locator(`#response-${saved.firstResponseId}`)).toContainText(

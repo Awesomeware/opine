@@ -127,13 +127,13 @@ test('public browsing combines filters, loads more, and handles empty and missin
       })
     }
     await page.goto(`/feedback?category=${category.slug}`)
-    await expect(page.locator('.feedback-card')).toHaveCount(20)
+    await expect(page.locator('article.post-row')).toHaveCount(20)
     await page.getByRole('button', { name: 'Load more feedback' }).click()
-    await expect(page.locator('.feedback-card')).toHaveCount(23)
+    await expect(page.locator('article.post-row')).toHaveCount(23)
     await page.getByLabel('Status', { exact: true }).selectOption('planned')
     await page.getByLabel('Search feedback').fill('Combat clarity')
     await page.getByRole('button', { name: 'Apply filters' }).click()
-    await expect(page.locator('.feedback-card')).toHaveCount(1)
+    await expect(page.locator('article.post-row')).toHaveCount(1)
     await expect(page.getByRole('link', { name: 'Combat clarity 22', exact: true })).toBeVisible()
     await page.screenshot({
       path: testInfo.outputPath('feedback-list-desktop.png'),

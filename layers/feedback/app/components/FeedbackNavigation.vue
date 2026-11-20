@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { authClient } from '../../../auth/app/auth-client'
 const session = authClient.useSession()
+const route = useRoute()
 const owner = computed(() => session.value.data?.user.id ?? null)
 const manager = ref(false)
 let request = 0
@@ -26,7 +27,15 @@ onBeforeUnmount(() => {
 </script>
 <template>
   <nav aria-label="Main">
-    <NuxtLink to="/feedback">Community feedback</NuxtLink
+    <NuxtLink
+      to="/feedback"
+      :class="{
+        active:
+          route.path === '/feedback' ||
+          (route.path.startsWith('/feedback/') &&
+            !['/feedback/notifications', '/feedback/review'].includes(route.path)),
+      }"
+      >Community feedback</NuxtLink
     ><NuxtLink v-if="owner" to="/feedback/notifications">Notifications</NuxtLink
     ><NuxtLink v-if="manager" to="/feedback/review">Review queue</NuxtLink>
   </nav>
@@ -35,6 +44,25 @@ onBeforeUnmount(() => {
 nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 24px;
+  align-self: stretch;
+}
+a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 14px 0 11px;
+  border-bottom: 3px solid transparent;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+a:hover {
+  color: var(--color-accent);
+}
+a.active,
+a.router-link-exact-active {
+  border-bottom-color: var(--color-accent);
+  font-weight: 600;
 }
 </style>

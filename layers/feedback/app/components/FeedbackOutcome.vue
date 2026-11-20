@@ -3,7 +3,12 @@ import type { FeedbackOutcome } from '../../shared/contracts'
 import { statusLabels, postStatuses, isPostStatus, type PostStatus } from '../../shared/status'
 import { validateOfficialResponseInput } from '../../shared/outcome-input'
 import { useFeedbackWrite, feedbackWriteError } from '../composables/useFeedbackWrite'
-const props = defineProps<{ postId: string; owner: string | null; categoryId: string }>()
+const props = defineProps<{
+  postId: string
+  owner: string | null
+  categoryId: string
+  categoryName: string
+}>()
 const emit = defineEmits<{ published: [] }>()
 const endpoint = `/api/feedback/posts/${props.postId}`
 const outcome = ref<FeedbackOutcome | null>(null)
@@ -56,7 +61,7 @@ async function load() {
       initialized = true
     }
   } catch {
-    if (active) error.value = 'Unable to load the team response and follow state.'
+    if (active) error.value = 'Unable to load the official response and follow state.'
   }
 }
 async function follow(payload: { following: boolean }) {
@@ -163,145 +168,264 @@ function acceptLatest() {
 onMounted(load)
 </script>
 <template>
-  <section aria-label="Team response and status" class="outcome">
-    <p v-if="error" role="alert">
-      {{ error }} <UiButton type="button" @click="load">Retry outcome</UiButton>
-    </p>
+  <section aria-label="Feedback overview" class="overview">
+    <div class="overview-top">
+      <div class="proposal"><slot name="proposal" /></div>
+      <aside aria-label="Status and following" class="status-summary">
+        <strong class="category-name">{{ categoryName }}</strong>
+        <p v-if="error" role="alert">
+          {{ error }} <UiButton variant="quiet" @click="load">Retry outcome</UiButton>
+        </p>
+        <template v-if="outcome">
+          <h2>Current status</h2>
+          <FeedbackStatusBadge :status="outcome.status" />
+          <p v-if="outcome.status === 'new'" class="status-explanation">
+            Awaiting initial review. New does not mean the team has acknowledged this feedback.
+          </p>
+          <NuxtLink
+            v-if="outcome.statusResponse"
+            class="status-explanation"
+            :to="{
+              path: `/feedback/${postId}`,
+              query: { response: outcome.statusResponse.id },
+              hash: `#response-${outcome.statusResponse.id}`,
+            }"
+            >Why this status?</NuxtLink
+          >
+          <UiButton
+            v-if="owner"
+            variant="primary"
+            :busy="busy"
+            :disabled="!!followWrite.pendingBody.value"
+            @click="follow({ following: !outcome.following })"
+            >{{ outcome.following ? 'Unfollow updates' : 'Follow updates' }}</UiButton
+          >
+          <p class="follow-help">
+            {{
+              owner
+                ? 'Get notified when the team publishes an official response.'
+                : 'Sign in to follow official updates.'
+            }}
+          </p>
+          <UiButton
+            v-if="followWrite.pendingBody.value"
+            variant="quiet"
+            :busy="busy"
+            @click="retryFollow"
+            >Retry pending follow change</UiButton
+          >
+          <p v-if="followWrite.warning.value">{{ followWrite.warning.value }}</p>
+        </template>
+        <p v-else-if="!error" role="status">Loading status…</p>
+      </aside>
+    </div>
+    <p v-if="message" role="alert">{{ message }}</p>
     <template v-if="outcome">
-      <h2>Team response and status</h2>
-      <p><UiBadge as="strong">{{ statusLabels[outcome.status] }}</UiBadge></p>
-      <p v-if="outcome.status === 'new'">
-        Awaiting initial review. New does not mean the team has acknowledged this feedback.
-      </p>
-      <NuxtLink
-        v-if="outcome.statusResponse"
-        :to="{
-          path: `/feedback/${postId}`,
-          query: { response: outcome.statusResponse.id },
-          hash: `#response-${outcome.statusResponse.id}`,
-        }"
-        >Why this status?</NuxtLink
-      >
       <FeedbackOfficialResponse
         v-if="outcome.latestResponse"
         :response="outcome.latestResponse"
         featured
-      />
-      <p v-else>No official response yet.</p>
-      <UiButton
-        v-if="owner"
-        variant="primary"
-        type="button"
-        :busy="busy"
-        :disabled="busy || !!followWrite.pendingBody.value"
-        @click="follow({ following: !outcome.following })"
+        ><template #link="{ href }"
+          ><NuxtLink :to="href">Response link</NuxtLink></template
+        ></FeedbackOfficialResponse
       >
-        {{ outcome.following ? 'Unfollow updates' : 'Follow updates' }}
-      </UiButton>
-      <p class="field-help">
-        Follow to receive notifications when the team publishes an official response.
-      </p>
-      <UiButton
-        v-if="followWrite.pendingBody.value"
-        type="button"
-        :busy="busy"
-        :disabled="busy"
-        @click="retryFollow"
-      >
-        Retry pending follow change
-      </UiButton>
-      <p v-if="message" role="alert">{{ message }}</p>
-      <p v-if="followWrite.warning.value">{{ followWrite.warning.value }}</p>
-      <FeedbackCategoryCorrection
-        v-if="owner && outcome.canRespond"
-        :owner="owner"
-        :post-id="postId"
-        :category-id="categoryId"
-        :version="outcome.version"
-        @saved="
-          load();
-          emit('published')
-        "
-      />
-      <form
-        v-if="owner && outcome.canRespond"
-        class="panel feedback-form"
-        aria-label="Publish official response"
-        novalidate
-        @submit.prevent="publish()"
-      >
-        <h3>Publish an official response</h3>
-        <p>This is a public team response. Corrections require a new response.</p>
-        <div class="field">
-          <label for="official-response-body">Official response</label
-          ><textarea
-            id="official-response-body"
-            :aria-invalid="!!bodyError"
-            :aria-describedby="bodyError ? 'official-response-error' : undefined"
-            v-model="form.body"
-            :readonly="busy || !!write.pendingBody.value"
-            rows="5"
-            maxlength="10000"
-            required
-          />
-        </div>
-        <p v-if="bodyError" id="official-response-error" class="field-error" role="alert">
-          {{ bodyError }}
-        </p>
-        <div class="field">
-          <label for="official-response-status">Status change</label
-          ><select
-            id="official-response-status"
-            v-model="form.status"
-            :disabled="busy || !!write.pendingBody.value"
-          >
-            <option value="">Keep current status</option>
-            <option v-for="status in postStatuses" :key="status" :value="status">
-              {{ statusLabels[status] }}
-            </option>
-          </select>
-        </div>
-        <p v-if="write.warning.value">{{ write.warning.value }}</p>
-        <div v-if="conflict">
-          <UiButton type="button" :busy="busy" @click="loadLatest">Load latest outcome</UiButton>
-          <div v-if="latest">
-            <p>Current status: {{ statusLabels[latest.status] }}</p>
-            <FeedbackOfficialResponse
-              v-if="latest.latestResponse"
-              :response="latest.latestResponse"
-              featured
-            /><UiButton type="button" @click="acceptLatest"
-              >I’ve reviewed the latest outcome</UiButton
+      <div v-else class="awaiting-response">
+        <h2>Official response</h2>
+        <p>No official response yet.</p>
+      </div>
+      <div v-if="owner && outcome.canRespond" class="management-tools">
+        <details class="response-composer">
+          <summary>
+            <span>Publish an official response</span
+            ><span v-if="form.body || write.pendingBody.value" class="draft-indicator">
+              · Saved draft</span
             >
-          </div>
-        </div>
-        <UiButton
-          v-if="write.pendingBody.value && !conflict"
-          type="button"
-          :busy="busy"
-          :disabled="busy"
-          @click="publish(true)"
-        >
-          Retry pending official response
-        </UiButton>
-        <UiButton
-          type="submit"
-          :busy="busy"
-          :disabled="busy || conflict || !!write.pendingBody.value"
-        >
-          {{ busy ? 'Publishing…' : 'Publish official response' }}
-        </UiButton>
-      </form>
+          </summary>
+          <form
+            class="response-form"
+            aria-label="Publish official response"
+            novalidate
+            @submit.prevent="publish()"
+          >
+            <p>This is a public official response. Corrections require a new response.</p>
+            <div class="field">
+              <label for="official-response-body">Official response</label
+              ><textarea
+                id="official-response-body"
+                :aria-invalid="!!bodyError"
+                :aria-describedby="bodyError ? 'official-response-error' : undefined"
+                v-model="form.body"
+                :readonly="busy || !!write.pendingBody.value"
+                rows="5"
+                maxlength="10000"
+                required
+              />
+            </div>
+            <p v-if="bodyError" id="official-response-error" class="field-error" role="alert">
+              {{ bodyError }}
+            </p>
+            <div class="field">
+              <label for="official-response-status">Status change</label
+              ><select
+                id="official-response-status"
+                v-model="form.status"
+                :disabled="busy || !!write.pendingBody.value"
+              >
+                <option value="">Keep current status</option>
+                <option v-for="status in postStatuses" :key="status" :value="status">
+                  {{ statusLabels[status] }}
+                </option>
+              </select>
+            </div>
+            <p v-if="write.warning.value">{{ write.warning.value }}</p>
+            <div v-if="conflict">
+              <UiButton type="button" :busy="busy" @click="loadLatest"
+                >Load latest outcome</UiButton
+              >
+              <div v-if="latest">
+                <p>Current status: {{ statusLabels[latest.status] }}</p>
+                <FeedbackOfficialResponse
+                  v-if="latest.latestResponse"
+                  :response="latest.latestResponse"
+                  featured
+                  ><template #link="{ href }"
+                    ><NuxtLink :to="href">Response link</NuxtLink></template
+                  ></FeedbackOfficialResponse
+                ><UiButton type="button" @click="acceptLatest"
+                  >I’ve reviewed the latest outcome</UiButton
+                >
+              </div>
+            </div>
+            <UiButton
+              v-if="write.pendingBody.value && !conflict"
+              type="button"
+              :busy="busy"
+              :disabled="busy"
+              @click="publish(true)"
+            >
+              Retry pending official response
+            </UiButton>
+            <UiButton
+              variant="primary"
+              type="submit"
+              :busy="busy"
+              :disabled="busy || conflict || !!write.pendingBody.value"
+            >
+              {{ busy ? 'Publishing…' : 'Publish official response' }}
+            </UiButton>
+          </form>
+        </details>
+        <FeedbackCategoryCorrection
+          :owner="owner"
+          :post-id="postId"
+          :category-id="categoryId"
+          :version="outcome.version"
+          @saved="
+            load();
+            emit('published')
+          "
+        />
+      </div>
     </template>
   </section>
 </template>
 <style scoped>
-.outcome {
-  margin: 2rem 0;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border, #ddd);
+.overview-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 2rem;
+  align-items: start;
 }
-.feedback-form {
+.proposal {
+  min-width: 0;
+}
+.status-summary {
+  border-left: 1px solid var(--color-border);
+  padding-left: 1.5rem;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+.category-name {
+  display: block;
+  margin-bottom: 1rem;
+  overflow-wrap: anywhere;
+}
+.status-summary h2 {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin: 0 0 0.4rem;
+}
+.status-explanation {
+  display: block;
+  margin: 0.75rem 0;
+  font-size: 0.8rem;
+}
+.status-summary > button {
+  margin-top: 0.75rem;
+}
+.follow-help {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 0.5rem;
+}
+.awaiting-response {
+  border-top: 1px solid var(--color-border);
   margin-top: 1.5rem;
+  padding: 1rem 0;
+}
+.awaiting-response h2 {
+  font: 600 1rem var(--font-body);
+  margin: 0 0 0.35rem;
+}
+.awaiting-response p {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+.management-tools {
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  margin-top: 1rem;
+}
+.response-composer {
+  padding: 0.75rem 0;
+}
+summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.draft-indicator {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+.response-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem 0;
+}
+.response-form > button {
+  justify-self: start;
+}
+.response-form > p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+@media (max-width: 760px) {
+  .overview-top {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+  .status-summary {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+    padding: 1rem 0 0;
+  }
+  .category-name {
+    margin-bottom: 0.5rem;
+  }
 }
 </style>

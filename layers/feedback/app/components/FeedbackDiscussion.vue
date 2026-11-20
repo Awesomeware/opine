@@ -3,8 +3,6 @@ import type {
   FeedbackComment,
   FeedbackDiscussionPage,
   OfficialResponse,
-  FeedbackReactions,
-  ReactionKind,
 } from '../../shared/contracts'
 import {
   contributionTypes,
@@ -30,10 +28,6 @@ const nextCursor = ref<string | null>(null)
 const loaded = ref(false)
 const loading = ref(false)
 const error = ref('')
-const reactions = ref<FeedbackReactions | null>(null)
-const reactionError = ref('')
-const reacting = ref(false)
-const explain = ref(false)
 const body = ref('')
 const type = ref<ContributionType | ''>('')
 const filter = computed(() =>
@@ -51,7 +45,6 @@ const editing = ref<string | null>(null)
 const commentInput = ref<HTMLTextAreaElement | null>(null)
 const draftKey = `opine.feedback.comment.${props.owner}.${props.postId}`
 const commentWrite = useFeedbackWrite(`comment.${props.owner}.${props.postId}`)
-const reactionWrite = useFeedbackWrite(`reaction.${props.owner}.${props.postId}`)
 let active = true
 onBeforeUnmount(() => {
   active = false
@@ -125,7 +118,7 @@ async function loadTarget() {
       document.getElementById(`response-${responseId}`)?.scrollIntoView({ block: 'center' })
     } catch {
       if (active && request === targetRequest)
-        error.value = 'The linked team response could not be loaded.'
+        error.value = 'The linked official response could not be loaded.'
     }
     return
   }
@@ -142,49 +135,6 @@ async function loadTarget() {
   } catch {
     if (active && request === targetRequest && route.query.comment === id)
       error.value = 'The linked comment could not be loaded.'
-  }
-}
-async function loadReactions() {
-  try {
-    const result = await $fetch<FeedbackReactions>(`${endpoint}/reactions`)
-    if (active) {
-      reactions.value = result
-      reactionError.value = ''
-    }
-  } catch {
-    if (active) reactionError.value = 'Unable to load reactions.'
-  }
-}
-async function react(kind: ReactionKind) {
-  if (!reactions.value || reactionWrite.pendingBody.value) return
-  await saveReaction({ kind: reactions.value.mine === kind ? null : kind })
-}
-async function retryReaction() {
-  const pending = reactionWrite.pendingBody.value as { kind: ReactionKind | null } | null
-  if (pending) await saveReaction(pending)
-}
-async function saveReaction(payload: { kind: ReactionKind | null }) {
-  if (reacting.value || !props.owner) return
-  reacting.value = true
-  reactionError.value = ''
-  try {
-    await $fetch(`${endpoint}/reactions`, {
-      method: 'PUT',
-      body: payload,
-      headers: reactionWrite.headers(payload),
-      retry: 0,
-    })
-    if (!active) return
-    reactionWrite.complete()
-    explain.value = payload.kind !== null
-    await loadReactions()
-  } catch (failure) {
-    if (active) {
-      reactionError.value = feedbackWriteError(failure)
-      expired.value = (failure as { statusCode?: number }).statusCode === 401
-    }
-  } finally {
-    reacting.value = false
   }
 }
 async function signIn() {
@@ -298,55 +248,21 @@ watch(filter, () => {
   void loadComments()
 })
 watch(() => [route.query.comment, route.query.response], loadTarget)
-defineExpose({ refresh: retryComments })
+defineExpose({ refresh: retryComments, focusComposer: () => commentInput.value?.focus() })
 onMounted(async () => {
-  await Promise.all([loadComments(), loadReactions()])
+  await loadComments()
   await loadTarget()
 })
 </script>
 <template>
-  <section class="reaction-summary" aria-label="Reactions">
-    <div v-if="reactions" class="reaction-actions">
-      <UiButton
-        type="button"
-        :aria-pressed="reactions.mine === 'agree'"
-        :busy="reacting"
-        :disabled="!owner || reacting || !!reactionWrite.pendingBody.value"
-        @click="react('agree')"
-      >
-        <span aria-hidden="true">👍</span> Agree <span>{{ reactions.agree }}</span></UiButton
-      ><UiButton
-        type="button"
-        :aria-pressed="reactions.mine === 'disagree'"
-        :busy="reacting"
-        :disabled="!owner || reacting || !!reactionWrite.pendingBody.value"
-        @click="react('disagree')"
-      >
-        <span aria-hidden="true">👎</span> Disagree <span>{{ reactions.disagree }}</span>
-      </UiButton>
-    </div>
-    <p v-if="reactionWrite.pendingBody.value && !reacting">
-      A reaction is awaiting confirmation.
-      <UiButton type="button" @click="retryReaction">Retry pending reaction</UiButton>
-    </p>
-    <p class="field-help">
-      Choose one response. Select it again to remove it. Reactions do not affect visibility or
-      ranking.
-    </p>
-    <p v-if="reactionError" role="alert">
-      {{ reactionError }} <UiButton type="button" @click="loadReactions">Reload reactions</UiButton>
-    </p>
-    <p v-if="reactionWrite.warning.value">{{ reactionWrite.warning.value }}</p>
-    <p v-if="explain && owner">
-      Want to explain?
-      <UiButton type="button" @click="commentInput?.focus()">Add a comment</UiButton>
-    </p>
-  </section>
   <section class="participation" aria-labelledby="comments-heading">
     <h2 id="comments-heading">Community contributions</h2>
     <nav class="discussion-filters" aria-label="Filter contributions">
-      <UiButton type="button" :aria-pressed="!filter" @click="selectFilter()">All</UiButton>
+      <UiButton variant="tab" type="button" :aria-pressed="!filter" @click="selectFilter()"
+        >All</UiButton
+      >
       <UiButton
+        variant="tab"
         v-for="kind in contributionTypes"
         :key="kind"
         type="button"
@@ -355,14 +271,16 @@ onMounted(async () => {
       >
         {{ contributionFilterLabels[kind] }}
       </UiButton>
-      <UiButton type="button" :aria-pressed="filter === 'team'" @click="selectFilter('team')">
-        Team responses
+      <UiButton
+        variant="tab"
+        type="button"
+        :aria-pressed="filter === 'team'"
+        @click="selectFilter('team')"
+      >
+        Official responses
       </UiButton>
     </nav>
-    <p class="field-help">
-      Oldest contributions and team responses first. Keep replies constructive and focused on the
-      feedback.
-    </p>
+    <p class="field-help">Oldest first. Context, questions, and differing views are welcome.</p>
     <p v-if="error" role="alert">
       {{ error }} <UiButton type="button" @click="retryComments">Retry comments</UiButton>
     </p>
@@ -383,13 +301,16 @@ onMounted(async () => {
             (item) => item.kind === 'response' && item.response.id === entry.response.id,
           )
         "
-      />
+        ><template #link="{ href }"
+          ><NuxtLink :to="href">Response link</NuxtLink></template
+        ></FeedbackOfficialResponse
+      >
       <template v-else>
         <article
           v-for="comment in [entry.comment]"
           :id="`comment-${comment.id}`"
           :key="comment.id"
-          class="comment panel"
+          class="comment"
           :class="{ linked: route.query.comment === comment.id }"
         >
           <p
@@ -403,20 +324,32 @@ onMounted(async () => {
                 : 'outside the current page'
             }}
           </p>
-          <p class="contribution-label">
-            {{ comment.type ? contributionLabels[comment.type] : 'Unspecified' }}
-          </p>
+          <header class="comment-header">
+            <span class="author-initial" aria-hidden="true">{{
+              comment.author.name.trim().slice(0, 1).toUpperCase()
+            }}</span>
+            <strong>{{ comment.author.name }}</strong>
+            <span class="contribution-label"
+              ><FeedbackContributionIcon v-if="comment.type" :type="comment.type" />{{
+                comment.type ? contributionLabels[comment.type] : 'Unspecified'
+              }}</span
+            >
+            <time
+              :datetime="comment.createdAt"
+              :title="new Date(comment.createdAt).toLocaleString()"
+              >{{
+                new Date(comment.createdAt).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                })
+              }}</time
+            >
+            <span v-if="comment.editedAt" :title="new Date(comment.editedAt).toLocaleString()"
+              >Edited</span
+            >
+          </header>
           <p v-if="!comment.type" class="field-help">
             This comment was posted before contribution types were introduced.
-          </p>
-          <p class="byline">
-            <strong>{{ comment.author.name }}</strong> ·
-            <time :datetime="comment.createdAt">{{
-              new Date(comment.createdAt).toLocaleString()
-            }}</time
-            ><span v-if="comment.editedAt" :title="new Date(comment.editedAt).toLocaleString()">
-              · Edited</span
-            >
           </p>
           <FeedbackEditor
             v-if="editing === comment.id && owner"
@@ -438,6 +371,7 @@ onMounted(async () => {
               }"
               >Comment link</NuxtLink
             ><UiButton
+              variant="quiet"
               v-if="comment.canEdit && owner && editing !== comment.id"
               type="button"
               @click="editing = comment.id"
@@ -460,12 +394,8 @@ onMounted(async () => {
     <UiButton v-if="expired" type="button" @click="signIn">Sign in again</UiButton>
     <p v-if="message" role="alert">{{ message }}</p>
     <p v-if="commentWrite.warning.value">{{ commentWrite.warning.value }}</p>
-    <form
-      v-if="owner"
-      class="panel feedback-form comment-form"
-      novalidate
-      @submit.prevent="submitComment"
-    >
+    <form v-if="owner" class="comment-form" novalidate @submit.prevent="submitComment">
+      <h3>Add a contribution</h3>
       <p v-if="legacyPending" role="status">
         An earlier submission is awaiting confirmation. Recover it before creating another comment.
         <UiButton type="button" :busy="busy" @click="retryLegacyComment">
@@ -496,7 +426,7 @@ onMounted(async () => {
       <p class="field-help">
         Your comment and display name will be public. Drafts stay in this browser tab.
       </p>
-      <UiButton type="submit" :busy="busy" :disabled="busy || !!legacyPending">
+      <UiButton variant="primary" type="submit" :busy="busy" :disabled="busy || !!legacyPending">
         {{ busy ? 'Submitting…' : 'Submit comment' }}
       </UiButton>
     </form>
@@ -506,52 +436,93 @@ onMounted(async () => {
   </section>
 </template>
 <style scoped>
-.reaction-summary {
-  margin-top: 1.5rem;
+.participation {
+  margin-top: 2rem;
+}
+h2 {
+  font-size: 1.5rem;
+  margin: 0 0 0.75rem;
 }
 .discussion-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 1rem 0;
+  gap: 0 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 0.75rem;
 }
-.discussion-filters [aria-pressed='true'] {
-  outline: 2px solid currentColor;
-}
-.contribution-label {
-  font-weight: 700;
-}
-.participation {
-  margin-top: 2.5rem;
-  border-top: 1px solid var(--border, #ddd);
-  padding-top: 1.5rem;
-}
-.reaction-actions,
-.comment-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-}
-.reaction-actions [aria-pressed='true'] {
-  outline: 3px solid currentColor;
-  outline-offset: 2px;
-}
-.reaction-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
+.participation > .field-help {
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
 }
 .comment {
-  margin: 1rem 0;
-  padding: 1.25rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--color-border);
   scroll-margin-top: 2rem;
   overflow-wrap: anywhere;
 }
+.comment-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.comment-header strong {
+  color: var(--color-text);
+}
+.comment-header time {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+.author-initial {
+  display: inline-grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+.contribution-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+.comment-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+.comment-actions a {
+  color: var(--color-text-muted);
+}
+.comment-actions a:hover {
+  color: var(--color-text);
+}
 .linked {
-  border: 2px solid currentColor;
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
 }
 .comment-form {
-  margin-top: 1.5rem;
+  display: grid;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+.comment-form h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.comment-form > button {
+  justify-self: start;
 }
 </style>

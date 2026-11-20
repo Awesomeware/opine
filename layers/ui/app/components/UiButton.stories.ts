@@ -18,3 +18,12 @@ export const Default: Story = {}
 export const Primary: Story = { args: { variant: 'primary' } }
 export const Disabled: Story = { args: { disabled: true } }
 export const Busy: Story = { args: { busy: true } }
+export const Quiet: Story = { args: { variant: 'quiet' } }
+export const Tab: Story = {
+  args: { variant: 'tab' },
+  render: (args) => ({
+    components: { UiButton },
+    setup: () => ({ args }),
+    template: '<UiButton v-bind="args" aria-pressed="true">All contributions</UiButton>',
+  }),
+}

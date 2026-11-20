@@ -4,6 +4,13 @@ const story = (id: string) => `/iframe.html?id=${id}&viewMode=story`
 
 test('contribution choices update their prompt without an application server', async ({ page }) => {
   await page.goto(story('feedback-contributiontype--default'))
+  await expect(page.getByRole('radio', { checked: true })).toHaveCount(0)
+  const context = page.getByRole('radio', { name: 'Context or example', exact: true })
+  await context.focus()
+  await page.keyboard.press('Space')
+  await expect(context).toBeChecked()
+  await page.keyboard.press('ArrowRight')
+  await expect(page.getByRole('radio', { name: 'Different view', exact: true })).toBeChecked()
   await page.getByRole('radio', { name: 'Question', exact: true }).check()
   await expect(page.getByRole('radio', { name: 'Question', exact: true })).toBeChecked()
   await expect(page.getByText('What would you like clarified or answered?')).toBeVisible()
@@ -83,9 +90,86 @@ test('badges and notices render with shared theme styles and native semantics', 
   await page.goto(story('ui-badge--default'))
   const badge = page.getByText('Under review', { exact: true })
   await expect(badge).toBeVisible()
-  await expect(badge).toHaveCSS('color', 'rgb(242, 214, 140)')
+  const badgeColor = await badge.evaluate((element) => {
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--color-badge-text)'
+    element.append(probe)
+    const color = getComputedStyle(probe).color
+    probe.remove()
+    return color
+  })
+  await expect(badge).toHaveCSS('color', badgeColor)
   await page.goto(story('ui-notice--default'))
   const notice = page.getByRole('alert')
   await expect(notice).toHaveText('Please check the highlighted fields.')
-  await expect(notice).toHaveCSS('background-color', 'rgb(48, 43, 39)')
+  const noticeBackground = await notice.evaluate((element) => {
+    const probe = document.createElement('span')
+    probe.style.backgroundColor = 'var(--color-notice-background)'
+    element.append(probe)
+    const color = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return color
+  })
+  await expect(notice).toHaveCSS('background-color', noticeBackground)
+})
+
+test('the brand keeps its accessible name while the tree mark remains decorative', async ({
+  page,
+}) => {
+  await page.goto(story('ui-brand--default'))
+  const brand = page.getByRole('img', { name: 'Opine', exact: true })
+  await expect(brand).toBeVisible()
+  await expect(brand).toHaveAttribute('aria-label', 'Opine')
+  await expect(brand.locator('svg')).toHaveAttribute('aria-hidden', 'true')
+})
+
+test('feedback rows preserve the public link, status, and long text on narrow screens', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 })
+  await page.goto(story('feedback-postrow--long-content'))
+  const row = page.getByRole('article')
+  await expect(row.getByRole('heading', { level: 2 })).toBeVisible()
+  await expect(row.getByRole('link')).toHaveAttribute('href', '/feedback/example-grouping')
+  await expect(row).toContainText('Planned')
+  await expect(row).toContainText('Grouping & travel')
+  await expect(row.locator('time')).toHaveAttribute('datetime', '2026-11-20T12:00:00.000Z')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
+})
+
+test('official responses preserve status explanations and stable links without inventing a status change', async ({
+  page,
+}) => {
+  const responseId = '00000000-0000-4000-8000-000000000002'
+  const permalink = `/feedback/00000000-0000-4000-8000-000000000001?response=${responseId}#response-${responseId}`
+  await page.goto(story('feedback-officialresponse--default'))
+  const response = page.getByRole('article')
+  await expect(
+    response.getByRole('heading', { name: 'Official response', exact: true }),
+  ).toBeVisible()
+  await expect(response).toContainText('New → Reviewing')
+  await expect(response).not.toHaveAttribute('id')
+  await expect(response.getByRole('link', { name: 'Response link', exact: true })).toHaveAttribute(
+    'href',
+    permalink,
+  )
+  await page.goto(story('feedback-officialresponse--status-unchanged'))
+  await expect(response).toContainText('Thank you for the examples.')
+  await expect(response.locator('.status-change')).toHaveCount(0)
+  await expect(response).not.toContainText('Reviewing')
+  await expect(response.getByRole('link', { name: 'Response link', exact: true })).toHaveAttribute(
+    'href',
+    permalink,
+  )
+  await page.goto(story('feedback-officialresponse--linked'))
+  await expect(response).toHaveAttribute('id', `response-${responseId}`)
+  await expect(response).toContainText(
+    'Linked official response · outside the selected filter or current page',
+  )
+  await expect(response.getByRole('link', { name: 'Response link', exact: true })).toHaveAttribute(
+    'href',
+    permalink,
+  )
 })
