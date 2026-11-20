@@ -1,6 +1,5 @@
 import { getAccess } from '../../../auth/app/api/access'
 import { getTags, createTag } from '../api/tags'
-import { validateTagInput } from '../../shared/tag-input'
 import type { FeedbackTag } from '../../shared/contracts'
 import { useFeedbackWrite, feedbackWriteError } from './useFeedbackWrite'
 import { ref, onMounted } from 'vue'
@@ -22,12 +21,7 @@ export function useFeedbackTagManagement(props: { owner: string }) {
   const createError = ref('')
   const name = ref('')
   const busy = ref(false)
-  const createWrite = useFeedbackWrite(`tags.create.${props.owner}`)
-
-  const pending = validateTagInput(createWrite.pendingBody.value)
-  if (pending.success) {
-    name.value = pending.data.name
-  }
+  const createWrite = useFeedbackWrite()
 
   async function load() {
     const isCurrent = scope.startRequest()
@@ -110,7 +104,6 @@ export function useFeedbackTagManagement(props: { owner: string }) {
     createError,
     name,
     busy,
-    createWrite,
     load,
     create,
   }

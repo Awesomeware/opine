@@ -13,7 +13,6 @@ const editor = usePostEditor(props.owner, props.post)
 const {
   endpoint,
   form,
-  write,
   busy,
   saving,
   loadingLatest,
@@ -44,7 +43,6 @@ async function save() {
   <form class="panel feedback-form" novalidate @submit.prevent="save">
     <UiButton v-if="expired" type="button" @click="signIn">Sign in again</UiButton>
     <p v-if="message" role="alert">{{ message }}</p>
-    <p v-if="write.warning.value">{{ write.warning.value }}</p>
     <div class="field">
       <label :for="`${endpoint}-title`">Title</label>
       <input

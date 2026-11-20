@@ -4,7 +4,7 @@ This layer owns categories, posts, follows, comments, reactions, official respon
 
 ## Browser workflows
 
-Components render forms and feedback, manage focus, and emit events. Feature-local `app/composables/` owns submission, explicit post/comment editing, discussion, and management workflows. `app/api/` owns typed HTTP calls; `app/utils/` checks stored input before restoring drafts. These remain internal to this feature.
+Components render forms and feedback, manage focus, and emit events. Feature-local `app/composables/` owns submission, explicit post/comment editing, discussion, and management workflows. `app/api/` owns typed HTTP calls; `app/utils/` contains pure form conversions. These remain internal to this feature.
 
 Create request scopes during setup. Mount account/resource workflows with stable identities and remount when those identities change; submission watches session changes explicitly. Each independent read stream invalidates stale results without cancelling committed server writes. Read errors and mutation outcomes remain separate, so a failed refresh can be retried without repeating a confirmed write. See [UI conventions](../../docs/ui.md) and the [cleanup verification](../../docs/vue-refactor.md).
 
@@ -82,4 +82,4 @@ Required contribution types, the Official responses filter, prominent official s
 
 Moderation and account anonymization must be implemented before the public pilot. Never infer moderation or official-response authority from the administrator role. Email, push, and Discord notifications are deferred.
 
-Keep request keys and drafts scoped to the current account and operation. Disable duplicate clicks while requests are in flight. Retry an uncertain write with its original key and payload; do not turn an uncertain reaction into a toggle or overwrite an edit conflict without explicit review.
+Keep forms and request keys in memory for the current account and mounted operation. Reloading, leaving a form, or cancelling discards unsaved edits; the frontend does not save or restore drafts or pending requests. Disable duplicate clicks while requests are in flight and reuse the key for unchanged same-page retries. Refresh simple controls from the server after uncertain replies. Edit conflicts preserve the currently entered text and require explicit review before retrying against a newer version.

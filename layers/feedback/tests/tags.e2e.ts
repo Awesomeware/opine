@@ -149,7 +149,7 @@ test('only administrators manage the optional tag catalog, while post ownership 
   }
 })
 
-test('optional tags survive drafts and a lost submission reply, then author tag-only edits can clear them', async ({
+test('optional tags survive a lost submission reply while the form stays open, then author tag-only edits can clear them', async ({
   page,
   request,
 }) => {
@@ -197,26 +197,6 @@ test('optional tags survive drafts and a lost submission reply, then author tag-
     await page.getByLabel('Feedback', { exact: true }).fill('The map labels are too small.')
     await page.getByLabel('Category', { exact: true }).selectOption(category.id)
     for (const name of names) await picker.getByRole('checkbox', { name, exact: true }).check()
-    await page.reload()
-    for (const name of names)
-      await expect(picker.getByRole('checkbox', { name, exact: true })).toBeChecked()
-    await page.route('**/api/feedback/tags', (route) => route.abort('failed'))
-    await page.reload()
-    await expect(page.getByText('Unable to load tags.', { exact: false })).toBeVisible()
-    await page.getByRole('button', { name: 'Clear selected tags', exact: true }).click()
-    const savedDraft = await page.evaluate(
-      (owner) => JSON.parse(sessionStorage.getItem(`opine.feedback.draft.${owner}`) ?? '{}'),
-      author.user.id,
-    )
-    expect(savedDraft.tagIds).toEqual([])
-    await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
-      'Make navigation clearer with optional tags',
-    )
-    await page.unroute('**/api/feedback/tags')
-    await page.getByRole('button', { name: 'Retry tags', exact: true }).click()
-    await expect(picker).toBeVisible()
-    await expect(picker.getByRole('checkbox', { checked: true })).toHaveCount(0)
-    for (const name of names) await picker.getByRole('checkbox', { name, exact: true }).check()
     await page.route('**/api/feedback/posts', async (route) => {
       if (route.request().method() !== 'POST') return route.continue()
       expect((await route.fetch()).status()).toBe(201)
@@ -227,7 +207,6 @@ test('optional tags survive drafts and a lost submission reply, then author tag-
       'Unable to confirm submission',
     )
     await page.unroute('**/api/feedback/posts')
-    await page.reload()
     await page.getByRole('button', { name: 'Submit feedback', exact: true }).click()
     await page.waitForURL(/\/feedback\/[0-9a-f-]{36}$/)
     const postId = new URL(page.url()).pathname.split('/').at(-1)!
@@ -351,13 +330,6 @@ test('a confirmed tag edit survives catalog refresh failure without repeating th
     await expect(row.getByRole('button', { name: 'Save tag', exact: true })).toBeDisabled()
     expect(versions).toEqual([1])
 
-    // Confirmation cleared the receipt even though fetching the new version failed.
-    expect(
-      await page.evaluate(
-        (key) => sessionStorage.getItem(key),
-        `opine.feedback.pending.tags.edit.${admin.user.id}.${tag!.id}`,
-      ),
-    ).toBeNull()
     const [saved] = await database.select().from(feedbackTag).where(eq(feedbackTag.id, tag!.id))
     expect(saved).toMatchObject({ name: names[1], version: 2 })
 

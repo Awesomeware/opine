@@ -3,7 +3,7 @@ import { useFeedbackTagManagement } from '../composables/useFeedbackTagManagemen
 
 const props = defineProps<{ owner: string }>()
 
-const { tags, ready, allowed, loading, error, createError, name, busy, createWrite, load, create } =
+const { tags, ready, allowed, loading, error, createError, name, busy, load, create } =
   useFeedbackTagManagement(props)
 </script>
 <template>
@@ -12,7 +12,6 @@ const { tags, ready, allowed, loading, error, createError, name, busy, createWri
     <UiButton type="button" :busy="loading" @click="load">Reload tags</UiButton>
   </p>
   <p v-if="createError" role="alert">{{ createError }}</p>
-  <p v-if="createWrite.warning.value" role="status">{{ createWrite.warning.value }}</p>
   <p v-if="loading" role="status">Loading tags…</p>
   <p v-if="ready && !allowed">Only administrators can manage tags.</p>
   <template v-if="allowed">

@@ -259,7 +259,7 @@ test('participation endpoints enforce ownership, validate writes, and replay com
   }
 })
 
-test('a lost post response can be retried after reloading without a duplicate submission', async ({
+test('a lost post response can be retried in the open form without a duplicate submission', async ({
   page,
 }) => {
   const member = await createMember()
@@ -294,7 +294,6 @@ test('a lost post response can be retried after reloading without a duplicate su
     await expect(page.getByRole('button', { name: 'Submit feedback', exact: true })).toBeEnabled()
     await expect(page.locator('[role="alert"]')).toBeVisible()
     await page.unroute('**/api/feedback/posts')
-    await page.reload()
     await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
       'Preserve a submission when the connection drops',
     )
@@ -375,7 +374,6 @@ test('members react, discuss, and review conflicting edits before saving', async
     await expect(page.getByLabel('Add a comment', { exact: true })).toBeFocused()
     await page.getByRole('radio', { name: 'Context or example', exact: true }).check()
     await page.getByLabel('Add a comment', { exact: true }).fill(originalComment)
-    await page.reload()
     await expect(page.getByLabel('Add a comment', { exact: true })).toHaveValue(originalComment)
     await expect(page.getByRole('radio', { name: 'Context or example', exact: true })).toBeChecked()
     page.on('request', (sent) => {
@@ -480,7 +478,7 @@ test('members react, discuss, and review conflicting edits before saving', async
   }
 })
 
-test('an uncertain reaction is retried explicitly after reload without toggling it off', async ({
+test('a lost reaction response refreshes the saved choice without replay after reload', async ({
   page,
 }) => {
   const member = await createMember()
@@ -488,87 +486,36 @@ test('an uncertain reaction is retried explicitly after reload without toggling 
   const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
   const path = `/api/feedback/posts/${post.id}/reactions`
   const keys: (string | undefined)[] = []
+  page.on('request', (request) => {
+    if (request.method() === 'PUT' && new URL(request.url()).pathname === path) {
+      keys.push(request.headers()['idempotency-key'])
+    }
+  })
   try {
     await page.context().addCookies([member.cookie])
     await page.goto(`/feedback/${post.id}`)
     await page.route(`**${path}`, async (route) => {
       if (route.request().method() !== 'PUT') return route.continue()
-      keys.push(route.request().headers()['idempotency-key'])
       await route.fetch()
       await route.abort('failed')
     })
     await page.getByRole('button', { name: /^Agree 0$/ }).click()
-    await expect(page.getByRole('button', { name: 'Retry pending reaction' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Agree 1$/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
     await page.unroute(`**${path}`)
     await page.reload()
-    await expect(page.getByRole('button', { name: /^Agree 1$/ })).toBeDisabled()
-    page.on('request', (request) => {
-      if (request.method() === 'PUT' && new URL(request.url()).pathname === path)
-        keys.push(request.headers()['idempotency-key'])
-    })
-    await page.getByRole('button', { name: 'Retry pending reaction' }).click()
     await expect(page.getByRole('button', { name: /^Agree 1$/ })).toBeEnabled()
     await expect(page.getByRole('button', { name: /^Agree 1$/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
-    expect(keys).toHaveLength(2)
+    expect(keys).toHaveLength(1)
     expect(keys[0]).toBeTruthy()
-    expect(keys[1]).toBe(keys[0])
   } finally {
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
     await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
-    await member.cleanup()
-  }
-})
-
-test('malformed saved reactions are reported and discarded without sending a mutation', async ({
-  page,
-}) => {
-  const member = await createMember()
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
-  const storageKey = `opine.feedback.pending.reaction.${member.user.id}.${post.id}`
-  let writes = 0
-
-  try {
-    await page.context().addCookies([member.cookie])
-    await page.goto(`/feedback/${post.id}`)
-    await expect(page.getByRole('button', { name: /^Agree 0$/ })).toBeEnabled()
-    await page.evaluate(
-      ({ key, requestId }) => {
-        sessionStorage.setItem(key, JSON.stringify({ payload: '{}', key: requestId }))
-      },
-      { key: storageKey, requestId: randomUUID() },
-    )
-    await page.route(`**/api/feedback/posts/${post.id}/reactions`, async (route) => {
-      if (route.request().method() === 'PUT') {
-        writes++
-      }
-      await route.continue()
-    })
-    await page.getByRole('link', { name: '← All feedback' }).click()
-    await page.getByRole('link', { name: post.title, exact: true }).click()
-
-    const reactions = page.getByRole('region', { name: 'Reactions', exact: true })
-    await expect(reactions.getByRole('alert')).toContainText(
-      'An invalid saved reaction was discarded.',
-    )
-    await expect(reactions.getByRole('button', { name: /Agree/ })).toBeEnabled()
-    await expect(reactions.getByRole('button', { name: 'Retry pending reaction' })).toHaveCount(0)
-    expect(writes).toBe(0)
-    expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBeNull()
-
-    await reactions.getByRole('button', { name: /Agree/ }).click()
-    await expect(reactions.getByRole('button', { name: /Agree/ })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-    expect(writes).toBe(1)
-  } finally {
-    const database = getDatabase()
-    await database.delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await database.delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })

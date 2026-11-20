@@ -2,7 +2,7 @@
 import { useFeedbackInbox } from '../composables/useFeedbackInbox'
 import { statusLabels } from '../../shared/status'
 
-const props = defineProps<{ owner: string }>()
+defineProps<{ owner: string }>()
 
 const {
   notifications,
@@ -14,11 +14,9 @@ const {
   marking,
   error,
   markError,
-  write,
   load,
   mark,
-  retryMark,
-} = useFeedbackInbox(props)
+} = useFeedbackInbox()
 </script>
 <template>
   <p>{{ unreadCount }} unread notifications. Only official responses trigger notifications.</p>
@@ -33,16 +31,6 @@ const {
     <UiButton type="button" @click="load()">Retry notifications</UiButton>
   </p>
   <p v-if="markError" role="alert">{{ markError }}</p>
-  <p v-if="write.warning.value">{{ write.warning.value }}</p>
-  <UiButton
-    v-if="write.pendingBody.value"
-    type="button"
-    :busy="marking"
-    :disabled="marking"
-    @click="retryMark"
-  >
-    Retry marking notification read
-  </UiButton>
   <p v-if="loading" role="status">Loading notifications…</p>
   <p v-else-if="loaded && !notifications.length">
     {{ unread ? 'No unread notifications.' : 'No notifications yet.' }}
@@ -72,7 +60,7 @@ const {
         v-else
         type="button"
         :busy="marking"
-        :disabled="marking || !!write.pendingBody.value"
+        :disabled="marking"
         @click="mark(notification.id)"
       >
         Mark as read

@@ -40,9 +40,9 @@ layers/feedback/
   app/
     pages/feedback/          Public list/detail and authenticated entrypoints
     components/              Rendering, focus, and user events
-    composables/             Feature workflows, drafts, retries, and request state
+    composables/             Feature workflows, forms, and request state
     api/                     Typed browser HTTP operations and error decoding
-    utils/                   Checked stored inputs and pure form transformations
+    utils/                   Pure form transformations
   server/
     api/feedback/            HTTP entrypoints
     posts.ts                 Creation and public queries
@@ -74,7 +74,7 @@ Storybook uses Vue/Vite to render the same components with deterministic props, 
 
 ## A vertical slice: create feedback
 
-The feature's `new.vue` page renders the submission form. `useFeedbackSubmission` owns its validation, account-scoped draft, and retry lifecycle; `app/api/posts.ts` sends the typed `POST /api/feedback/posts` request. The endpoint reads the request and authenticated session and delegates creation to `server/posts.ts`.
+The feature's `new.vue` page renders the submission form. `useFeedbackSubmission` owns its validation, in-memory form state, and same-page retry lifecycle; `app/api/posts.ts` sends the typed `POST /api/feedback/posts` request. The endpoint reads the request and authenticated session and delegates creation to `server/posts.ts`.
 
 These browser folders separate responsibilities within the feature, without adding another Nuxt layer or a generic service framework. Simple reads may stay in pages. Post and comment editors accept their own domain contracts, and independent reads and writes keep separate loading/error states. See [UI development](ui.md) for component conventions.
 

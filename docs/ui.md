@@ -86,7 +86,7 @@ Complex forms and asynchronous workflows belong in feature-local composables. Th
 
 Use the feedback request-scope helper for manual reads: a new request supersedes the previous result, and disposal invalidates all callbacks. Give independent reads separate scopes and independent operations separate busy/error state. Keep successful writes distinct from failed refreshes. Post/account identity is fixed for a mounted workflow; callers key components by identity or explicitly recreate that workflow when it changes.
 
-When an operation persists pending writes, preserve its exact payload and key across uncertain responses. Browser persistence is a product choice, not a requirement for every control. Decode browser storage as unknown, preserve omitted legacy fields, and keep drafts during conflict review. API DTOs come from shared contracts; form models are explicit conversions rather than claimed API shapes.
+Keep form input and unchanged retry keys in memory for the current mount. Do not save drafts or pending requests in browser storage or restore older browser state. Reloading, leaving a form, cancellation, and account changes may discard unsaved input. Same-page failures retain entered text; conflicts require explicit review of current saved content. API DTOs come from shared contracts, with explicit form conversions.
 
 Vue templates use Oxfmt's whitespace-insensitive layout so nested elements remain readable. `FeedbackText.vue` is deliberately excluded: its adjacent link/text segments must preserve the user's exact whitespace. The component test checks the full text content to protect this exception. Review rendered spacing when changing templates with inline text.
 

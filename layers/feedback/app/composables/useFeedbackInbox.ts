@@ -4,20 +4,12 @@ import { useFeedbackWrite, feedbackWriteError } from './useFeedbackWrite'
 import { ref, watch, onMounted } from 'vue'
 import { useRequestScope } from './useRequestScope'
 import { feedbackFailure } from '../api/errors'
-import { isRecord } from '../utils/stored-input'
-import { isUuid } from '../../shared/post-input'
-
-function isPendingMark(value: unknown): value is { id: string; read: true } {
-  return (
-    isRecord(value) && Object.keys(value).length === 2 && isUuid(value.id) && value.read === true
-  )
-}
 
 /**
- * Keep pagination and mark-read errors independent. Mount per account to isolate private results and pending receipts.
+ * Keep pagination and mark-read errors independent. Mount per account to isolate private results.
  * Create within setup so disposal prevents late requests from updating local state.
  */
-export function useFeedbackInbox(props: { owner: string }) {
+export function useFeedbackInbox() {
   const notifications = ref<FeedbackNotification[]>([])
   const unread = ref(true)
   const unreadCount = ref(0)
@@ -29,14 +21,7 @@ export function useFeedbackInbox(props: { owner: string }) {
 
   const marking = ref(false)
   const markError = ref('')
-  const write = useFeedbackWrite(`notification.${props.owner}`)
-
-  // Keep valid receipts intact; a malformed payload must never block all mark-read controls.
-  const restored = write.pendingBody.value
-  if (restored !== null && !isPendingMark(restored)) {
-    write.complete()
-    markError.value = 'An invalid saved notification change was discarded. Mark it as read again.'
-  }
+  const write = useFeedbackWrite()
 
   async function load(more = false) {
     if (more && loading.value) {
@@ -117,13 +102,6 @@ export function useFeedbackInbox(props: { owner: string }) {
     }
   }
 
-  function retryMark() {
-    const payload = write.pendingBody.value
-    if (isPendingMark(payload)) {
-      void mark(payload.id)
-    }
-  }
-
   watch(unread, () => load())
 
   onMounted(() => load())
@@ -138,9 +116,7 @@ export function useFeedbackInbox(props: { owner: string }) {
     marking,
     error,
     markError,
-    write,
     load,
     mark,
-    retryMark,
   }
 }

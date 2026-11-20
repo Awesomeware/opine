@@ -1,14 +1,9 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
 import { createMember } from '../../auth/tests/fixtures.ts'
-import {
-  feedbackCategory,
-  feedbackComment,
-  feedbackPost,
-  feedbackWriteReceipt,
-} from '../server/schema.ts'
+import { feedbackCategory, feedbackComment, feedbackPost } from '../server/schema.ts'
 import { createCategory, createFeedbackPost } from './fixtures.ts'
 
 test.afterAll(closeDatabase)
@@ -81,10 +76,8 @@ test('contributions require a type and filter the full discussion while preservi
       page.getByText('What do you see differently, and why?', { exact: true }),
     ).toBeVisible()
     await page.reload()
-    await expect(page.getByRole('radio', { name: 'Different view', exact: true })).toBeChecked()
-    await expect(page.getByLabel('Add a comment', { exact: true })).toHaveValue(
-      'A contrasting view that needs a type.',
-    )
+    await expect(page.getByRole('radio', { checked: true })).toHaveCount(0)
+    await expect(page.getByLabel('Add a comment', { exact: true })).toHaveValue('')
 
     for (const data of [
       { body: 'missing' },
@@ -166,101 +159,6 @@ test('contributions require a type and filter the full discussion while preservi
     })
   } finally {
     releasePage()
-    await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
-    await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
-    await member.cleanup()
-  }
-})
-
-test('older pending submissions recover without duplication or invented contribution types', async ({
-  page,
-}) => {
-  const member = await createMember()
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
-  const body = 'An older comment that was saved before the response was lost.'
-  const requestId = randomUUID()
-  try {
-    const [comment] = await getDatabase()
-      .insert(feedbackComment)
-      .values({ postId: post.id, authorId: member.user.id, body })
-      .returning()
-    const requestHash = createHash('sha256')
-      .update(JSON.stringify({ operation: 'create-comment', input: { postId: post.id, body } }))
-      .digest('hex')
-    await getDatabase()
-      .insert(feedbackWriteReceipt)
-      .values({
-        actorId: member.user.id,
-        requestId,
-        operation: 'create-comment',
-        requestHash,
-        result: { id: comment!.id, version: 1 },
-      })
-    await page.context().addCookies([member.cookie])
-    await page.goto('/feedback')
-    await page.evaluate(
-      ({ userId, postId, body, requestId }) => {
-        sessionStorage.setItem(
-          `opine.feedback.comment.${userId}.${postId}`,
-          `${body} New unsent detail.`,
-        )
-        sessionStorage.setItem(
-          `opine.feedback.pending.comment.${userId}.${postId}`,
-          JSON.stringify({ payload: JSON.stringify({ body }), key: requestId }),
-        )
-      },
-      { userId: member.user.id, postId: post.id, body, requestId },
-    )
-    await page.goto(`/feedback/${post.id}`)
-    await expect(page.getByLabel('Add a comment', { exact: true })).toHaveValue(
-      `${body} New unsent detail.`,
-    )
-    await page.getByRole('button', { name: 'Recover earlier submission', exact: true }).click()
-    await expect(page).toHaveURL(new RegExp(`comment=${comment!.id}`))
-    await expect(page.locator(`#comment-${comment!.id}`)).toContainText('Unspecified')
-    expect(
-      await getDatabase().select().from(feedbackComment).where(eq(feedbackComment.postId, post.id)),
-    ).toHaveLength(1)
-    await expect(page.getByLabel('Add a comment', { exact: true })).toHaveValue(
-      `${body} New unsent detail.`,
-    )
-
-    await page.goto('/feedback')
-    await page.evaluate(
-      ({ userId, postId }) => {
-        const body = 'An older draft whose request never reached the server.'
-        sessionStorage.setItem(`opine.feedback.comment.${userId}.${postId}`, body)
-        sessionStorage.setItem(
-          `opine.feedback.pending.comment.${userId}.${postId}`,
-          JSON.stringify({ payload: JSON.stringify({ body }), key: crypto.randomUUID() }),
-        )
-      },
-      { userId: member.user.id, postId: post.id },
-    )
-    await page.goto(`/feedback/${post.id}`)
-    await page.getByRole('button', { name: 'Recover earlier submission', exact: true }).click()
-    await expect(
-      page.getByRole('button', { name: 'Recover earlier submission', exact: true }),
-    ).toHaveCount(0)
-    await expect(page.getByLabel('Add a comment', { exact: true })).toHaveValue(
-      'An older draft whose request never reached the server.',
-    )
-    await expect(page.getByRole('radio', { checked: true })).toHaveCount(0)
-    await page.getByRole('radio', { name: 'Question', exact: true }).check()
-    await page.getByRole('button', { name: 'Submit comment', exact: true }).click()
-    await page.waitForURL(/\?comment=/)
-    const id = new URL(page.url()).searchParams.get('comment')!
-    await expect(page.locator(`#comment-${id}`)).toContainText('Question')
-    const rows = await getDatabase()
-      .select()
-      .from(feedbackComment)
-      .where(eq(feedbackComment.postId, post.id))
-    expect(rows).toHaveLength(2)
-    expect(rows.find((row) => row.id === comment!.id)?.type).toBeNull()
-    expect(rows.find((row) => row.id === id)?.type).toBe('question')
-  } finally {
     await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
     await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))

@@ -101,7 +101,7 @@ pnpm db:reset --confirm opine
 pnpm db:seed
 ```
 
-**Reset permanently removes all Opine data, including users, sessions, roles, feedback, follows, notifications, and configured categories and tags.** It restores the General feedback category and the five initial tags, retaining the migrated schema and migration history. Sign in again and reassign administrator/community-manager roles after resetting. Browser drafts remain in the current tab's session storage; close the tab if you also want to discard those.
+**Reset permanently removes all Opine data, including users, sessions, roles, feedback, follows, notifications, and configured categories and tags.** It restores the General feedback category and the five initial tags, retaining the migrated schema and migration history. Sign in again and reassign administrator/community-manager roles after resetting. Reload open pages after resetting; form input is kept only in memory.
 
 Both commands read `.env`; an exported `DATABASE_URL` takes precedence. Check its target before resetting. The confirmation must match the connected database name. Omitting confirmation prints usage and makes no changes. Unrelated tables are left alone; unexpected foreign keys into Opine tables cause reset to fail atomically.
 

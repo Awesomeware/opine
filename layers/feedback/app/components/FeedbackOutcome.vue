@@ -22,19 +22,12 @@ const {
   conflict,
   latest,
   form,
-  write,
   load,
   publish,
   loadLatest,
   acceptLatest,
 } = useOfficialPublication(props, () => emit('published'))
-const {
-  busy: followBusy,
-  message: followMessage,
-  write: followWrite,
-  follow,
-  retryFollow,
-} = useFeedbackFollowing(props, load)
+const { busy: followBusy, message: followMessage, follow } = useFeedbackFollowing(props, load)
 
 function categorySaved() {
   void load()
@@ -72,7 +65,7 @@ function categorySaved() {
             v-if="owner"
             variant="primary"
             :busy="followBusy"
-            :disabled="followBusy || !!followWrite.pendingBody.value"
+            :disabled="followBusy"
             @click="follow({ following: !outcome.following })"
           >
             {{ outcome.following ? 'Unfollow updates' : 'Follow updates' }}
@@ -84,16 +77,7 @@ function categorySaved() {
                 : 'Sign in to follow official updates.'
             }}
           </p>
-          <UiButton
-            v-if="followWrite.pendingBody.value"
-            variant="quiet"
-            :busy="followBusy"
-            @click="retryFollow"
-          >
-            Retry pending follow change
-          </UiButton>
           <p v-if="followMessage" role="alert">{{ followMessage }}</p>
-          <p v-if="followWrite.warning.value">{{ followWrite.warning.value }}</p>
         </template>
         <p v-else-if="!error" role="status">Loading status…</p>
       </aside>
@@ -115,9 +99,6 @@ function categorySaved() {
         <details class="response-composer">
           <summary>
             <span>Publish an official response</span>
-            <span v-if="form.body || write.pendingBody.value" class="draft-indicator">
-              · Saved draft
-            </span>
           </summary>
           <form
             class="response-form"
@@ -133,7 +114,7 @@ function categorySaved() {
                 :aria-invalid="!!bodyError"
                 :aria-describedby="bodyError ? 'official-response-error' : undefined"
                 v-model="form.body"
-                :readonly="busy || !!write.pendingBody.value"
+                :readonly="busy"
                 rows="5"
                 maxlength="10000"
                 required
@@ -144,18 +125,13 @@ function categorySaved() {
             </p>
             <div class="field">
               <label for="official-response-status">Status change</label>
-              <select
-                id="official-response-status"
-                v-model="form.status"
-                :disabled="busy || !!write.pendingBody.value"
-              >
+              <select id="official-response-status" v-model="form.status" :disabled="busy">
                 <option value="">Keep current status</option>
                 <option v-for="status in postStatuses" :key="status" :value="status">
                   {{ statusLabels[status] }}
                 </option>
               </select>
             </div>
-            <p v-if="write.warning.value">{{ write.warning.value }}</p>
             <div v-if="conflict">
               <p v-if="reviewError" role="alert">{{ reviewError }}</p>
               <UiButton type="button" :busy="reviewing" @click="loadLatest">
@@ -177,21 +153,7 @@ function categorySaved() {
                 </UiButton>
               </div>
             </div>
-            <UiButton
-              v-if="write.pendingBody.value && !conflict"
-              type="button"
-              :busy="busy"
-              :disabled="busy"
-              @click="publish(true)"
-            >
-              Retry pending official response
-            </UiButton>
-            <UiButton
-              variant="primary"
-              type="submit"
-              :busy="busy"
-              :disabled="busy || conflict || !!write.pendingBody.value"
-            >
+            <UiButton variant="primary" type="submit" :busy="busy" :disabled="busy || conflict">
               {{ busy ? 'Publishing…' : 'Publish official response' }}
             </UiButton>
           </form>
@@ -274,10 +236,6 @@ summary {
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
-}
-.draft-indicator {
-  color: var(--color-text-muted);
-  font-weight: 400;
 }
 .response-form {
   display: grid;

@@ -21,7 +21,6 @@ const {
   cursor,
   loadingHistory,
   historyError,
-  write,
   save,
   review,
   accept,
@@ -39,11 +38,7 @@ const {
       </p>
       <div class="field">
         <label for="correct-category">Corrected category</label>
-        <select
-          id="correct-category"
-          v-model="categoryId"
-          :disabled="busy || !!write.pendingBody.value"
-        >
+        <select id="correct-category" v-model="categoryId" :disabled="busy">
           <option
             v-for="category in categories"
             :key="category.id"
@@ -55,7 +50,6 @@ const {
         </select>
       </div>
       <p v-if="message" role="alert">{{ message }}</p>
-      <p v-if="write.warning.value">{{ write.warning.value }}</p>
       <div v-if="conflict">
         <p v-if="reviewError" role="alert">{{ reviewError }}</p>
         <UiButton type="button" :busy="reviewing" @click="review">
@@ -73,20 +67,7 @@ const {
           <UiButton type="button" @click="accept">I’ve reviewed the category conflict</UiButton>
         </div>
       </div>
-      <UiButton
-        v-if="write.pendingBody.value && !conflict"
-        type="button"
-        :busy="busy"
-        :disabled="busy"
-        @click="save(true)"
-      >
-        Retry pending category correction
-      </UiButton>
-      <UiButton
-        type="submit"
-        :busy="busy"
-        :disabled="busy || conflict || !!write.pendingBody.value"
-      >
+      <UiButton type="submit" :busy="busy" :disabled="busy || conflict">
         Save category correction
       </UiButton>
     </form>

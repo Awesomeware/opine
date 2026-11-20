@@ -8,11 +8,10 @@ import { contributionLabels } from '../../shared/contribution-types'
 
 const props = defineProps<{ owner: string; comment: FeedbackComment }>()
 const emit = defineEmits<{ saved: []; cancel: [] }>()
-const editor = useCommentEditor(props.owner, props.comment)
+const editor = useCommentEditor(props.comment)
 const {
   endpoint,
   form,
-  write,
   busy,
   saving,
   loadingLatest,
@@ -37,7 +36,6 @@ async function save() {
   <form class="panel feedback-form" novalidate @submit.prevent="save">
     <UiButton v-if="expired" type="button" @click="signIn">Sign in again</UiButton>
     <p v-if="message" role="alert">{{ message }}</p>
-    <p v-if="write.warning.value">{{ write.warning.value }}</p>
     <FeedbackContributionType
       v-model="form.type"
       :name="`${endpoint}-type`"

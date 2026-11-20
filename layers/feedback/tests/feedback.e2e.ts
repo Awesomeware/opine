@@ -5,7 +5,13 @@ import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
 import { createMember } from '../../auth/tests/fixtures.ts'
-import { feedbackCategory, feedbackFollow, feedbackPost } from '../server/schema.ts'
+import {
+  feedbackCategory,
+  feedbackComment,
+  feedbackFollow,
+  feedbackPost,
+  feedbackTag,
+} from '../server/schema.ts'
 import { createCategory, createFeedbackPost } from './fixtures.ts'
 
 test.afterAll(closeDatabase)
@@ -41,10 +47,6 @@ test('a member publishes feedback and shares a public link', async ({
       .getByLabel('Suggested improvement')
       .fill('Help us find nearby players so we can spend more time adventuring together.')
     await page.getByLabel('Category', { exact: true }).selectOption(category.id)
-    await page.reload()
-    await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
-      'Getting a group together takes most of my evening',
-    )
     await page.getByRole('button', { name: 'Submit feedback', exact: true }).click()
     await page.waitForURL(/\/feedback\/[0-9a-f-]{36}$/)
     await expect(
@@ -238,6 +240,92 @@ test('submission enforces identity, origin, validation, active categories, and r
   } finally {
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.authorId, member.user.id))
     await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await member.cleanup()
+  }
+})
+
+test('unsaved forms clear on reload or navigation without storing browser drafts', async ({
+  page,
+}) => {
+  const member = await createMember({ roles: ['community-manager'] })
+  const category = await createCategory()
+  const database = getDatabase()
+  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const [tag] = await database
+    .insert(feedbackTag)
+    .values({ name: `Temporary ${randomUUID().slice(0, 8)}` })
+    .returning()
+  const [comment] = await database
+    .insert(feedbackComment)
+    .values({
+      postId: post.id,
+      authorId: member.user.id,
+      body: 'Published comment',
+      type: 'question',
+    })
+    .returning()
+  const assertNoStoredForms = async () => {
+    expect(
+      await page.evaluate(() =>
+        [...Object.keys(sessionStorage), ...Object.keys(localStorage)].filter((key) =>
+          key.startsWith('opine.feedback.'),
+        ),
+      ),
+    ).toEqual([])
+  }
+
+  try {
+    await page.context().addCookies([member.cookie])
+    await page.goto('/feedback/new')
+    const title = page.getByLabel('Title', { exact: true })
+    const body = page.getByLabel('Feedback', { exact: true })
+    const selectedTag = page.getByRole('checkbox', { name: tag!.name, exact: true })
+    for (const leave of ['reload', 'navigate'] as const) {
+      await title.fill('Unsubmitted title')
+      await body.fill('Unsubmitted feedback')
+      await selectedTag.check()
+      await assertNoStoredForms()
+      if (leave === 'reload') {
+        await page.reload()
+      } else {
+        await page.getByRole('link', { name: '← All feedback' }).click()
+        await expect(page).toHaveURL(/\/feedback$/)
+        await page.goBack()
+      }
+      await expect(title).toHaveValue('')
+      await expect(body).toHaveValue('')
+      await expect(selectedTag).not.toBeChecked()
+    }
+
+    await page.goto(`/feedback/${post.id}`)
+    const contribution = page.getByLabel('Add a comment', { exact: true })
+    await page.getByRole('radio', { name: 'Question', exact: true }).check()
+    await contribution.fill('An unsent question')
+    await page.getByText('Publish an official response', { exact: true }).click()
+    await page.getByLabel('Official response', { exact: true }).fill('An unpublished answer')
+    await page.getByLabel('Status change', { exact: true }).selectOption('planned')
+    await page.getByRole('button', { name: 'Edit feedback', exact: true }).click()
+    await page.getByLabel('Title', { exact: true }).fill('An unsaved title edit')
+    const card = page.locator(`#comment-${comment!.id}`)
+    await card.getByRole('button', { name: 'Edit comment', exact: true }).click()
+    await card.getByLabel('Edit comment', { exact: true }).fill('An unsaved comment edit')
+    await assertNoStoredForms()
+    await page.reload()
+    await expect(contribution).toHaveValue('')
+    await expect(page.getByRole('radio', { checked: true })).toHaveCount(0)
+    await page.getByText('Publish an official response', { exact: true }).click()
+    await expect(page.getByLabel('Official response', { exact: true })).toHaveValue('')
+    await expect(page.getByLabel('Status change', { exact: true })).toHaveValue('')
+    await page.getByRole('button', { name: 'Edit feedback', exact: true }).click()
+    await expect(page.getByLabel('Title', { exact: true })).toHaveValue(post.title)
+    await card.getByRole('button', { name: 'Edit comment', exact: true }).click()
+    await expect(card.getByLabel('Edit comment', { exact: true })).toHaveValue(comment!.body)
+    await assertNoStoredForms()
+  } finally {
+    await database.delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
+    await database.delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+    await database.delete(feedbackTag).where(eq(feedbackTag.id, tag!.id))
+    await database.delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })

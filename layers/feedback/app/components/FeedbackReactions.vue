@@ -11,10 +11,8 @@ const {
   reacting,
   explain,
   expired,
-  reactionWrite,
   loadReactions,
   react,
-  retryReaction,
   signIn,
 } = useFeedbackReactions(props)
 </script>
@@ -26,7 +24,7 @@ const {
           variant="quiet"
           :aria-pressed="reactions.mine === 'agree'"
           :busy="reacting"
-          :disabled="!owner || !!reactionWrite.pendingBody.value"
+          :disabled="!owner"
           @click="react('agree')"
         >
           <UiIcon name="agree" />
@@ -37,7 +35,7 @@ const {
           variant="quiet"
           :aria-pressed="reactions.mine === 'disagree'"
           :busy="reacting"
-          :disabled="!owner || !!reactionWrite.pendingBody.value"
+          :disabled="!owner"
           @click="react('disagree')"
         >
           <UiIcon name="disagree" />
@@ -47,17 +45,12 @@ const {
       </template>
       <slot />
     </div>
-    <p v-if="reactionWrite.pendingBody.value && !reacting">
-      A reaction is awaiting confirmation.
-      <UiButton variant="quiet" @click="retryReaction">Retry pending reaction</UiButton>
-    </p>
     <p v-if="readError" role="alert">
       {{ readError }}
       <UiButton variant="quiet" @click="loadReactions">Reload reactions</UiButton>
     </p>
     <p v-if="writeError" role="alert">{{ writeError }}</p>
     <UiButton v-if="expired" variant="quiet" @click="signIn">Sign in again</UiButton>
-    <p v-if="reactionWrite.warning.value">{{ reactionWrite.warning.value }}</p>
     <p v-if="explain && owner" class="invitation">
       Want to expand on that?
       <UiButton variant="quiet" @click="emit('contribute')">Add a comment</UiButton>

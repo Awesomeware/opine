@@ -7,7 +7,6 @@ const emit = defineEmits<{ saved: [] }>()
 
 const {
   retryLatest,
-  write,
   form,
   busy,
   message,
@@ -45,7 +44,6 @@ const {
         Save tag
       </UiButton>
     </form>
-    <p v-if="write.warning.value" role="status">{{ write.warning.value }}</p>
     <p v-if="message" role="status">{{ message }}</p>
     <p v-if="refreshError" role="alert">
       {{ refreshError }}

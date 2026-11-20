@@ -27,7 +27,7 @@ export function correctCategory(
   body: CategoryCorrectionInput,
   headers: Record<string, string>,
 ) {
-  return $fetch(`/api/feedback/posts/${postId}/category`, {
+  return $fetch<{ id: string; version: number }>(`/api/feedback/posts/${postId}/category`, {
     method: 'PATCH',
     body,
     headers,
@@ -40,7 +40,7 @@ export function publishResponse(
   body: OfficialResponseInput,
   headers: Record<string, string>,
 ) {
-  return $fetch<{ id: string }>(`/api/feedback/posts/${postId}/responses`, {
+  return $fetch<{ id: string; version: number }>(`/api/feedback/posts/${postId}/responses`, {
     method: 'POST',
     body,
     headers,

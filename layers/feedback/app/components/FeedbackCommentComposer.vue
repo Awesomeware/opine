@@ -3,19 +3,8 @@ import { ref } from 'vue'
 import { useCommentComposer } from '../composables/useCommentComposer'
 
 const props = defineProps<{ postId: string; owner: string | null; refresh: () => Promise<void> }>()
-const {
-  body,
-  type,
-  busy,
-  message,
-  fieldErrors,
-  expired,
-  commentWrite,
-  legacyPending,
-  signIn,
-  retryLegacyComment,
-  submitComment,
-} = useCommentComposer(props, props.refresh)
+const { body, type, busy, message, fieldErrors, expired, signIn, submitComment } =
+  useCommentComposer(props, props.refresh)
 const commentInput = ref<HTMLTextAreaElement | null>(null)
 
 function focus() {
@@ -27,25 +16,18 @@ defineExpose({ focus })
 <template>
   <UiButton v-if="expired" type="button" @click="signIn">Sign in again</UiButton>
   <p v-if="message" role="alert">{{ message }}</p>
-  <p v-if="commentWrite.warning.value">{{ commentWrite.warning.value }}</p>
   <form v-if="owner" class="comment-form" novalidate @submit.prevent="submitComment">
     <h3>Add a contribution</h3>
-    <p v-if="legacyPending" role="status">
-      An earlier submission is awaiting confirmation. Recover it before creating another comment.
-      <UiButton type="button" :busy="busy" @click="retryLegacyComment">
-        Recover earlier submission
-      </UiButton>
-    </p>
     <FeedbackContributionType
       v-model="type"
       name="new-contribution-type"
-      :disabled="busy || !!legacyPending"
+      :disabled="busy"
       :error="fieldErrors.type"
     />
     <div class="field">
       <label for="new-comment">Add a comment</label>
       <textarea
-        :readonly="busy || !!legacyPending"
+        :readonly="busy"
         id="new-comment"
         ref="commentInput"
         v-model="body"
@@ -57,10 +39,8 @@ defineExpose({ focus })
       />
     </div>
     <p v-if="fieldErrors.body" id="comment-error" class="field-error">{{ fieldErrors.body }}</p>
-    <p class="field-help">
-      Your comment and display name will be public. Drafts stay in this browser tab.
-    </p>
-    <UiButton variant="primary" type="submit" :busy="busy" :disabled="busy || !!legacyPending">
+    <p class="field-help">Your comment and display name will be public.</p>
+    <UiButton variant="primary" type="submit" :busy="busy" :disabled="busy">
       {{ busy ? 'Submitting…' : 'Submit comment' }}
     </UiButton>
   </form>

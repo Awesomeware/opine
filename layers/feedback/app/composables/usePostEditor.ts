@@ -1,19 +1,17 @@
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import type { FeedbackPost } from '../../shared/contracts'
 import { useFeedbackWrite, feedbackWriteError } from './useFeedbackWrite'
 import { useRequestScope } from './useRequestScope'
 import { feedbackFailure } from '../api/errors'
 import { startDiscordSignIn } from '../../../auth/app/api/session'
-import { readStoredValue, writeStoredValue, removeStoredValue } from '../utils/stored-input'
-import { parsePostDraft, postEditInput, type PostForm } from '../utils/editor-input'
+import { postEditInput, type PostForm } from '../utils/editor-input'
 import { getPost, editPost } from '../api/posts'
 import { getTags } from '../api/tags'
 
-/** Owns one mounted account/resource edit. Remount on identity changes; drafts survive cancellation. */
+/** Owns one mounted account/resource edit. Remount on identity changes; closing the form discards unsaved input. */
 export function usePostEditor(owner: string, post: FeedbackPost) {
   const endpoint = `/api/feedback/posts/${post.id}`
-  const draftKey = `opine.feedback.edit.${owner}.${endpoint}`
-  const write = useFeedbackWrite(`edit.${owner}.${endpoint}`)
+  const write = useFeedbackWrite()
   const scope = useRequestScope()
   const latestScope = useRequestScope()
   const route = useRoute()
@@ -54,23 +52,6 @@ export function usePostEditor(owner: string, post: FeedbackPost) {
   const conflict = ref(false)
   const latest = ref<FeedbackPost | null>(null)
 
-  const stored = readStoredValue(draftKey)
-  if (stored.success) {
-    Object.assign(form, parsePostDraft(stored.value))
-  } else {
-    message.value = 'The saved edit could not be restored.'
-  }
-
-  watch(
-    form,
-    () => {
-      if (!writeStoredValue(draftKey, form)) {
-        message.value = 'Your edit cannot be saved in this browser. Keep this form open.'
-      }
-    },
-    { flush: 'sync' },
-  )
-
   async function signIn() {
     const error = await startDiscordSignIn(route.fullPath)
     if (scope.isActive() && error) {
@@ -89,7 +70,6 @@ export function usePostEditor(owner: string, post: FeedbackPost) {
     const parsed = postEditInput(
       form,
       baselineTags.value.map((tag) => tag.id),
-      write.pendingBody.value,
     )
     if (!parsed.success) {
       fieldErrors.value = parsed.fieldErrors
@@ -106,7 +86,6 @@ export function usePostEditor(owner: string, post: FeedbackPost) {
         return false
       }
       write.complete()
-      removeStoredValue(draftKey)
 
       return true
     } catch (error) {
@@ -190,7 +169,6 @@ export function usePostEditor(owner: string, post: FeedbackPost) {
   return {
     endpoint,
     form,
-    write,
     busy,
     saving,
     loadingLatest,

@@ -1,6 +1,6 @@
 import { getPost, getCategories } from '../api/posts'
 import type { CategoryHistoryPage } from '../api/outcomes'
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRequestScope } from './useRequestScope'
 import { feedbackFailure } from '../api/errors'
 import { validateCategoryCorrectionInput } from '../../shared/outcome-input'
@@ -15,6 +15,7 @@ export function useCategoryCorrection(
 ) {
   const categories = ref<FeedbackCategory[]>([])
   const categoryId = ref(props.categoryId)
+  // Refreshes must not change the version of an uncertain same-page retry.
   const version = ref(props.version)
   const busy = ref(false)
   const message = ref('')
@@ -33,33 +34,15 @@ export function useCategoryCorrection(
   const historyScope = useRequestScope()
   const reviewScope = useRequestScope()
   const historyError = ref('')
-  const write = useFeedbackWrite(`category.${props.owner}.${props.postId}`)
+  const write = useFeedbackWrite()
   const scope = useRequestScope()
 
-  // Invalid persisted data cannot safely identify a mutation to replay.
-  const restored = write.pendingBody.value
-  if (restored !== null && !validateCategoryCorrectionInput(restored).success) {
-    write.complete()
-    message.value = 'An invalid saved category correction was discarded. Choose the category again.'
-  }
-
-  watch(
-    () => props.version,
-    (value) => {
-      if (!conflict.value && !write.pendingBody.value) {
-        version.value = value
-      }
-    },
-  )
-
-  async function save(retry = false) {
+  async function save() {
     if (busy.value || conflict.value) {
       return
     }
 
-    const payload = retry
-      ? write.pendingBody.value
-      : { categoryId: categoryId.value, version: version.value }
+    const payload = { categoryId: categoryId.value, version: version.value }
     const parsed = validateCategoryCorrectionInput(payload)
     if (!parsed.success) {
       message.value = 'Choose a valid category before saving.'
@@ -70,12 +53,13 @@ export function useCategoryCorrection(
     message.value = ''
 
     try {
-      await correctCategory(props.postId, parsed.data, write.headers(payload))
+      const result = await correctCategory(props.postId, parsed.data, write.headers(payload))
       if (!scope.isActive()) {
         return
       }
 
       write.complete()
+      version.value = result.version
       saved()
       message.value = 'Category corrected.'
       await loadHistory()
@@ -211,7 +195,6 @@ export function useCategoryCorrection(
     cursor,
     loadingHistory,
     historyError,
-    write,
     save,
     review,
     accept,

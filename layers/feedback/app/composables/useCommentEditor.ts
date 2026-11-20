@@ -1,19 +1,17 @@
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import type { FeedbackComment } from '../../shared/contracts'
 import type { ContributionType } from '../../shared/contribution-types'
 import { useFeedbackWrite, feedbackWriteError } from './useFeedbackWrite'
 import { useRequestScope } from './useRequestScope'
 import { feedbackFailure } from '../api/errors'
 import { startDiscordSignIn } from '../../../auth/app/api/session'
-import { readStoredValue, writeStoredValue, removeStoredValue } from '../utils/stored-input'
-import { parseCommentDraft, commentEditInput, type CommentForm } from '../utils/editor-input'
+import { commentEditInput, type CommentForm } from '../utils/editor-input'
 import { getComment, editComment } from '../api/comment-edits'
 
-/** Owns one mounted account/resource edit. Remount on identity changes; drafts survive cancellation. */
-export function useCommentEditor(owner: string, comment: FeedbackComment) {
+/** Owns one mounted account/resource edit. Remount on identity changes; closing the form discards unsaved input. */
+export function useCommentEditor(comment: FeedbackComment) {
   const endpoint = `/api/feedback/posts/${comment.postId}/comments/${comment.id}`
-  const draftKey = `opine.feedback.edit.${owner}.${endpoint}`
-  const write = useFeedbackWrite(`edit.${owner}.${endpoint}`)
+  const write = useFeedbackWrite()
   const scope = useRequestScope()
   const latestScope = useRequestScope()
   const route = useRoute()
@@ -36,23 +34,6 @@ export function useCommentEditor(owner: string, comment: FeedbackComment) {
   const conflict = ref(false)
   const latest = ref<FeedbackComment | null>(null)
 
-  const stored = readStoredValue(draftKey)
-  if (stored.success) {
-    Object.assign(form, parseCommentDraft(stored.value))
-  } else {
-    message.value = 'The saved edit could not be restored.'
-  }
-
-  watch(
-    form,
-    () => {
-      if (!writeStoredValue(draftKey, form)) {
-        message.value = 'Your edit cannot be saved in this browser. Keep this form open.'
-      }
-    },
-    { flush: 'sync' },
-  )
-
   async function signIn() {
     const error = await startDiscordSignIn(route.fullPath)
     if (scope.isActive() && error) {
@@ -68,7 +49,7 @@ export function useCommentEditor(owner: string, comment: FeedbackComment) {
     message.value = ''
     fieldErrors.value = {}
 
-    const parsed = commentEditInput(form, baselineType.value, write.pendingBody.value)
+    const parsed = commentEditInput(form, baselineType.value)
     if (!parsed.success) {
       fieldErrors.value = parsed.fieldErrors
       message.value = 'Please check the highlighted fields.'
@@ -84,7 +65,6 @@ export function useCommentEditor(owner: string, comment: FeedbackComment) {
         return false
       }
       write.complete()
-      removeStoredValue(draftKey)
 
       return true
     } catch (error) {
@@ -153,7 +133,6 @@ export function useCommentEditor(owner: string, comment: FeedbackComment) {
   return {
     endpoint,
     form,
-    write,
     busy,
     saving,
     loadingLatest,

@@ -1,68 +1,24 @@
-import { ref, computed } from 'vue'
 import { feedbackFailure } from '../api/errors.ts'
-import { isUuid } from '../../shared/post-input.ts'
-import {
-  isRecord,
-  readStoredValue,
-  writeStoredValue,
-  removeStoredValue,
-} from '../utils/stored-input.ts'
 
-/**
- * Persist the exact payload and request key for one account/resource operation.
- * Call headers only for an explicit submission or retry; this never sends a request.
- * Complete only after confirmation (or a deliberate discard after definite rejection).
- * Keep the scope stable for this mount and remount when its account/resource changes.
- */
-export function useFeedbackWrite(scope: string) {
-  const storageKey = `opine.feedback.pending.${scope}`
-  const warning = ref('')
-  const pending = ref<{ payload: string; key: string } | null>(null)
-  const stored = readStoredValue(storageKey)
-
-  if (stored.success) {
-    const value = stored.value
-
-    if (isRecord(value) && typeof value.payload === 'string' && isUuid(value.key)) {
-      try {
-        // Decode only to check validity. Re-encoding could change a legacy fingerprint.
-        JSON.parse(value.payload)
-        pending.value = { payload: value.payload, key: value.key }
-      } catch {
-        warning.value = 'The pending request could not be restored. Keep this page open.'
-      }
-    } else if (value !== null) {
-      warning.value =
-        'The pending request could not be restored. Review your input before submitting.'
-    }
-  } else {
-    warning.value = 'Browser storage is unavailable. Keep this page open to retry safely.'
-  }
+/** Reuse a request key for unchanged retries while this form/action remains mounted. */
+export function useFeedbackWrite() {
+  let pending: { payload: string; key: string } | null = null
 
   function headers(body: unknown) {
     const payload = JSON.stringify(body)
 
-    if (pending.value?.payload !== payload) {
-      pending.value = { payload, key: crypto.randomUUID() }
+    if (pending?.payload !== payload) {
+      pending = { payload, key: crypto.randomUUID() }
     }
 
-    if (!writeStoredValue(storageKey, pending.value)) {
-      warning.value = 'Browser storage is unavailable. Keep this page open to retry safely.'
-    }
-
-    return { 'Idempotency-Key': pending.value.key }
+    return { 'Idempotency-Key': pending.key }
   }
 
   function complete() {
-    pending.value = null
-    removeStoredValue(storageKey)
+    pending = null
   }
 
-  const pendingBody = computed<unknown>(() =>
-    pending.value ? JSON.parse(pending.value.payload) : null,
-  )
-
-  return { headers, complete, warning, pendingBody }
+  return { headers, complete }
 }
 
 export function feedbackWriteError(error: unknown) {

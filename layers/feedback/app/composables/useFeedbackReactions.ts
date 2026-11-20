@@ -5,18 +5,9 @@ import { useFeedbackWrite, feedbackWriteError } from './useFeedbackWrite'
 import { ref, onMounted } from 'vue'
 import { useRequestScope } from './useRequestScope'
 import { feedbackFailure } from '../api/errors'
-import { isRecord } from '../utils/stored-input'
-
-function isReactionInput(value: unknown): value is ReactionInput {
-  return (
-    isRecord(value) &&
-    Object.keys(value).length === 1 &&
-    (value.kind === null || value.kind === 'agree' || value.kind === 'disagree')
-  )
-}
 
 /**
- * Keep counts separate from the pending write so a failed refresh never implies a failed reaction. Mount per account/post.
+ * Refresh counts after each attempt so an uncertain response does not leave a stale toggle. Mount per account/post.
  * Create within setup so disposal prevents late requests from updating local state.
  */
 export function useFeedbackReactions(props: { postId: string; owner: string | null }) {
@@ -29,14 +20,7 @@ export function useFeedbackReactions(props: { postId: string; owner: string | nu
   const reacting = ref(false)
   const explain = ref(false)
   const expired = ref(false)
-  const reactionWrite = useFeedbackWrite(`reaction.${props.owner}.${props.postId}`)
-
-  // Invalid persisted data cannot safely identify a mutation to replay.
-  const restored = reactionWrite.pendingBody.value
-  if (restored !== null && !isReactionInput(restored)) {
-    reactionWrite.complete()
-    writeError.value = 'An invalid saved reaction was discarded. Choose your reaction again.'
-  }
+  const reactionWrite = useFeedbackWrite()
 
   async function loadReactions() {
     const isCurrent = scope.startRequest()
@@ -55,18 +39,10 @@ export function useFeedbackReactions(props: { postId: string; owner: string | nu
   }
 
   async function react(kind: ReactionKind) {
-    if (!reactions.value || reactionWrite.pendingBody.value) {
+    if (!reactions.value || reacting.value) {
       return
     }
     await saveReaction({ kind: reactions.value.mine === kind ? null : kind })
-  }
-
-  async function retryReaction() {
-    const pending = reactionWrite.pendingBody.value
-    // Replay only a checked payload; never turn malformed storage into a mutation.
-    if (isReactionInput(pending)) {
-      await saveReaction({ kind: pending.kind })
-    }
   }
 
   async function saveReaction(payload: ReactionInput) {
@@ -89,6 +65,7 @@ export function useFeedbackReactions(props: { postId: string; owner: string | nu
       if (scope.isActive()) {
         writeError.value = feedbackWriteError(failure)
         expired.value = feedbackFailure(failure).status === 401
+        await loadReactions()
       }
     } finally {
       if (scope.isActive()) {
@@ -113,10 +90,8 @@ export function useFeedbackReactions(props: { postId: string; owner: string | nu
     reacting,
     explain,
     expired,
-    reactionWrite,
     loadReactions,
     react,
-    retryReaction,
     signIn,
   }
 }

@@ -398,14 +398,10 @@ test('official response retries after a lost reply and conflict review preserve 
     })
     await composer.getByRole('button', { name: 'Publish official response', exact: true }).click()
     await expect(
-      composer.getByRole('button', { name: 'Retry pending official response', exact: true }),
+      composer.getByRole('button', { name: 'Publish official response', exact: true }),
     ).toBeEnabled()
     await page.unroute(`**${base}/responses`)
-    await page.reload()
-    await page.getByText('Publish an official response', { exact: true }).click()
-    await composer
-      .getByRole('button', { name: 'Retry pending official response', exact: true })
-      .click()
+    await composer.getByRole('button', { name: 'Publish official response', exact: true }).click()
     await expect(composer.getByLabel('Official response', { exact: true })).toHaveValue('')
     expect(
       await getDatabase()

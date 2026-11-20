@@ -1,4 +1,4 @@
-import { computed, reactive, ref, shallowRef, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { authClient } from '../../../auth/app/auth-client'
 import { startDiscordSignIn } from '../../../auth/app/api/session'
 import { useFeedbackWrite } from './useFeedbackWrite'
@@ -6,10 +6,10 @@ import { useRequestScope } from './useRequestScope'
 import { getCategories, createPost } from '../api/posts'
 import { getTags } from '../api/tags'
 import { feedbackFailure } from '../api/errors'
-import { readStoredValue, writeStoredValue, removeStoredValue } from '../utils/stored-input'
-import { parseSubmissionDraft, submissionInput, type SubmissionForm } from '../utils/editor-input'
+import type { SubmissionForm } from '../utils/editor-input'
+import { validatePostInput } from '../../shared/post-input'
 
-/** Owns account-scoped drafts; ignores completion after disposal or a session identity change. */
+/** Owns the mounted form; ignores completion after disposal or a session identity change. */
 export function useFeedbackSubmission() {
   const session = authClient.useSession()
   const {
@@ -43,9 +43,8 @@ export function useFeedbackSubmission() {
   const signInScope = useRequestScope()
   const sessionScope = useRequestScope()
   const message = ref('')
-  const storageMessage = ref('')
-  const draftOwner = ref<string | null>(null)
-  const pendingWrite = shallowRef<ReturnType<typeof useFeedbackWrite> | null>(null)
+  const formOwner = ref<string | null>(null)
+  const write = useFeedbackWrite()
 
   watch(
     () => session.value.data?.user.id,
@@ -53,10 +52,9 @@ export function useFeedbackSubmission() {
       scope.startRequest()
       signInScope.startRequest()
       sessionScope.startRequest()
-      draftOwner.value = id ?? null
-      pendingWrite.value = id ? useFeedbackWrite(`post.${id}`) : null
+      formOwner.value = id ?? null
+      write.complete()
       message.value = ''
-      storageMessage.value = ''
       saving.value = false
       signingIn.value = false
       checkingSession.value = false
@@ -68,30 +66,9 @@ export function useFeedbackSubmission() {
         tagIds: [],
       })
       fieldErrors.value = {}
-      if (!id) {
-        return
-      }
-
-      const stored = readStoredValue(`opine.feedback.draft.${id}`)
-      if (stored.success) {
-        Object.assign(form, parseSubmissionDraft(stored.value))
-      } else {
-        storageMessage.value = 'Your browser could not restore the saved draft.'
-      }
     },
     { immediate: true },
   )
-
-  watch(form, () => {
-    if (!draftOwner.value) {
-      return
-    }
-
-    if (!writeStoredValue(`opine.feedback.draft.${draftOwner.value}`, form)) {
-      storageMessage.value =
-        'Your draft cannot be saved in this browser. Keep this page open until you submit your feedback.'
-    }
-  })
 
   async function signIn() {
     const isCurrent = signInScope.startRequest()
@@ -128,16 +105,14 @@ export function useFeedbackSubmission() {
     fieldErrors.value = {}
     message.value = ''
 
-    const result = submissionInput(form, pendingWrite.value?.pendingBody.value)
+    const result = validatePostInput(form)
     if (!result.success) {
       fieldErrors.value = result.fieldErrors
       message.value = 'Please check the highlighted fields.'
       return
     }
 
-    const owner = draftOwner.value
-    const write = pendingWrite.value
-    if (!owner || !write) {
+    if (!formOwner.value) {
       return
     }
 
@@ -151,7 +126,6 @@ export function useFeedbackSubmission() {
       }
 
       write.complete()
-      removeStoredValue(`opine.feedback.draft.${owner}`)
 
       return post.id
     } catch (error: unknown) {
@@ -186,7 +160,7 @@ export function useFeedbackSubmission() {
         fieldErrors.value.tagIds = 'Only active tags can be added. Remove any unavailable tags.'
         await refreshTags()
       } else if (failure.status === 401) {
-        message.value = 'Your session has expired. Sign in again to submit your saved draft.'
+        message.value = 'Your session has expired. Sign in again to submit your feedback.'
         try {
           await session.value.refetch()
         } catch {
@@ -196,7 +170,7 @@ export function useFeedbackSubmission() {
         message.value = 'You are posting too quickly. Please wait before trying again.'
       } else {
         message.value =
-          'Unable to confirm submission. Your draft is saved; retrying the same submission is safe.'
+          'Unable to confirm submission. Please try again. Your text remains in this form.'
       }
     } finally {
       if (isCurrent()) {
@@ -223,8 +197,6 @@ export function useFeedbackSubmission() {
     fieldErrors,
     busy,
     message,
-    storageMessage,
-    pendingWrite,
     signIn,
     retrySession,
     publish,

@@ -23,8 +23,6 @@ const {
   fieldErrors,
   busy,
   message,
-  storageMessage,
-  pendingWrite,
   signIn,
   retrySession,
   clearTags,
@@ -53,19 +51,15 @@ async function publish() {
     <p v-if="route.query.signIn" role="alert">
       Sign-in was cancelled or could not be completed. You can try again.
     </p>
-    <p v-if="pendingWrite?.warning.value">{{ pendingWrite.warning.value }}</p>
-    <p v-if="storageMessage" role="status">{{ storageMessage }}</p>
     <p v-if="session.isPending" role="status">Checking your session…</p>
     <div v-else-if="session.error" class="panel empty-state">
       <h2>Unable to check your session</h2>
-      <p>Your saved draft is still available. Retry to continue posting.</p>
+      <p>Retry to continue posting.</p>
       <UiButton type="button" :busy="busy" @click="retrySession">Retry posting session</UiButton>
     </div>
     <div v-else-if="!session.data" class="panel empty-state">
       <h2>Share feedback for the game</h2>
-      <p>
-        Sign in with Discord to share feedback. Your saved draft will be restored for your account.
-      </p>
+      <p>Sign in with Discord to share feedback.</p>
       <UiButton variant="primary" type="button" :busy="busy" @click="signIn">
         Sign in with Discord to post
       </UiButton>
@@ -157,7 +151,7 @@ async function publish() {
       <div>
         <p v-if="tagsPending" role="status">Loading tags…</p>
         <p v-else-if="tagsError" role="alert">
-          Unable to load tags. Saved selections are preserved; clear them to submit without tags.
+          Unable to load tags. Your selections are preserved; clear them to submit without tags.
           <UiButton type="button" @click="refreshTags()">Retry tags</UiButton>
           <UiButton v-if="form.tagIds.length" type="button" :disabled="busy" @click="clearTags">
             Clear selected tags
@@ -183,10 +177,7 @@ async function publish() {
         </UiButton>
         <NuxtLink to="/feedback">Back to feedback</NuxtLink>
       </div>
-      <p class="field-help">
-        Your feedback and display name will be public. Drafts stay in this browser tab until
-        submitted.
-      </p>
+      <p class="field-help">Your feedback and display name will be public.</p>
     </form>
   </main>
 </template>

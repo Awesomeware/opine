@@ -4,7 +4,6 @@ import { effectScope } from 'vue'
 import { feedbackFailure } from '../app/api/errors.ts'
 import { useFeedbackWrite } from '../app/composables/useFeedbackWrite.ts'
 import { useRequestScope } from '../app/composables/useRequestScope.ts'
-import { readStoredValue, writeStoredValue, removeStoredValue } from '../app/utils/stored-input.ts'
 
 const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage')
 
@@ -15,21 +14,6 @@ afterEach(() => {
     Reflect.deleteProperty(globalThis, 'sessionStorage')
   }
 })
-
-function memoryStorage() {
-  const values = new Map<string, string>()
-
-  Object.defineProperty(globalThis, 'sessionStorage', {
-    configurable: true,
-    value: {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-      removeItem: (key: string) => values.delete(key),
-    },
-  })
-
-  return values
-}
 
 test('transport error narrowing rejects malformed field errors without assuming an error shape', () => {
   for (const error of [null, undefined, 'network error', [], new Error('offline')]) {
@@ -68,64 +52,33 @@ test('request scopes reject older reads and all results after their owning scope
   assert.equal(requests.isActive(), false)
 })
 
-test('pending writes retain exact legacy payloads and keys across mounts, isolate accounts, and change keys for new intent', () => {
-  const stored = memoryStorage()
-  const scope = 'edit.member-a.post-a'
-  const key = `opine.feedback.pending.${scope}`
-  const payload = { title: 'Original', description: 'Body', desiredImprovement: null, version: 1 }
-  const original = useFeedbackWrite(scope)
-  const headers = original.headers(payload)
-  const restored = useFeedbackWrite(scope)
+test('write keys protect unchanged retries only within the current instance', () => {
+  const payload = { body: 'A comment', type: 'context' }
+  const write = useFeedbackWrite()
+  const first = write.headers(payload)
 
-  assert.deepEqual(restored.pendingBody.value, payload)
-  assert.deepEqual(restored.headers(payload), headers)
-  assert.equal(JSON.parse(stored.get(key)!).payload, JSON.stringify(payload))
-  assert.equal(useFeedbackWrite('edit.member-b.post-a').pendingBody.value, null)
-  assert.notDeepEqual(restored.headers({ ...payload, tagIds: [] }), headers)
+  assert.deepEqual(write.headers({ ...payload }), first)
+  assert.notDeepEqual(write.headers({ ...payload, body: 'Changed text' }), first)
+  assert.notDeepEqual(useFeedbackWrite().headers(payload), first)
 
-  restored.complete()
-  assert.equal(stored.has(key), false)
-  assert.equal(restored.pendingBody.value, null)
+  const beforeCompletion = write.headers(payload)
+  write.complete()
+  assert.notDeepEqual(write.headers(payload), beforeCompletion)
 })
 
-test('storage corruption and unavailable storage do not fabricate a pending payload or prevent safe in-memory retries', () => {
-  const stored = memoryStorage()
-  stored.set(
-    'opine.feedback.pending.bad',
-    JSON.stringify({ key: crypto.randomUUID(), payload: '{broken' }),
-  )
-  const bad = useFeedbackWrite('bad')
-  assert.equal(bad.pendingBody.value, null)
-  assert.ok(bad.warning.value)
-  stored.set('draft', '{broken')
-  assert.deepEqual(readStoredValue('draft'), { success: false })
-
+test('write state never reads or writes browser storage', () => {
+  let accesses = 0
   Object.defineProperty(globalThis, 'sessionStorage', {
     configurable: true,
     get() {
-      throw new Error('Storage unavailable')
+      accesses++
+      throw new Error('Storage must not be used')
     },
   })
-  const write = useFeedbackWrite('offline')
-  const first = write.headers({ body: 'Keep this draft' })
-  assert.deepEqual(write.headers({ body: 'Keep this draft' }), first)
-  assert.equal(writeStoredValue('draft', {}), false)
-  assert.equal(removeStoredValue('draft'), false)
-  assert.doesNotThrow(() => write.complete())
-})
 
-test('invalid pending receipt keys are rejected without blocking a new explicit submission', () => {
-  const stored = memoryStorage()
-
-  for (const key of ['', 'not-a-uuid', 12]) {
-    stored.set(
-      'opine.feedback.pending.invalid',
-      JSON.stringify({ key, payload: '{"kind":"agree"}' }),
-    )
-    const write = useFeedbackWrite('invalid')
-
-    assert.equal(write.pendingBody.value, null)
-    assert.ok(write.warning.value)
-    assert.match(write.headers({ kind: 'agree' })['Idempotency-Key'], /^[0-9a-f-]{36}$/)
-  }
+  const write = useFeedbackWrite()
+  const headers = write.headers({ body: 'Only in memory' })
+  assert.deepEqual(write.headers({ body: 'Only in memory' }), headers)
+  write.complete()
+  assert.equal(accesses, 0)
 })

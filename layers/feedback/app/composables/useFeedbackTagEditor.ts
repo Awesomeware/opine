@@ -1,5 +1,4 @@
 import { getTags, updateTag } from '../api/tags'
-import { validateTagEditInput } from '../../shared/tag-input'
 import type { FeedbackTag } from '../../shared/contracts'
 import { useFeedbackWrite, feedbackWriteError } from './useFeedbackWrite'
 import { ref, reactive } from 'vue'
@@ -7,25 +6,20 @@ import { useRequestScope } from './useRequestScope'
 import { feedbackFailure } from '../api/errors'
 
 /**
- * Mount per account/tag. Restore checked pending edits and retain drafts while reviewing a newer version.
+ * Mount per account/tag. Retain entered fields while reviewing a newer version.
  * Create within setup so disposal prevents late requests from updating local state.
  */
 export function useFeedbackTagEditor(
   props: { tag: FeedbackTag; owner: string },
   onSaved: () => void,
 ) {
-  const write = useFeedbackWrite(`tags.edit.${props.owner}.${props.tag.id}`)
+  const write = useFeedbackWrite()
 
   const form = reactive({
     name: props.tag.name,
     isActive: props.tag.isActive,
     version: props.tag.version,
   })
-
-  const pending = validateTagEditInput(write.pendingBody.value)
-  if (pending.success) {
-    Object.assign(form, pending.data)
-  }
 
   const busy = ref(false)
   const message = ref('')
@@ -144,7 +138,7 @@ export function useFeedbackTagEditor(
     if (!latest.value || refreshing.value) {
       return
     }
-    // Reviewing advances the concurrency baseline without replacing the author’s draft.
+    // Reviewing advances the concurrency baseline without replacing the author’s input.
     form.version = latest.value.version
     latest.value = null
     conflict.value = false
@@ -157,7 +151,6 @@ export function useFeedbackTagEditor(
 
   return {
     retryLatest,
-    write,
     form,
     busy,
     message,
