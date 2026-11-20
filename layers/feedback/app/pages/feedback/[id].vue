@@ -61,6 +61,7 @@ async function copyLink() {
         <article class="proposal-article">
           <p class="eyebrow">{{ post.category.name }}</p>
           <h1>{{ post.title }}</h1>
+          <FeedbackTags :tags="post.tags" />
           <p class="byline">
             <strong>{{ post.author.name }}</strong><span aria-hidden="true"> · </span
             ><time :datetime="post.createdAt">{{
@@ -76,6 +77,7 @@ async function copyLink() {
             :owner="owner"
             :endpoint="`/api/feedback/posts/${post.id}`"
             :title="post.title"
+            :tags="post.tags"
             :description="post.description"
             :desired-improvement="post.desiredImprovement"
             :version="post.version"

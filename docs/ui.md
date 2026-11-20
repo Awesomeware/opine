@@ -50,6 +50,10 @@ layers/feedback/app/components/
   FeedbackOfficialResponse.stories.ts
   FeedbackStatusBadge.vue
   FeedbackStatusBadge.stories.ts
+  FeedbackTagPicker.vue
+  FeedbackTagPicker.stories.ts
+  FeedbackTags.vue
+  FeedbackTags.stories.ts
 .storybook/
   main.ts
   preview.ts
@@ -72,10 +76,12 @@ The [approved visual direction](design/README.md) now drives the shared theme, a
 
 Root `app/assets/css/main.css` still contains common page/form layout, legacy form controls, and link-button classes. Shell, feedback row, proposal, discussion, official-response, and contribution-choice styling is scoped to its owner. Existing short color variables remain aliases during migration. As those components are extracted, move their styles beside them and remove the obsolete global rules. Do not load the legacy application stylesheet in Storybook to hide an undeclared component dependency.
 
+`FeedbackTagPicker` uses native checkboxes with no default selection. It can retain disabled tags already assigned to a post and expose unavailable saved selections for removal. `FeedbackTags` renders non-interactive public labels; these are distinct from status badges and discussion filters. Both accept data through props and have isolated stories.
+
 ## Stories and checks
 
 Colocate `*.stories.ts` with components. Nuxt discovers only Vue component files in these layers; stories are development inputs and must not enter the production component registry. Use stable, realistic fixtures and explicit examples for relevant states such as disabled, busy, error, long content, and narrow layouts. Keep server factories and real account data out of stories.
 
-The catalog includes shared controls, the brand and icons, status tones, feedback rows, official responses, interactive contribution selection, and safe feedback text rendering. Playwright checks component behavior without a database. Storybook stories alone are not screenshot regression tests; approved screenshot baselines and their update workflow remain a separate future addition. The full application E2E suite continues to cover authentication, submission, participation, and official workflows.
+The catalog includes shared controls, the brand and icons, status tones, feedback rows, official responses, interactive contribution and optional tag selection, quiet tag labels, and safe feedback text rendering. Playwright checks component behavior without a database. Storybook stories alone are not screenshot regression tests; approved screenshot baselines and their update workflow remain a separate future addition. The full application E2E suite continues to cover authentication, submission, participation, and official workflows.
 
 References: [Nuxt layers](https://nuxt.com/docs/4.x/getting-started/layers), [Vue scoped CSS](https://vuejs.org/api/sfc-css-features.html), [Storybook for Vue/Vite](https://storybook.js.org/docs/get-started/frameworks/vue3-vite/).

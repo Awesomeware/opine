@@ -5,6 +5,7 @@ import type { OfficialResponseInput, CategoryCorrectionInput } from '../shared/o
 import type { ContributionType } from '../shared/contribution-types.ts'
 import type { PostStatus } from '../shared/status.ts'
 import type { PostCursor } from './list-input.ts'
+import { postTagsField } from './tags.ts'
 import { listComments } from './participation.ts'
 import {
   feedbackCategory,
@@ -354,6 +355,7 @@ export async function listReviewQueue(
       id: t.id,
       title: t.title,
       excerpt: sql<string>`left(${t.description}, 240)`,
+      tags: postTagsField,
       status: t.status,
       createdAt: t.createdAt,
       author: { name: user.name },

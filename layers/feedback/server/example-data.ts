@@ -1,4 +1,5 @@
-import { sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
+import { defaultFeedbackTags } from './tags.ts'
 import { getDatabase } from '../../../server/db/index.ts'
 import { user, userRole } from '../../auth/server/schema.ts'
 import type { ContributionType } from '../shared/contribution-types.ts'
@@ -10,6 +11,8 @@ import {
   feedbackNotification,
   feedbackOfficialResponse,
   feedbackPost,
+  feedbackTag,
+  feedbackPostTag,
   feedbackReaction,
 } from './schema.ts'
 
@@ -31,10 +34,12 @@ const examples: {
   description: string
   desiredImprovement: string
   categoryId: string
+  tagNames: string[]
   comments: ExampleComment[]
   responses: ExampleResponse[]
 }[] = [
   {
+    tagNames: ['UI'],
     title: 'Keep the inventory filters when reopening the backpack',
     description:
       'I often switch between crafting and my backpack. Each time I reopen it, the selected item category resets, so finding the same materials takes several extra clicks.',
@@ -70,6 +75,7 @@ const examples: {
     ],
   },
   {
+    tagNames: ['UI', 'Gameplay'],
     title: 'Make objective markers distinguishable without relying on color',
     description:
       'The active quest and optional objectives use similar marker shapes. In a busy area, the color difference alone makes it difficult to identify which marker to follow.',
@@ -98,6 +104,7 @@ const examples: {
     ],
   },
   {
+    tagNames: ['Gameplay', 'Combat'],
     title: 'Let co-op groups practise boss encounters without spending a key',
     description:
       'Our group would like to learn boss mechanics together, but spending an entry key on each attempt discourages experimentation, especially when introducing a new player.',
@@ -173,6 +180,20 @@ export async function seedExampleData() {
       // Treat each post and its participation as one example; never replenish edited data.
       if (!post) continue
       createdPosts++
+      // Only tag newly inserted examples; respect renamed/disabled catalog entries and edits.
+      const tagIds = defaultFeedbackTags
+        .filter((tag) => example.tagNames.includes(tag.name))
+        .map((tag) => tag.id)
+      const tags = await transaction
+        .select({ id: feedbackTag.id })
+        .from(feedbackTag)
+        .where(and(inArray(feedbackTag.id, tagIds), eq(feedbackTag.isActive, true)))
+        .orderBy(feedbackTag.id)
+        .for('share')
+      if (tags.length)
+        await transaction
+          .insert(feedbackPostTag)
+          .values(tags.map((tag) => ({ postId, tagId: tag.id })))
       await transaction
         .insert(feedbackFollow)
         .values(players.map((userId) => ({ postId, userId, createdAt: at(hoursAgo) })))

@@ -245,3 +245,36 @@ export const feedbackCategoryChange = pgTable(
     index('feedback_category_change_chronological_idx').on(table.postId, table.createdAt, table.id),
   ],
 )
+
+export const feedbackTag = pgTable(
+  'feedback_tag',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+    version: integer('version').notNull().default(1),
+  },
+  (table) => [
+    uniqueIndex('feedback_tag_name_unique').on(sql`lower(${table.name})`),
+    check(
+      'feedback_tag_name_valid',
+      sql`char_length(btrim(${table.name})) between 1 and 40 and char_length(${table.name}) <= 40`,
+    ),
+    check('feedback_tag_version_positive', sql`${table.version} > 0`),
+  ],
+)
+export const feedbackPostTag = pgTable(
+  'feedback_post_tag',
+  {
+    postId: uuid('post_id')
+      .notNull()
+      .references(() => feedbackPost.id, { onDelete: 'cascade' }),
+    tagId: uuid('tag_id')
+      .notNull()
+      .references(() => feedbackTag.id, { onDelete: 'restrict' }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.postId, table.tagId] }),
+    index('feedback_post_tag_tag_idx').on(table.tagId),
+  ],
+)

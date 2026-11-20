@@ -3,6 +3,7 @@ export type PostInput = {
   title: string
   description: string
   desiredImprovement: string | null
+  tagIds?: string[]
   categoryId: string
 }
 export type PostFieldErrors = Partial<Record<keyof PostInput | 'form', string>>
@@ -22,7 +23,8 @@ export function validatePostInput(
   const fieldErrors: PostFieldErrors = {}
   if (
     Object.keys(fields).some(
-      (key) => !['title', 'description', 'desiredImprovement', 'categoryId'].includes(key),
+      (key) =>
+        !['title', 'description', 'desiredImprovement', 'categoryId', 'tagIds'].includes(key),
     )
   ) {
     fieldErrors.form = 'The submission contains unexpected fields.'
@@ -46,11 +48,23 @@ export function validatePostInput(
       fieldErrors[field] = 'Remove the unsupported null character from this field.'
     }
   }
+  let tagIds: string[] | undefined
+  if ('tagIds' in fields) {
+    if (!Array.isArray(fields.tagIds) || fields.tagIds.length > 100 || !fields.tagIds.every(isUuid))
+      fieldErrors.tagIds = 'Choose up to 100 valid tags.'
+    else tagIds = [...new Set(fields.tagIds.map((id) => id.toLowerCase()))].sort()
+  }
   if (!isUuid(fields.categoryId)) fieldErrors.categoryId = 'Choose a category.'
   if (Object.keys(fieldErrors).length || !isUuid(fields.categoryId))
     return { success: false, fieldErrors }
   return {
     success: true,
-    data: { title, description, desiredImprovement, categoryId: fields.categoryId },
+    data: {
+      title,
+      description,
+      desiredImprovement,
+      categoryId: fields.categoryId,
+      ...(tagIds !== undefined ? { tagIds } : {}),
+    },
   }
 }

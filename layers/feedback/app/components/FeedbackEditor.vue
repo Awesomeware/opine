@@ -7,6 +7,7 @@ import {
   isContributionType,
   type ContributionType,
 } from '../../shared/contribution-types'
+import type { FeedbackTag } from '../../shared/contracts'
 import { postLimits } from '../../shared/post-input'
 const props = defineProps<{
   owner: string
@@ -17,6 +18,7 @@ const props = defineProps<{
   title?: string
   description?: string
   desiredImprovement?: string | null
+  tags?: FeedbackTag[]
 }>()
 const emit = defineEmits<{ saved: []; cancel: [] }>()
 const isPost = props.body === undefined
@@ -28,6 +30,20 @@ const form = reactive({
   body: props.body ?? '',
   type: (props.type ?? '') as ContributionType | '',
   version: props.version,
+  tagIds: props.tags?.map((tag) => tag.id) ?? [],
+})
+const baselineTags = ref(props.tags ?? [])
+const {
+  data: tagData,
+  pending: tagsPending,
+  error: tagsError,
+  refresh: refreshTags,
+} = useFetch<{ tags: FeedbackTag[] }>('/api/feedback/tags', { immediate: isPost })
+const availableTags = computed(() => {
+  const tags = [...(tagData.value?.tags ?? [])]
+  for (const tag of baselineTags.value)
+    if (!tags.some((value) => value.id === tag.id)) tags.push(tag)
+  return tags
 })
 const baselineType = ref<ContributionType | ''>(props.type ?? '')
 const write = useFeedbackWrite(`edit.${props.owner}.${props.endpoint}`)
@@ -48,7 +64,7 @@ async function signIn() {
   }
 }
 const conflict = ref(false)
-const latest = ref<typeof form | null>(null)
+const latest = ref<(typeof form & { tags?: FeedbackTag[] }) | null>(null)
 let active = true
 onBeforeUnmount(() => {
   active = false
@@ -58,6 +74,8 @@ try {
   if (saved && typeof saved.version === 'number') {
     for (const key of ['title', 'description', 'desiredImprovement', 'body'] as const)
       if (typeof saved[key] === 'string') form[key] = saved[key]
+    if (Array.isArray(saved.tagIds) && saved.tagIds.every((id: unknown) => typeof id === 'string'))
+      form.tagIds = saved.tagIds
     if (isContributionType(saved.type)) form.type = saved.type
     form.version = saved.version
   }
@@ -79,14 +97,18 @@ async function save() {
   if (busy.value || conflict.value) return
   message.value = ''
   fieldErrors.value = {}
-  const pending = write.pendingBody.value as { type?: ContributionType } | null
+  const pending = write.pendingBody.value as { type?: ContributionType; tagIds?: string[] } | null
   const includeType = form.type && (form.type !== baselineType.value || pending?.type === form.type)
+  const tagsChanged =
+    JSON.stringify([...form.tagIds].sort()) !==
+    JSON.stringify(baselineTags.value.map((tag) => tag.id).sort())
   const input = isPost
     ? {
         title: form.title,
         description: form.description,
         desiredImprovement: form.desiredImprovement || null,
         version: form.version,
+        ...(tagsChanged || pending?.tagIds ? { tagIds: form.tagIds } : {}),
       }
     : {
         body: form.body,
@@ -118,7 +140,18 @@ async function save() {
       message.value =
         'This content changed while you were editing. Your text is preserved. Load the latest version to review it before saving again.'
     } else {
-      message.value = feedbackWriteError(error)
+      const errors = (error as { data?: { data?: { fieldErrors?: Record<string, string> } } }).data
+        ?.data?.fieldErrors
+      if (errors) fieldErrors.value = errors
+      if (isPost && (error as { statusCode?: number }).statusCode === 400) {
+        await refreshTags()
+        if (!errors)
+          fieldErrors.value.tagIds =
+            'Check your selected tags. Unavailable tags can only be kept on posts that already have them, or removed.'
+      }
+      message.value = Object.keys(fieldErrors.value).length
+        ? 'Please check the highlighted fields.'
+        : feedbackWriteError(error)
       expired.value = (error as { statusCode?: number }).statusCode === 401
     }
   } finally {
@@ -128,7 +161,10 @@ async function save() {
 async function loadLatest() {
   busy.value = true
   try {
-    const response = await $fetch<{ post?: typeof form; comment?: typeof form }>(props.endpoint)
+    const response = await $fetch<{
+      post?: typeof form & { tags?: FeedbackTag[] }
+      comment?: typeof form
+    }>(props.endpoint)
     if (!active) return
     latest.value = response.post ?? response.comment ?? null
   } catch {
@@ -140,6 +176,7 @@ async function loadLatest() {
 function acceptLatest() {
   if (!latest.value) return
   baselineType.value = latest.value.type ?? ''
+  if (isPost) baselineTags.value = latest.value.tags ?? []
   form.version = latest.value.version
   conflict.value = false
   latest.value = null
@@ -190,8 +227,32 @@ function acceptLatest() {
           "
           rows="3"
           :maxlength="postLimits.desiredImprovement"
-        /></div
-    ></template>
+        />
+      </div>
+      <div>
+        <p v-if="tagsPending" role="status">Loading tags…</p>
+        <p v-else-if="tagsError" role="alert">
+          Unable to load tags. Existing selections are preserved.
+          <UiButton type="button" @click="refreshTags()">Retry tags</UiButton>
+          <UiButton
+            v-if="form.tagIds.length"
+            type="button"
+            :disabled="busy"
+            @click="form.tagIds = []"
+            >Clear selected tags</UiButton
+          >
+        </p>
+        <FeedbackTagPicker
+          v-else
+          v-model="form.tagIds"
+          :tags="availableTags"
+          :retained-ids="baselineTags.map((tag) => tag.id)"
+          :name="`${endpoint}-tags`"
+          :disabled="busy"
+          :error="fieldErrors.tagIds"
+        />
+      </div>
+    </template>
     <template v-else>
       <FeedbackContributionType
         v-model="form.type"
@@ -230,7 +291,11 @@ function acceptLatest() {
           ><strong>{{ latest.title }}</strong
           ><FeedbackText :text="latest.description" /><FeedbackText
             v-if="latest.desiredImprovement"
-            :text="latest.desiredImprovement" /></template
+            :text="latest.desiredImprovement"
+          />
+          <p>Latest tags</p>
+          <FeedbackTags :tags="latest.tags ?? []" />
+          <p v-if="!latest.tags?.length">No tags</p></template
         ><template v-else
           ><p>{{ latest.type ? contributionLabels[latest.type] : 'Unspecified' }}</p>
           <FeedbackText :text="latest.body" /></template

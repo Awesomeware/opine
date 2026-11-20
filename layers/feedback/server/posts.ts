@@ -5,6 +5,7 @@ import { user } from '../../auth/server/schema.ts'
 import type { PostInput } from '../shared/post-input.ts'
 import type { ListPostsInput } from './list-input.ts'
 import { feedbackWrite, positiveInteger } from './writes.ts'
+import { postTagsField, replacePostTags } from './tags.ts'
 import { feedbackCategory, feedbackFollow, feedbackPost } from './schema.ts'
 
 export class PostingRateLimitError extends Error {
@@ -46,10 +47,12 @@ export async function createPost(
         .where(and(eq(feedbackCategory.id, input.categoryId), eq(feedbackCategory.isActive, true)))
         .for('share')
       if (!category) return null
+      const { tagIds, ...postInput } = input
       const [post] = await transaction
         .insert(feedbackPost)
-        .values({ ...input, authorId })
+        .values({ ...postInput, authorId })
         .returning({ id: feedbackPost.id })
+      await replacePostTags(transaction, post!.id, tagIds ?? [])
       await transaction.insert(feedbackFollow).values({ postId: post!.id, userId: authorId })
       return post!
     },
@@ -57,6 +60,7 @@ export async function createPost(
 }
 
 const publicFields = {
+  tags: postTagsField,
   id: feedbackPost.id,
   title: feedbackPost.title,
   status: feedbackPost.status,

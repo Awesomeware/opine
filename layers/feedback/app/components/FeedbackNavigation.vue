@@ -4,17 +4,21 @@ const session = authClient.useSession()
 const route = useRoute()
 const owner = computed(() => session.value.data?.user.id ?? null)
 const manager = ref(false)
+const administrator = ref(false)
 let request = 0
 watch(
   owner,
   async (id) => {
     const current = ++request
     manager.value = false
+    administrator.value = false
     if (!id) return
     try {
       const access = await $fetch<{ user: { id: string } | null; roles: string[] }>('/api/access')
-      if (current === request && owner.value === id && access.user?.id === id)
+      if (current === request && owner.value === id && access.user?.id === id) {
         manager.value = access.roles.includes('community-manager')
+        administrator.value = access.roles.includes('administrator')
+      }
     } catch {
       /* Protected pages can retry access checks. */
     }
@@ -33,11 +37,14 @@ onBeforeUnmount(() => {
         active:
           route.path === '/feedback' ||
           (route.path.startsWith('/feedback/') &&
-            !['/feedback/notifications', '/feedback/review'].includes(route.path)),
+            !['/feedback/notifications', '/feedback/review', '/feedback/tags'].includes(
+              route.path,
+            )),
       }"
       >Community feedback</NuxtLink
     ><NuxtLink v-if="owner" to="/feedback/notifications">Notifications</NuxtLink
     ><NuxtLink v-if="manager" to="/feedback/review">Review queue</NuxtLink>
+    <NuxtLink v-if="administrator" to="/feedback/tags">Manage tags</NuxtLink>
   </nav>
 </template>
 <style scoped>

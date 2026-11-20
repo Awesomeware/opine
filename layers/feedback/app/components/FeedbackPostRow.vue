@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FeedbackTags from './FeedbackTags.vue'
 import FeedbackStatusBadge from './FeedbackStatusBadge.vue'
 import type { FeedbackPostSummary } from '../../shared/contracts'
 defineProps<{ post: FeedbackPostSummary }>()
@@ -10,6 +11,7 @@ defineProps<{ post: FeedbackPostSummary }>()
         <slot name="title"><a :href="`/feedback/${post.id}`">{{ post.title }}</a></slot>
       </h2>
       <p class="row-excerpt">{{ post.excerpt }}</p>
+      <FeedbackTags :tags="post.tags" />
       <p class="row-byline">
         <span>{{ post.category.name }}</span><span aria-hidden="true"> · </span
         ><span>{{ post.author.name }}</span><span aria-hidden="true"> · </span

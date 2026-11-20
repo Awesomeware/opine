@@ -173,3 +173,36 @@ test('official responses preserve status explanations and stable links without i
     permalink,
   )
 })
+
+test('optional tags allow zero or multiple independent selections with native keyboard controls', async ({
+  page,
+}) => {
+  await page.goto(story('feedback-tagpicker--default'))
+  const picker = page.getByRole('group', { name: 'Tags (optional)', exact: true })
+  await expect(picker.getByRole('checkbox', { checked: true })).toHaveCount(0)
+  await expect(picker.getByRole('checkbox')).toHaveCount(2)
+  const gameplay = picker.getByRole('checkbox', { name: 'Gameplay', exact: true })
+  await gameplay.focus()
+  await page.keyboard.press('Space')
+  await expect(gameplay).toBeChecked()
+  await picker.getByRole('checkbox', { name: 'UI', exact: true }).check()
+  await expect(picker.getByRole('checkbox', { checked: true })).toHaveCount(2)
+  await gameplay.uncheck()
+  await expect(picker.getByRole('checkbox', { name: 'UI', exact: true })).toBeChecked()
+  await page.goto(story('feedback-tagpicker--inactive'))
+  const inactive = picker.getByRole('checkbox', { name: 'Older tag (inactive)', exact: true })
+  await expect(inactive).toBeChecked()
+  await expect(inactive).toBeEnabled()
+  await inactive.uncheck()
+  await expect(inactive).not.toBeChecked()
+})
+
+test('public tags render as descriptive labels rather than interactive filters', async ({
+  page,
+}) => {
+  await page.goto(story('feedback-tags--default'))
+  const tags = page.getByRole('list', { name: 'Tags', exact: true })
+  await expect(tags.getByRole('listitem')).toHaveText(['Gameplay', 'UI'])
+  await expect(tags.getByRole('button')).toHaveCount(0)
+  await expect(tags.getByRole('link')).toHaveCount(0)
+})

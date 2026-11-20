@@ -33,7 +33,9 @@ An E2E suite can declare `restartFiles` for a second phase. After its ordinary t
 
 ## Current coverage
 
-- Isolated Storybook checks exercise shared controls and representative feedback presentation without a database or Nuxt server. Checks include keyboard contribution selection, stable response links, status semantics, and long content at narrow widths. Stories cover supported states with deterministic data; see [UI development](ui.md). These checks complement the application journeys and do not establish screenshot regression baselines.
+- Tags are covered within the existing feedback integration and application browser suites: catalog authorization, case-insensitive names, migration of existing posts, disabled assignments, atomic edits, legacy receipts, drafts, catalog outages, lost replies, and persistence after restart. Reset/seed checks cover default tags and preservation of removed example assignments.
+
+- Isolated Storybook checks exercise shared controls and representative feedback presentation without a database or Nuxt server. Checks include keyboard contribution and multi-tag selection, inactive tag retention, stable response links, status semantics, and long content at narrow widths. Stories cover supported states with deterministic data; see [UI development](ui.md). These checks complement the application journeys and do not establish screenshot regression baselines.
 
 - Lightweight tests cover database configuration, pool lifecycle, suite scheduling, the independent role permission matrix, safe auth diagnostics, and feedback/filter/participation/official-workflow validation.
 - The `database` integration suite covers real queries, reconnecting after pool shutdown, migration history and reapplication, and test-data persistence across connections. It also exercises the example-data/reset CLI, concurrent and repeated seeding, preservation of existing content, reset confirmation failures, full application-data removal, and reseeding. Destructive checks use only its disposable database; fresh-schema checks use another database in that same container.

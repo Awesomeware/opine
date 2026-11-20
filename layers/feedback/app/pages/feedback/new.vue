@@ -3,7 +3,7 @@ import UiNotice from '../../../../ui/app/components/UiNotice.vue'
 import { useFeedbackWrite } from '../../composables/useFeedbackWrite'
 import { authClient } from '../../../../auth/app/auth-client'
 import { postLimits, validatePostInput } from '../../../shared/post-input'
-import type { FeedbackCategory } from '../../../shared/contracts'
+import type { FeedbackCategory, FeedbackTag } from '../../../shared/contracts'
 
 useHead({ title: 'Share feedback · Opine' })
 const session = authClient.useSession()
@@ -17,7 +17,19 @@ const {
 const categories = computed(
   () => categoryData.value?.categories.filter((category) => category.isActive) ?? [],
 )
-const form = reactive({ title: '', description: '', desiredImprovement: '', categoryId: '' })
+const {
+  data: tagData,
+  pending: tagsPending,
+  error: tagsError,
+  refresh: refreshTags,
+} = useFetch<{ tags: FeedbackTag[] }>('/api/feedback/tags')
+const form = reactive({
+  title: '',
+  description: '',
+  desiredImprovement: '',
+  categoryId: '',
+  tagIds: [] as string[],
+})
 const fieldErrors = ref<Partial<Record<keyof typeof form, string>>>({})
 const busy = ref(false)
 const message = ref('')
@@ -32,7 +44,13 @@ watch(
     draftOwner.value = id ?? null
     pendingWrite = id ? useFeedbackWrite(`post.${id}`) : null
     message.value = ''
-    Object.assign(form, { title: '', description: '', desiredImprovement: '', categoryId: '' })
+    Object.assign(form, {
+      title: '',
+      description: '',
+      desiredImprovement: '',
+      categoryId: '',
+      tagIds: [],
+    })
     fieldErrors.value = {}
     if (!id) return
     try {
@@ -40,6 +58,9 @@ watch(
       if (!saved) return
       const draft: unknown = JSON.parse(saved)
       if (typeof draft !== 'object' || draft === null) return
+      const tagIds = (draft as Record<string, unknown>).tagIds
+      if (Array.isArray(tagIds) && tagIds.every((id) => typeof id === 'string'))
+        form.tagIds = tagIds
       for (const key of ['title', 'description', 'desiredImprovement', 'categoryId'] as const) {
         const value = (draft as Record<string, unknown>)[key]
         if (typeof value === 'string') form[key] = value
@@ -93,7 +114,12 @@ async function publish() {
   if (busy.value) return
   fieldErrors.value = {}
   message.value = ''
-  const result = validatePostInput(form)
+  const pending = pendingWrite?.pendingBody.value as { tagIds?: string[] } | null
+  const { tagIds, ...text } = form
+  // Older uncertain submissions must retain their original payload for receipt recovery.
+  const result = validatePostInput(
+    pending && !('tagIds' in pending) && !tagIds.length ? text : form,
+  )
   if (!result.success) {
     fieldErrors.value = result.fieldErrors
     message.value = 'Please check the highlighted fields.'
@@ -131,6 +157,7 @@ async function publish() {
     if (failure.statusCode === 400 && failure.data?.data?.fieldErrors) {
       fieldErrors.value = failure.data.data.fieldErrors
       message.value = 'Please check the highlighted fields.'
+      if (fieldErrors.value.tagIds) await refreshTags()
       if (fieldErrors.value.categoryId) {
         await refresh()
         if (
@@ -140,6 +167,10 @@ async function publish() {
           form.categoryId = ''
         }
       }
+    } else if (failure.statusCode === 400) {
+      message.value = 'Check your selected tags and category before submitting again.'
+      fieldErrors.value.tagIds = 'Only active tags can be added. Remove any unavailable tags.'
+      await refreshTags()
     } else if (failure.statusCode === 401) {
       message.value = 'Your session has expired. Sign in again to submit your saved draft.'
       await session.value.refetch()
@@ -186,7 +217,9 @@ async function publish() {
       </UiButton>
     </div>
     <form v-else class="panel feedback-form" novalidate @submit.prevent="publish">
-      <p class="field-help">All fields are required except suggested improvement.</p>
+      <p class="field-help">
+        Title, feedback, and category are required. Suggested improvement and tags are optional.
+      </p>
       <div class="field">
         <label for="post-title">Title</label>
         <p id="title-help" class="field-help">Give your feedback a clear, specific title.</p>
@@ -264,6 +297,28 @@ async function publish() {
         <p v-if="!categoriesPending && !categoriesError && !categories.length" role="status">
           No categories are available for new feedback yet.
         </p>
+      </div>
+      <div>
+        <p v-if="tagsPending" role="status">Loading tags…</p>
+        <p v-else-if="tagsError" role="alert">
+          Unable to load tags. Saved selections are preserved; clear them to submit without tags.
+          <UiButton type="button" @click="refreshTags()">Retry tags</UiButton>
+          <UiButton
+            v-if="form.tagIds.length"
+            type="button"
+            :disabled="busy"
+            @click="form.tagIds = []"
+            >Clear selected tags</UiButton
+          >
+        </p>
+        <FeedbackTagPicker
+          v-else
+          v-model="form.tagIds"
+          :tags="tagData?.tags ?? []"
+          name="post-tags"
+          :disabled="busy"
+          :error="fieldErrors.tagIds"
+        />
       </div>
       <div class="form-actions">
         <UiButton

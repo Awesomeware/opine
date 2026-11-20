@@ -62,6 +62,7 @@ test('submission persists the author follow and exposes only public author infor
     [
       'id',
       'title',
+      'tags',
       'description',
       'desiredImprovement',
       'status',

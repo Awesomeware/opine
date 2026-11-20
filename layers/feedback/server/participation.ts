@@ -15,6 +15,8 @@ import {
   feedbackPost,
   feedbackReaction,
 } from './schema.ts'
+import { replacePostTags } from './tags.ts'
+import { feedbackPostTag } from './schema.ts'
 import { feedbackWrite, FeedbackWriteError, type FeedbackTransaction } from './writes.ts'
 
 async function requirePost(transaction: FeedbackTransaction, postId: string) {
@@ -102,12 +104,21 @@ export async function editPost(
           409,
           'This feedback has changed. Review the latest version before saving.',
         )
+      const currentTags = await transaction
+        .select({ id: feedbackPostTag.tagId })
+        .from(feedbackPostTag)
+        .where(eq(feedbackPostTag.postId, postId))
+      const previousTags = currentTags.map((tag) => tag.id).sort()
+      const tagsChanged =
+        input.tagIds !== undefined && JSON.stringify(previousTags) !== JSON.stringify(input.tagIds)
       if (
+        !tagsChanged &&
         post.title === input.title &&
         post.description === input.description &&
         post.desiredImprovement === input.desiredImprovement
       )
         return { id: post.id, version: post.version }
+      if (tagsChanged) await replacePostTags(transaction, postId, input.tagIds!, previousTags)
       const now = new Date()
       const [updated] = await transaction
         .update(feedbackPost)

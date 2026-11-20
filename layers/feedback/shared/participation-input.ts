@@ -61,7 +61,7 @@ export function validateCommentEditInput(input: unknown): Validation<CommentEdit
     : parsed
 }
 export function validatePostEditInput(input: unknown): Validation<PostEditInput> {
-  const value = fields(input, ['title', 'description', 'desiredImprovement', 'version'])
+  const value = fields(input, ['title', 'description', 'desiredImprovement', 'version', 'tagIds'])
   if (!value || !validVersion(value.version))
     return { success: false, fieldErrors: { form: 'A valid feedback version is required.' } }
   const parsed = validatePostInput({
@@ -69,10 +69,20 @@ export function validatePostEditInput(input: unknown): Validation<PostEditInput>
     description: value.description,
     desiredImprovement: value.desiredImprovement,
     categoryId: '00000000-0000-0000-0000-000000000001',
+    ...('tagIds' in value ? { tagIds: value.tagIds } : {}),
   })
   if (!parsed.success) return parsed
-  const { title, description, desiredImprovement } = parsed.data
-  return { success: true, data: { title, description, desiredImprovement, version: value.version } }
+  const { title, description, desiredImprovement, tagIds } = parsed.data
+  return {
+    success: true,
+    data: {
+      title,
+      description,
+      desiredImprovement,
+      version: value.version,
+      ...(tagIds !== undefined ? { tagIds } : {}),
+    },
+  }
 }
 export function validateReactionInput(input: unknown): Validation<{ kind: ReactionKind | null }> {
   const value = fields(input, ['kind'])
