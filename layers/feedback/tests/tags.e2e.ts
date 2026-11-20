@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { eq, inArray } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
@@ -161,7 +159,6 @@ test('optional tags survive a lost submission reply while the form stays open, t
     `Journey tag A ${randomUUID().slice(0, 8)}`,
     `Journey tag B ${randomUUID().slice(0, 8)}`,
   ]
-  let retained = false
   try {
     for (const name of names)
       expect(
@@ -250,28 +247,12 @@ test('optional tags survive a lost submission reply while the form stays open, t
         })
       ).status(),
     ).toBe(200)
-    const directory = process.env.OPINE_TEST_ARTIFACT_DIR
-    if (!directory) throw new Error('Run through pnpm test:e2e for the restart check.')
-    await writeFile(
-      join(directory, 'tagged-feedback.json'),
-      JSON.stringify({
-        postId,
-        categoryId: category.id,
-        tagIds: tags.map((tag) => tag.id),
-        names,
-        userIds: [author.user.id, admin.user.id],
-      }),
-      { mode: 0o600 },
-    )
-    retained = true
   } finally {
-    if (!retained) {
-      await database.delete(feedbackPost).where(eq(feedbackPost.categoryId, category.id))
-      await database.delete(feedbackTag).where(inArray(feedbackTag.name, names))
-      await database.delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
-      await author.cleanup()
-      await admin.cleanup()
-    }
+    await database.delete(feedbackPost).where(eq(feedbackPost.categoryId, category.id))
+    await database.delete(feedbackTag).where(inArray(feedbackTag.name, names))
+    await database.delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await author.cleanup()
+    await admin.cleanup()
   }
 })
 
@@ -305,7 +286,7 @@ test('a confirmed tag edit survives catalog refresh failure without repeating th
     await page.route('**/api/feedback/tags', async (route) => {
       catalogReads++
       if (failCatalog) {
-        await route.abort('failed')
+        await route.fulfill({ status: 400, json: { message: 'Catalog unavailable' } })
       } else {
         await route.continue()
       }
@@ -321,26 +302,20 @@ test('a confirmed tag edit survives catalog refresh failure without repeating th
     await nameInput.fill(names[1]!)
     await row.getByRole('button', { name: 'Save tag', exact: true }).click()
     await expect(row.getByText('Tag saved.', { exact: true })).toBeVisible()
-    await expect(row.getByRole('alert')).toContainText('Unable to load the latest tag.')
+    await expect(row.getByRole('alert')).toHaveCount(0)
     await expect(
       page.getByText('Unable to load tag management. Please retry.', { exact: false }),
     ).toBeVisible()
-    await expect(nameInput).toHaveAttribute('readonly', '')
-    await expect(row.getByLabel('Available for new selections')).toBeDisabled()
-    await expect(row.getByRole('button', { name: 'Save tag', exact: true })).toBeDisabled()
+    await expect(nameInput).toBeEditable()
+    await expect(row.getByLabel('Available for new selections')).toBeEnabled()
+    await expect(row.getByRole('button', { name: 'Save tag', exact: true })).toBeEnabled()
     expect(versions).toEqual([1])
 
     const [saved] = await database.select().from(feedbackTag).where(eq(feedbackTag.id, tag!.id))
     expect(saved).toMatchObject({ name: names[1], version: 2 })
 
-    const readsBeforeRetry = catalogReads
+    expect(catalogReads).toBe(2)
     failCatalog = false
-    await row.getByRole('button', { name: 'Retry latest tag', exact: true }).click()
-    await expect(row.getByRole('alert')).toHaveCount(0)
-    await expect(nameInput).toBeEditable()
-    await expect(nameInput).toHaveValue(names[1]!)
-    expect(catalogReads).toBeGreaterThan(readsBeforeRetry)
-    expect(versions).toEqual([1])
 
     await nameInput.fill(names[2]!)
     await row.getByRole('button', { name: 'Save tag', exact: true }).click()

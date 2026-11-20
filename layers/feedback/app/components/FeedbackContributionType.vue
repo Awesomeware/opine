@@ -83,14 +83,4 @@ fieldset:disabled .type-options label {
   opacity: 0.6;
   cursor: not-allowed;
 }
-.field-help {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-  margin: 0;
-}
-.field-error {
-  color: var(--color-error);
-  font-size: 0.9rem;
-  margin: 0;
-}
 </style>

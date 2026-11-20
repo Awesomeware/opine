@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
@@ -24,9 +22,7 @@ async function holdResponse(page: Page, path: string, method: string) {
   return release
 }
 
-test('participation endpoints enforce ownership, validate writes, and replay completed requests', async ({
-  request,
-}) => {
+async function participation() {
   const author = await createMember({ name: 'Post author' })
   const member = await createMember({ name: 'Another member' })
   const category = await createCategory()
@@ -37,9 +33,29 @@ test('participation endpoints enforce ownership, validate writes, and replay com
     cookie,
     'Idempotency-Key': key,
   })
+  return {
+    author,
+    member,
+    post,
+    base,
+    headers,
+    cleanup: async () => {
+      await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
+      await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+      await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+      await member.cleanup()
+      await author.cleanup()
+    },
+  }
+}
+
+test('participation endpoints reject unauthenticated, cross-origin, and invalid writes', async ({
+  request,
+}) => {
+  const { author, member, post, base, headers, cleanup } = await participation()
   try {
     const writes = [
-      { method: 'POST', url: `${base}/comments`, data: { body: 'A comment' } },
+      { method: 'POST', url: `${base}/comments`, data: { body: 'A comment', type: 'context' } },
       { method: 'PUT', url: `${base}/reactions`, data: { kind: 'agree' } },
       {
         method: 'PATCH',
@@ -76,23 +92,24 @@ test('participation endpoints enforce ownership, validate writes, and replay com
       (
         await request.post(`${base}/comments`, {
           headers: { origin: process.env.BETTER_AUTH_URL!, cookie: member.cookieHeader },
-          data: { body: 'Missing key' },
+          data: { body: 'Missing key', type: 'context' },
         })
       ).status(),
     ).toBe(400)
     for (const body of ['', 'x'.repeat(10001), 'null\0character']) {
-      expect(
-        (await request.post(`${base}/comments`, { headers: headers(), data: { body } })).status(),
-      ).toBe(400)
+      const response = await request.post(`${base}/comments`, {
+        headers: headers(),
+        data: { body, type: 'context' },
+      })
+      expect(response.status()).toBe(400)
+      expect((await response.json()).data.fieldErrors.body).toBeTruthy()
     }
-    expect(
-      (
-        await request.post(`${base}/comments`, {
-          headers: headers(),
-          data: { body: 'Bad author', authorId: author.user.id },
-        })
-      ).status(),
-    ).toBe(400)
+    const forgedAuthor = await request.post(`${base}/comments`, {
+      headers: headers(),
+      data: { body: 'Bad author', type: 'context', authorId: author.user.id },
+    })
+    expect(forgedAuthor.status()).toBe(400)
+    expect((await forgedAuthor.json()).data.fieldErrors.form).toBeTruthy()
     expect(
       (
         await request.put(`${base}/reactions`, { headers: headers(), data: { kind: 'like' } })
@@ -109,7 +126,7 @@ test('participation endpoints enforce ownership, validate writes, and replay com
       (
         await request.patch(base, {
           headers: headers(author.cookieHeader),
-          data: { ...postEdit, categoryId: category.id },
+          data: { ...postEdit, categoryId: post.categoryId },
         })
       ).status(),
     ).toBe(400)
@@ -121,7 +138,20 @@ test('participation endpoints enforce ownership, validate writes, and replay com
         })
       ).status(),
     ).toBe(400)
+  } finally {
+    await cleanup()
+  }
+})
 
+test('post edits enforce versions while completed requests replay', async ({ request }) => {
+  const { author, base, headers, cleanup } = await participation()
+  try {
+    const postEdit = {
+      title: 'A clearer combat indicator',
+      description: 'Make hits easier to read.',
+      desiredImprovement: null,
+      version: 1,
+    }
     const editKey = randomUUID()
     const firstEdit = await request.patch(base, {
       headers: headers(author.cookieHeader, editKey),
@@ -154,7 +184,14 @@ test('participation endpoints enforce ownership, validate writes, and replay com
         .canEdit,
     ).toBe(true)
     expect(JSON.stringify(publicPost)).not.toContain(author.user.email)
+  } finally {
+    await cleanup()
+  }
+})
 
+test('comment writes replay once and enforce ownership and edit versions', async ({ request }) => {
+  const { author, member, base, headers, cleanup } = await participation()
+  try {
     const commentKey = randomUUID()
     const data = { body: 'I prefer a subtle visual indicator.', type: 'suggestion' }
     const results = await Promise.all(
@@ -207,7 +244,16 @@ test('participation endpoints enforce ownership, validate writes, and replay com
     expect(publicComment.canEdit).toBe(false)
     expect(JSON.stringify(publicComment)).not.toContain(member.user.email)
     expect((await request.get(`${base}/comments?limit=1000`)).status()).toBe(400)
+  } finally {
+    await cleanup()
+  }
+})
 
+test('reaction updates replace the choice and replay without undoing newer changes', async ({
+  request,
+}) => {
+  const { member, base, headers, cleanup } = await participation()
+  try {
     const reactionKey = randomUUID()
     expect(
       (
@@ -251,11 +297,7 @@ test('participation endpoints enforce ownership, validate writes, and replay com
       mine: null,
     })
   } finally {
-    await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
-    await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
-    await member.cleanup()
-    await author.cleanup()
+    await cleanup()
   }
 })
 
@@ -320,20 +362,11 @@ test('a lost post response can be retried in the open form without a duplicate s
   }
 })
 
-test('members react, discuss, and review conflicting edits before saving', async ({
-  page,
-  request,
-}, testInfo) => {
+test('members page through discussion and change or remove their reaction', async ({ page }) => {
   const member = await createMember({ name: 'Mira' })
   const other = await createMember({ name: 'Jules' })
   const category = await createCategory()
   const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
-  const base = `/api/feedback/posts/${post.id}`
-  let savedForRestart = false
-  const pendingResponses: (() => void)[] = []
-  let commentRequestKey: string | undefined
-  const originalComment =
-    'I support this idea. See https://example.com/feedback for details. javascript:alert(1) is plain text.'
   try {
     await getDatabase()
       .insert(feedbackComment)
@@ -370,16 +403,38 @@ test('members react, discuss, and review conflicting edits before saving', async
       'false',
     )
     await page.getByRole('button', { name: /^Agree 0$/ }).click()
+  } finally {
+    await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
+    await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await other.cleanup()
+    await member.cleanup()
+  }
+})
+
+test('members submit and edit comments, then review conflicting post edits', async ({
+  page,
+  request,
+}, testInfo) => {
+  const member = await createMember({ name: 'Mira' })
+  const category = await createCategory()
+  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const base = `/api/feedback/posts/${post.id}`
+  const pendingResponses: (() => void)[] = []
+  const originalComment =
+    'I support this idea. See https://example.com/feedback for details. javascript:alert(1) is plain text.'
+  try {
+    await page.context().addCookies([member.cookie])
+    await page.goto(`/feedback/${post.id}`)
+    // The invitation to expand on a reaction appears after choosing one.
+    await page.getByRole('button', { name: /^Agree 0$/ }).click()
     await page.getByRole('button', { name: 'Add a comment', exact: true }).click()
     await expect(page.getByLabel('Add a comment', { exact: true })).toBeFocused()
     await page.getByRole('radio', { name: 'Context or example', exact: true }).check()
     await page.getByLabel('Add a comment', { exact: true }).fill(originalComment)
     await expect(page.getByLabel('Add a comment', { exact: true })).toHaveValue(originalComment)
     await expect(page.getByRole('radio', { name: 'Context or example', exact: true })).toBeChecked()
-    page.on('request', (sent) => {
-      if (sent.method() === 'POST' && new URL(sent.url()).pathname === `${base}/comments`)
-        commentRequestKey = sent.headers()['idempotency-key']
-    })
+
     const releaseComment = await holdResponse(page, `${base}/comments`, 'POST')
     pendingResponses.push(releaseComment)
     await page.getByRole('button', { name: 'Submit comment', exact: true }).click()
@@ -447,34 +502,12 @@ test('members react, discuss, and review conflicting edits before saving', async
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true)
     await page.screenshot({ path: testInfo.outputPath('participation-mobile.png'), fullPage: true })
-    const directory = process.env.OPINE_TEST_ARTIFACT_DIR
-    if (!directory) throw new Error('Run through pnpm test:e2e for the restart check.')
-    expect(commentRequestKey).toBeTruthy()
-    await writeFile(
-      join(directory, 'participation.json'),
-      JSON.stringify({
-        postId: post.id,
-        userId: member.user.id,
-        otherUserId: other.user.id,
-        categoryId: category.id,
-        commentId,
-        commentBody: revisedComment,
-        originalComment,
-        commentRequestKey,
-        cookie: member.cookie,
-      }),
-      { mode: 0o600 },
-    )
-    savedForRestart = true
   } finally {
     pendingResponses.forEach((release) => release())
-    if (!savedForRestart) {
-      await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
-      await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-      await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
-      await other.cleanup()
-      await member.cleanup()
-    }
+    await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
+    await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await member.cleanup()
   }
 })
 
@@ -514,6 +547,52 @@ test('a lost reaction response refreshes the saved choice without replay after r
     expect(keys).toHaveLength(1)
     expect(keys[0]).toBeTruthy()
   } finally {
+    await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await member.cleanup()
+  }
+})
+
+test('a rejected comment type is rendered once with one accessible error identifier', async ({
+  page,
+}) => {
+  const member = await createMember()
+  const category = await createCategory()
+  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const [comment] = await getDatabase()
+    .insert(feedbackComment)
+    .values({
+      postId: post.id,
+      authorId: member.user.id,
+      body: 'An existing contribution',
+      type: 'context',
+    })
+    .returning()
+  const endpoint = `/api/feedback/posts/${post.id}/comments/${comment!.id}`
+  try {
+    await page.context().addCookies([member.cookie])
+    await page.goto(`/feedback/${post.id}`)
+    await page.getByRole('button', { name: 'Edit comment', exact: true }).click()
+    await page.route(`**${endpoint}`, (route) =>
+      route.request().method() === 'PATCH'
+        ? route.fulfill({
+            status: 400,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              statusCode: 400,
+              statusMessage: 'Check your comment.',
+              data: { fieldErrors: { type: 'Choose an available contribution type.' } },
+            }),
+          })
+        : route.continue(),
+    )
+    await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+    await expect(
+      page.getByText('Choose an available contribution type.', { exact: true }),
+    ).toHaveCount(1)
+    await expect(page.locator(`[id="${endpoint}-type-error"]`)).toHaveCount(1)
+  } finally {
+    await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
     await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()

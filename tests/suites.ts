@@ -32,12 +32,9 @@ export const suites: Record<'integration' | 'e2e', TestSuite[]> = {
         'layers/feedback/tests/outcomes.e2e.ts',
         'layers/feedback/tests/outcomes-queue.e2e.ts',
         'layers/feedback/tests/tags.e2e.ts',
+        'layers/feedback/tests/persistence-setup.e2e.ts',
       ],
-      restartFiles: [
-        'layers/feedback/tests/persistence.e2e.ts',
-        'layers/feedback/tests/outcomes-persistence.e2e.ts',
-        'layers/feedback/tests/tags-persistence.e2e.ts',
-      ],
+      restartFiles: ['layers/feedback/tests/persistence.e2e.ts'],
     },
   ],
 }

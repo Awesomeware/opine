@@ -10,5 +10,10 @@ export function createTag(body: TagInput, headers: Record<string, string>) {
 }
 
 export function updateTag(id: string, body: TagEditInput, headers: Record<string, string>) {
-  return $fetch(`/api/feedback/tags/${id}`, { method: 'PATCH', body, headers, retry: 0 })
+  return $fetch<{ id: string; version: number }>(`/api/feedback/tags/${id}`, {
+    method: 'PATCH',
+    body,
+    headers,
+    retry: 0,
+  })
 }

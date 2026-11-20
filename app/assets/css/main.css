@@ -1,33 +1,4 @@
-/* Application layout and legacy feature styles; shared UI lives in layers/ui. */
-/* Link buttons remain here until a shared navigation control is needed. */
-.button {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 38px;
-  padding: 7px 14px;
-  border: 1px solid var(--color-control-border);
-  border-radius: var(--radius-control);
-  background: var(--color-control);
-  color: var(--color-text);
-  text-decoration: none;
-  cursor: pointer;
-  font-weight: 600;
-  line-height: 1.4;
-}
-.button:hover {
-  background: var(--color-control-hover);
-  border-color: var(--color-accent);
-}
-.button-primary {
-  background: var(--color-action-start);
-  border-color: var(--color-action-border);
-  color: var(--color-on-action);
-}
-.button-primary:hover {
-  background: var(--color-action-hover);
-  color: var(--color-on-action);
-}
+/* Application layout; shared presentation defaults live in layers/ui. */
 .content-column {
   max-width: 1040px;
   padding: 34px 28px 64px;
@@ -40,7 +11,7 @@
   gap: 24px;
   align-items: center;
 }
-.page-heading .button {
+.page-heading .ui-button {
   flex-shrink: 0;
 }
 .eyebrow {
@@ -62,51 +33,6 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-panel);
 }
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-width: 0;
-}
-.field label {
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-input,
-select,
-textarea {
-  width: 100%;
-  border: 1px solid var(--color-control-border);
-  border-radius: 5px;
-  padding: 11px 12px;
-  background: var(--color-control);
-  color: var(--color-text);
-  min-height: 46px;
-}
-input::placeholder,
-textarea::placeholder {
-  color: var(--color-text-muted);
-}
-textarea {
-  resize: vertical;
-  line-height: 1.65;
-}
-.post-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  color: var(--color-accent);
-  font-size: 0.8rem;
-}
-.byline {
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  overflow-wrap: anywhere;
-}
-.byline strong {
-  color: var(--color-text);
-}
 .back-link {
   display: inline-block;
   margin-bottom: 30px;
@@ -116,19 +42,6 @@ textarea {
   padding: 28px;
   display: grid;
   gap: 26px;
-}
-.field-help {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-  margin: 0;
-}
-.field-error {
-  color: var(--color-error);
-  font-size: 0.9rem;
-  margin: 0;
-}
-[aria-invalid='true'] {
-  border-color: #f0948c;
 }
 .muted {
   font-weight: 400;
@@ -150,8 +63,5 @@ textarea {
   }
   .feedback-form {
     padding: 20px;
-  }
-  .post-meta {
-    align-items: flex-start;
   }
 }

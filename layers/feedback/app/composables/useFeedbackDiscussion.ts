@@ -1,5 +1,6 @@
+import { getComment } from '../api/comment-edits'
 import { ref, computed, watch, onMounted } from 'vue'
-import { getDiscussion, getLinkedComment, getLinkedResponse } from '../api/discussion'
+import { getDiscussion, getLinkedResponse } from '../api/discussion'
 import { useRequestScope } from './useRequestScope'
 import type {
   FeedbackComment,
@@ -89,7 +90,7 @@ export function useFeedbackDiscussion(postId: string) {
     }
 
     try {
-      const response = await getLinkedComment(postId, id)
+      const response = await getComment(postId, id)
       if (!current()) {
         return
       }

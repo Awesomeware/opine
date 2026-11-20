@@ -2,7 +2,9 @@ import type { FeedbackComment } from '../../shared/contracts'
 import type { CommentEditInput } from '../../shared/participation-input'
 
 export function getComment(postId: string, id: string) {
-  return $fetch<{ comment: FeedbackComment }>(`/api/feedback/posts/${postId}/comments/${id}`)
+  return $fetch<{ comment: FeedbackComment }>(
+    `/api/feedback/posts/${postId}/comments/${encodeURIComponent(id)}`,
+  )
 }
 
 export function editComment(
@@ -11,7 +13,7 @@ export function editComment(
   body: CommentEditInput,
   headers: Record<string, string>,
 ) {
-  return $fetch(`/api/feedback/posts/${postId}/comments/${id}`, {
+  return $fetch(`/api/feedback/posts/${postId}/comments/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body,
     headers,

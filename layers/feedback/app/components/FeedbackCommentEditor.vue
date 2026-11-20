@@ -56,14 +56,10 @@ async function save() {
         maxlength="10000"
       />
     </div>
-    <p
-      v-for="(error, field) in fieldErrors"
-      :id="`${endpoint}-${field}-error`"
-      :key="field"
-      class="field-error"
-    >
-      {{ error }}
+    <p v-if="fieldErrors.body" :id="`${endpoint}-body-error`" class="field-error">
+      {{ fieldErrors.body }}
     </p>
+    <p v-if="fieldErrors.form" class="field-error">{{ fieldErrors.form }}</p>
     <p v-if="latestError" role="alert">{{ latestError }}</p>
     <div v-if="conflict">
       <UiButton type="button" :busy="loadingLatest" @click="loadLatest">

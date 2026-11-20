@@ -48,18 +48,14 @@ export function useFeedbackTagEditor(
     message.value = ''
 
     try {
-      await updateTag(props.tag.id, body, write.headers(body))
+      const saved = await updateTag(props.tag.id, body, write.headers(body))
       if (!scope.isActive()) {
         return
       }
 
       write.complete()
+      Object.assign(form, { ...body, version: saved.version })
       message.value = 'Tag saved.'
-      // A receipt confirms the write, while the subsequent read can fail independently.
-      await refreshSaved()
-      if (!scope.isActive()) {
-        return
-      }
 
       onSaved()
     } catch (failure) {
@@ -77,34 +73,6 @@ export function useFeedbackTagEditor(
     } finally {
       if (scope.isActive()) {
         busy.value = false
-      }
-    }
-  }
-
-  async function refreshSaved() {
-    const isCurrent = refreshScope.startRequest()
-    refreshing.value = true
-    refreshError.value = ''
-
-    try {
-      const data = await getTags()
-      if (!isCurrent()) {
-        return
-      }
-
-      const saved = data.tags.find((tag) => tag.id === props.tag.id)
-      if (!saved) {
-        refreshError.value = 'Unable to load the latest tag. Please retry.'
-        return
-      }
-      Object.assign(form, { name: saved.name, isActive: saved.isActive, version: saved.version })
-    } catch {
-      if (isCurrent()) {
-        refreshError.value = 'Unable to load the latest tag. Please retry.'
-      }
-    } finally {
-      if (isCurrent()) {
-        refreshing.value = false
       }
     }
   }
@@ -145,12 +113,7 @@ export function useFeedbackTagEditor(
     message.value = 'Latest version reviewed. Your changes remain in the form.'
   }
 
-  function retryLatest() {
-    return conflict.value ? loadLatest() : refreshSaved()
-  }
-
   return {
-    retryLatest,
     form,
     busy,
     message,

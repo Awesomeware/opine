@@ -99,6 +99,8 @@ async function runSuite(suite: TestSuite) {
       FEEDBACK_COMMENT_MAX: '10',
       FEEDBACK_REACTION_MAX: '30',
       FEEDBACK_EDIT_MAX: '20',
+      FEEDBACK_RESPONSE_MAX: '10',
+      FEEDBACK_FOLLOW_MAX: '30',
       FEEDBACK_PARTICIPATION_WINDOW_SECONDS: '60',
     }
 

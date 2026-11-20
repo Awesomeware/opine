@@ -6,7 +6,6 @@ const props = defineProps<{ tag: FeedbackTag; owner: string }>()
 const emit = defineEmits<{ saved: [] }>()
 
 const {
-  retryLatest,
   form,
   busy,
   message,
@@ -47,7 +46,7 @@ const {
     <p v-if="message" role="status">{{ message }}</p>
     <p v-if="refreshError" role="alert">
       {{ refreshError }}
-      <UiButton :busy="refreshing" @click="retryLatest">Retry latest tag</UiButton>
+      <UiButton :busy="refreshing" @click="loadLatest">Retry latest tag</UiButton>
     </p>
     <div v-if="conflict">
       <UiButton type="button" :busy="refreshing" @click="loadLatest">Load latest tag</UiButton>

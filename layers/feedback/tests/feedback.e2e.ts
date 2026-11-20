@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
@@ -22,7 +20,6 @@ test('a member publishes feedback and shares a public link', async ({
 }, testInfo) => {
   const member = await createMember({ name: 'Aster' })
   const category = await createCategory({ name: 'Grouping & travel' })
-  let savedForRestart = false
   try {
     await page.context().addCookies([member.cookie])
     await page.goto('/feedback/new')
@@ -91,26 +88,10 @@ test('a member publishes feedback and shares a public link', async ({
     } finally {
       await visitor.close()
     }
-    const directory = process.env.OPINE_TEST_ARTIFACT_DIR
-    if (!directory) throw new Error('Run through pnpm test:e2e for the restart check.')
-    await writeFile(
-      join(directory, 'published-feedback.json'),
-      JSON.stringify({
-        path,
-        postId,
-        userId: member.user.id,
-        categoryId: category.id,
-        cookie: member.cookie,
-      }),
-      { mode: 0o600 },
-    )
-    savedForRestart = true
   } finally {
-    if (!savedForRestart) {
-      await getDatabase().delete(feedbackPost).where(eq(feedbackPost.authorId, member.user.id))
-      await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
-      await member.cleanup()
-    }
+    await getDatabase().delete(feedbackPost).where(eq(feedbackPost.authorId, member.user.id))
+    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await member.cleanup()
   }
 })
 

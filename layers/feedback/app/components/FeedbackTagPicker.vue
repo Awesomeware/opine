@@ -23,16 +23,6 @@ const choices = computed(() =>
 const unknownIds = computed(() =>
   model.value.filter((id) => !props.tags.some((tag) => tag.id === id)),
 )
-
-function toggle(id: string, checked: boolean) {
-  model.value = checked ? [...model.value, id] : model.value.filter((value) => value !== id)
-}
-
-function changeTag(id: string, event: Event) {
-  if (event.target instanceof HTMLInputElement) {
-    toggle(id, event.target.checked)
-  }
-}
 </script>
 
 <template>
@@ -45,21 +35,19 @@ function changeTag(id: string, event: Event) {
           type="checkbox"
           :name="name"
           :value="tag.id"
-          :checked="model.includes(tag.id)"
-          :disabled="!tag.isActive && !retainedIds.includes(tag.id) && !model.includes(tag.id)"
+          v-model="model"
           :aria-invalid="!!error"
-          @change="changeTag(tag.id, $event)"
         />
         {{ tag.name }}
         <span v-if="!tag.isActive">(inactive)</span>
       </label>
       <label v-for="id in unknownIds" :key="id">
-        <input type="checkbox" :name="name" checked @change="toggle(id, false)" />
+        <input v-model="model" type="checkbox" :name="name" :value="id" />
         Unavailable tag (remove)
       </label>
     </div>
     <p v-if="!choices.length && !unknownIds.length" class="help">No tags are available.</p>
-    <p v-if="error" :id="`${name}-error`" class="error">{{ error }}</p>
+    <p v-if="error" :id="`${name}-error`" class="field-error">{{ error }}</p>
   </fieldset>
 </template>
 
@@ -99,9 +87,7 @@ input {
   margin: 0;
   accent-color: var(--color-accent);
 }
-.error {
-  color: var(--color-error);
-  font-size: 0.85rem;
-  margin: 8px 0 0;
+.field-error {
+  margin-top: 8px;
 }
 </style>

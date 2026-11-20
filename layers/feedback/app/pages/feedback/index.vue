@@ -101,7 +101,7 @@ async function loadMore() {
       <div>
         <h1>Community feedback</h1>
       </div>
-      <NuxtLink class="button button-primary" to="/feedback/new">Share feedback</NuxtLink>
+      <NuxtLink class="ui-button ui-button-primary" to="/feedback/new">Share feedback</NuxtLink>
     </div>
     <form class="filters" role="search" @submit.prevent="applyFilters">
       <div class="field search-field">
@@ -228,7 +228,7 @@ h1 {
     display: flex;
     flex-wrap: wrap;
   }
-  .page-heading .button {
+  .page-heading .ui-button {
     margin: 0;
   }
   .filters .field {

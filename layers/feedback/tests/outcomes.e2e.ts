@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
@@ -29,7 +27,6 @@ test('a typed contribution receives an official outcome and followers can read i
   const cm = await createMember({ name: 'Community representative', roles: ['community-manager'] })
   const category = await createCategory()
   let postId: string | undefined
-  let retained = false
   try {
     const created = await request.post('/api/feedback/posts', {
       headers: headers(author.cookieHeader),
@@ -186,7 +183,7 @@ test('a typed contribution receives an official outcome and followers can read i
       data: { body: 'We are collecting examples from longer play sessions.', version: 2 },
     })
     expect(secondResult.status()).toBe(201)
-    const second = await secondResult.json()
+    await secondResult.json()
     await page.reload()
     await expect(outcome).toContainText('We are collecting examples')
     await expect(outcome).toContainText('Reviewing')
@@ -202,33 +199,16 @@ test('a typed contribution receives an official outcome and followers can read i
     ).json()
     expect(followerInbox.notifications).toHaveLength(1)
     expect(followerInbox.notifications[0].readAt).toBeTruthy()
-    if (!process.env.OPINE_TEST_ARTIFACT_DIR) throw new Error('Use the isolated E2E runner.')
-    await writeFile(
-      join(process.env.OPINE_TEST_ARTIFACT_DIR, 'outcomes.json'),
-      JSON.stringify({
-        postId,
-        categoryId: category.id,
-        userIds: [author.user.id, follower.user.id, cm.user.id],
-        authorCookie: author.cookie,
-        followerCookie: follower.cookie,
-        firstResponseId: first.id,
-        latestResponseId: second.id,
-        notificationId: followerInbox.notifications[0].id,
-      }),
-    )
-    retained = true
   } finally {
-    if (!retained) {
-      if (postId) {
-        await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, postId))
-        await getDatabase()
-          .delete(feedbackOfficialResponse)
-          .where(eq(feedbackOfficialResponse.postId, postId))
-        await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, postId))
-      }
-      await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
-      for (const member of [author, follower, cm]) await member.cleanup()
+    if (postId) {
+      await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, postId))
+      await getDatabase()
+        .delete(feedbackOfficialResponse)
+        .where(eq(feedbackOfficialResponse.postId, postId))
+      await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, postId))
     }
+    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    for (const member of [author, follower, cm]) await member.cleanup()
   }
 })
 
