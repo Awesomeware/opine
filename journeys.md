@@ -14,7 +14,7 @@ These journeys cover only the reduced first version in [requirements.md](require
 - V1-J05: As a community member, I can edit my own post or ordinary comment, with an Edited indicator and protection against conflicting edits, without retaining previous text.
 - V1-J06: As a community member, I can choose, change, or remove one Agree / Disagree reaction on a post, with separate counts and no effect on visibility or ranking.
 - V1-J07: As a community member, I can explicitly choose Context or example, Different view, Suggestion, or Question, see guidance for that choice, and add a flat contribution displaying its type.
-- V1-J08: As a visitor, I can read All contributions chronologically or filter by Context, Different views, Suggestions, Questions, or Team responses, including results beyond the first page.
+- V1-J08: As a visitor, I can read All contributions chronologically or filter by Context, Different views, Suggestions, Questions, or Official responses, including results beyond the first page.
 
 ## Follow the outcome
 
@@ -46,7 +46,7 @@ These journeys cover only the reduced first version in [requirements.md](require
 
 1. A player follows a link from Discord, searches existing feedback, and signs in with Discord to submit feedback if it is not already represented.
 2. Other players explicitly choose types to add context, a different view, a suggestion, and a question. Readers filter these contributions; optional Agree / Disagree reactions remain secondary.
-3. A CM finds the post in the New queue and explicitly publishes an official response, changing its status if appropriate. The proposal, status, and featured team response remain distinct while readers filter the discussion, including Team responses.
+3. A CM finds the post in the New queue and explicitly publishes an official response, changing its status if appropriate. The proposal, status, and featured official response remain distinct while readers filter the discussion, including Official responses.
 4. The author and other followers receive one notification for the official update.
 5. New player comments after that response bring the post into the CM follow-up filter.
 6. The CM records the outcome with an explanation, distinguishing a planned or delivered change from a declined change or an explanation-only answer.

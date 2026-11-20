@@ -4,7 +4,7 @@ The feedback layer provides public browsing, stable links, authenticated submiss
 
 ## Structured participation
 
-Each new ordinary contribution requires an explicit choice of **Context or example**, **Different view**, **Suggestion**, or **Question**. The choice changes the composer prompt and appears as a label beside the saved contribution. Discussion filters select **All**, **Context**, **Different views**, **Suggestions**, **Questions**, or **Team responses** from one chronological discussion. Agree / Disagree remains secondary, with separate counts.
+Each new ordinary contribution requires an explicit choice of **Context or example**, **Different view**, **Suggestion**, or **Question**. The choice changes the composer prompt and appears as a label beside the saved contribution. Discussion filters select **All**, **Context**, **Different views**, **Suggestions**, **Questions**, or **Official responses** from one chronological discussion. Agree / Disagree remains secondary, with separate counts.
 
 Existing comments retain their text, identity, timestamps, and versions. Migration `0003_contribution_types.sql` adds a nullable type without assigning a guessed classification. These comments display **Unspecified**, appear under All, and remain accessible through their direct links. Their authors can assign a type when editing.
 
@@ -35,7 +35,7 @@ pnpm auth:role grant <user-id> community-manager
 
 Administrator access alone does not grant this permission. Reload the application after changing roles. The **Review queue** opens oldest-first, defaults to New, and supports category/status filters. **Needs follow-up** includes posts with ordinary comments newer than their latest official response, excluding comments whose authors currently hold the community-manager role. Posts without a response stay in initial review; this is a shared queue without assignment or per-manager read tracking.
 
-Open a post and publish an explicit official response, optionally changing its status. A response alone does not acknowledge or change New: New means awaiting initial review. Every actual status change records its explanation, previous/new status, representative, and time. The latest response is featured; the explanation for the current status remains linked even after a later response leaves the status unchanged. Earlier responses remain in All and Team responses and have permanent links. Corrections use a new response; official records are not edited in place. Ordinary comments by managers remain ordinary contributions.
+Open a post and publish an explicit official response, optionally changing its status. A response alone does not acknowledge or change New: New means awaiting initial review. Every actual status change records its explanation, previous/new status, representative, and time. The latest response is featured; the explanation for the current status remains linked even after a later response leaves the status unchanged. Earlier responses remain in All and Official responses and have permanent links. Corrections use a new response; official records are not edited in place. Ordinary comments by managers remain ordinary contributions.
 
 Members can follow or unfollow any post, including their own automatically followed posts. Each official response creates one inbox notification per current follower, including a combined status change; comments do not notify. The inbox supports unread filtering and marking a notification read, and links to the exact response. No email, push, or Discord delivery is included.
 

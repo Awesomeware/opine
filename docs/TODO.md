@@ -55,12 +55,21 @@ The participation foundation in #4 is implemented. These additions restore the a
 - [x] Add community-manager category corrections with a separate audit record.
 - [x] Add explicit official responses, distinct from ordinary typed contributions even when authored by a CM.
 - [x] Present the proposal, a prominent status and latest official-response panel, then community contributions; show clearly when feedback is awaiting initial review or has no official response.
-- [x] Add Team responses to the discussion filters and include official responses in All; keep the featured response and current status visible regardless of filter.
+- [x] Add Official responses to the discussion filters and include official responses in All; keep the featured response and current status visible regardless of filter.
 - [x] Record status changes alongside their official explanation, and keep the current status explanation accessible even after later responses.
 - [x] Add follow/unfollow controls and notifications so players can see the outcome.
 - [x] Verify the full journey from a typed contribution to acknowledgement, official response, and follower notification, including the distinction between ordinary CM comments and official responses.
 
 Community-maintained summaries, curated highlights, nested replies, and separate conversation threads remain deferred. Discussion filters organize one flat discussion.
+
+## 5a. Apply the approved visual direction
+
+- [ ] Align the documented scope and logo with the [approved mockup](design/README.md).
+- [ ] Apply shared typography, colors, controls, and the enclosed-tree wordmark.
+- [ ] Use compact feedback rows and a search/filter toolbar.
+- [ ] Distinguish proposal, official response, and contributions; place status/follow controls alongside the proposal on desktop.
+- [ ] Keep manager tools available on demand and preserve existing workflows.
+- [ ] Verify isolated stories and full application journeys, with a basic narrow-screen check.
 
 ## Before a public pilot
 
