@@ -1,3 +1,5 @@
+import { NodePgPreparedQuery } from 'drizzle-orm/node-postgres/session'
+import { Client } from 'pg'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { after, afterEach, test } from 'node:test'
@@ -339,4 +341,46 @@ test('chronological comment pagination preserves timestamp ties and direct links
   assert.equal((await getComment(post.id, last.id))?.body, last.body)
   await assert.rejects(listComments(randomUUID()), status(404))
   await assert.rejects(getReactions(randomUUID()), status(404))
+})
+
+test('reaction counts and viewer choice share one snapshot during a concurrent reaction', async (t) => {
+  const { author, post } = await discussion()
+  const writer = new Client({ connectionString: process.env.OPINE_TEST_DATABASE_URL })
+  await writer.connect()
+  let inserted = false
+  const execute = NodePgPreparedQuery.prototype.execute
+  t.mock.method(
+    NodePgPreparedQuery.prototype,
+    'execute',
+    async function (
+      this: typeof NodePgPreparedQuery.prototype,
+      ...args: Parameters<typeof execute>
+    ) {
+      const result = await execute.apply(this, args)
+      // Commit immediately after the first reaction projection, before any second SELECT.
+      if (!inserted && Array.isArray(result) && (result.length === 0 || 'agree' in result[0])) {
+        inserted = true
+        await writer.query(
+          "insert into feedback_reaction (post_id, user_id, kind) values ($1, $2, 'agree')",
+          [post.id, author.user.id],
+        )
+      }
+      return result
+    },
+  )
+  try {
+    assert.deepEqual(await getReactions(post.id, author.user.id), {
+      agree: 0,
+      disagree: 0,
+      mine: null,
+    })
+    assert.ok(inserted)
+    assert.deepEqual(await getReactions(post.id, author.user.id), {
+      agree: 1,
+      disagree: 0,
+      mine: 'agree',
+    })
+  } finally {
+    await writer.end()
+  }
 })

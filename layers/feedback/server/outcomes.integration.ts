@@ -1,3 +1,4 @@
+import { NodePgPreparedQuery } from 'drizzle-orm/node-postgres/session'
 import { Client } from 'pg'
 import {
   withMigrationDatabase,
@@ -584,6 +585,52 @@ test('discussion pages use one snapshot when publication commits between source 
   } finally {
     await writer.query('rollback')
     await pending?.catch(() => {})
+    await writer.end()
+  }
+})
+
+test('inbox rows and unread count share one snapshot during notification delivery', async (t) => {
+  const { author, manager, post } = await discussion()
+  const response = await publishResponse(
+    manager.user.id,
+    post.id,
+    { body: 'Reviewed', version: 1 },
+    randomUUID(),
+  )
+  const writer = new Client({ connectionString: databaseUrl })
+  await writer.connect()
+  let inserted = false
+  const execute = NodePgPreparedQuery.prototype.execute
+  t.mock.method(
+    NodePgPreparedQuery.prototype,
+    'execute',
+    async function (
+      this: typeof NodePgPreparedQuery.prototype,
+      ...args: Parameters<typeof execute>
+    ) {
+      const result = await execute.apply(this, args)
+      // Commit between the page and count SELECTs, keeping the real database reads.
+      if (!inserted && Array.isArray(result) && result.length === 0) {
+        inserted = true
+        await writer.query(
+          'insert into feedback_notification (user_id, response_id) values ($1, $2)',
+          [author.user.id, response.id],
+        )
+      }
+      return result
+    },
+  )
+  try {
+    assert.deepEqual(await listNotifications(author.user.id, { unread: true }), {
+      notifications: [],
+      nextCursor: null,
+      unreadCount: 0,
+    })
+    assert.ok(inserted)
+    const refreshed = await listNotifications(author.user.id, { unread: true })
+    assert.equal(refreshed.notifications.length, 1)
+    assert.equal(refreshed.unreadCount, 1)
+  } finally {
     await writer.end()
   }
 })

@@ -7,7 +7,7 @@ This Nuxt layer owns Discord sign-in, sessions, linked identities, and Opine rol
 - `server/access.ts`: `getAccess(headers)` resolves a signed database session into `{ user: { id, name }, roles }`, or `null` for a visitor. Protected endpoints must reject visitors (401), then check the required role (403). Resolve access on each request; never accept an actor ID or role claims from request data.
 - `shared/roles.ts`: `hasRole`, `isPrivilegedRole`, and role types are browser-safe. Client checks control presentation only. `administrator` never implies `community-manager`.
 - `server/schema.ts`: `user.id` is the internal identity for foreign keys from other features. External Discord IDs live in `account`; email and provider IDs must not own content.
-- `server/roles.ts`: `getUserRoles` reads current roles. `setUserRole` is a privileged mutation for the operator CLI and already-authorized server callers; it does not authenticate callers itself.
+- `server/roles.ts`: `getUserRoles` reads current roles. Authenticated endpoints use `setUserRoleAsAdministrator(actorId, userId, role, grant)`, supplying the session actor, to check administrator authority and mutate atomically. It returns `updated`, `not-found`, or `forbidden`. `setUserRole` is operator-only and relies on database credentials; never use it directly for an HTTP caller. See [role-change concurrency](../../docs/authentication.md#administrator-role-management).
 
 In Nitro endpoints, pass `fromNodeHeaders(event.node.req.headers)` from `better-auth/node` to `getAccess`. Do not call `toWebRequest` merely to obtain headers before `readBody`: it starts consuming the request body.
 

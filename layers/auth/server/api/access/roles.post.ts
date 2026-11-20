@@ -1,6 +1,6 @@
 import { fromNodeHeaders } from 'better-auth/node'
 import { getAccess } from '../../access.ts'
-import { setUserRole } from '../../roles.ts'
+import { setUserRoleAsAdministrator } from '../../roles.ts'
 import { hasRole, isPrivilegedRole } from '../../../shared/roles.ts'
 
 export default defineEventHandler(async (event) => {
@@ -32,7 +32,15 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Expected userId, privileged role, and grant or revoke action.',
     })
   }
-  const found = await setUserRole(body.userId, body.role, body.action === 'grant')
-  if (!found) throw createError({ statusCode: 404, statusMessage: 'User not found.' })
+  const result = await setUserRoleAsAdministrator(
+    access.user.id,
+    body.userId,
+    body.role,
+    body.action === 'grant',
+  )
+  if (result === 'forbidden')
+    throw createError({ statusCode: 403, statusMessage: 'Administrator access required.' })
+  if (result === 'not-found')
+    throw createError({ statusCode: 404, statusMessage: 'User not found.' })
   return { success: true }
 })

@@ -95,6 +95,12 @@ Keep the operation's Drizzle queries near that behavior. Introduce a helper, ser
 
 The separation of `app/`, `server/`, and `shared/` remains inside each feature. See Nuxt's [shared directory rules](https://nuxt.com/docs/4.x/directory-structure/shared) and [layer aliases](https://nuxt.com/docs/4.x/directory-structure/layers#automatic-aliases).
 
+## Atomicity and authorization
+
+An HTTP handler can pause between database operations; one request is not automatically one atomic transaction. A transaction commits its enclosed database changes together, while idempotency receipts protect against repeating the same write after a retry. Neither makes an earlier permission check remain valid.
+
+Resolve the session at the HTTP boundary, then check mutable role authority within the use-case transaction. Lock the relevant identity rows so role revocations and protected writes have a defined order. Operations that lock several identities use a consistent order to avoid cross-request deadlocks. Keep these guarantees close to the owning use case; do not hold a transaction open while receiving an HTTP body or contacting an external provider. See [authentication](authentication.md#administrator-role-management) and [feedback concurrency](feedback.md#persistence-and-concurrency) for their concrete contracts.
+
 ## Database ownership and migrations
 
 Each feature defines its tables and relations in `layers/<feature>/server/schema.ts`. Root `server/db/schema.ts` re-exports them for both the shared Drizzle client and Drizzle Kit. It contains no table definitions or feature behavior. It currently re-exports authentication and feedback tables.

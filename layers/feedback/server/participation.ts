@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, or, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, or, sql } from 'drizzle-orm'
 import { getDatabase } from '../../../server/db/index.ts'
 import { user } from '../../auth/server/schema.ts'
 import type { ReactionKind } from '../shared/contracts.ts'
@@ -270,25 +270,19 @@ export async function listComments(
   }
 }
 export async function getReactions(postId: string, viewerId?: string) {
-  const posts = await getDatabase()
-    .select({ id: feedbackPost.id })
+  // Counts and the viewer's choice must describe the same committed state.
+  const [reactions] = await getDatabase()
+    .select({
+      agree: sql`count(*) filter (where ${feedbackReaction.kind} = 'agree')`.mapWith(Number),
+      disagree: sql`count(*) filter (where ${feedbackReaction.kind} = 'disagree')`.mapWith(Number),
+      mine: viewerId
+        ? sql<ReactionKind | null>`max(case when ${feedbackReaction.userId} = ${viewerId} then ${feedbackReaction.kind}::text end)`
+        : sql<null>`null`,
+    })
     .from(feedbackPost)
+    .leftJoin(feedbackReaction, eq(feedbackReaction.postId, feedbackPost.id))
     .where(eq(feedbackPost.id, postId))
-  if (!posts.length) throw new FeedbackWriteError(404, 'Feedback not found.')
-  const groups = await getDatabase()
-    .select({ kind: feedbackReaction.kind, count: count() })
-    .from(feedbackReaction)
-    .where(eq(feedbackReaction.postId, postId))
-    .groupBy(feedbackReaction.kind)
-  const mine = viewerId
-    ? await getDatabase()
-        .select({ kind: feedbackReaction.kind })
-        .from(feedbackReaction)
-        .where(and(eq(feedbackReaction.postId, postId), eq(feedbackReaction.userId, viewerId)))
-    : []
-  return {
-    agree: groups.find((row) => row.kind === 'agree')?.count ?? 0,
-    disagree: groups.find((row) => row.kind === 'disagree')?.count ?? 0,
-    mine: mine[0]?.kind ?? null,
-  }
+    .groupBy(feedbackPost.id)
+  if (!reactions) throw new FeedbackWriteError(404, 'Feedback not found.')
+  return reactions
 }
