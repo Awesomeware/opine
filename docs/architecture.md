@@ -8,7 +8,7 @@ The [requirements](../requirements.md) define the product boundary, and [TODO.md
 
 Use local Nuxt layers under `layers/<feature>/` to keep a feature's UI, endpoints, use cases, schema, contracts, and tests together. Each layer has a minimal `nuxt.config.ts` exporting `defineNuxtConfig({})`; Nuxt automatically registers local layers. The implemented layers are [authentication](../layers/auth/README.md) and [feedback](../layers/feedback/README.md). Create subsequent layers when their capabilities are implemented, without empty scaffolding in advance.
 
-A feature represents a cohesive product capability. Individual actions such as creating feedback or editing a post are slices inside that feature, not separate Nuxt layers. Add folders and helpers only when the feature needs them.
+A feature represents a cohesive product capability. A Nuxt layer can assemble several closely collaborating capabilities: framework registration and domain ownership need not have a one-to-one relationship. Individual actions such as creating feedback or editing a post are slices inside a capability. Add folders and helpers only when the feature needs them.
 
 ### Creating a feature layer
 
@@ -32,37 +32,57 @@ These create `layers/feedback/app/pages/feedback/new.vue` and `layers/feedback/s
 
 Use the native generator rather than maintaining a parallel `new-layer.sh`. It refuses to overwrite an existing config unless `--force` is explicitly supplied. The old `nuxt add layer` scaffolding syntax is deprecated; use `add-template` or the project shortcut.
 
-### Current feedback layout
+### Feedback capabilities
+
+The feedback layer contains four capability groups. These establish ownership inside the existing layer; they are not separate Nuxt layers or services. Promote a capability to its own layer when its dependencies and public contract support that boundary, rather than to balance folder sizes.
+
+| Capability      | Owns                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| `posts`         | Post creation, author editing, browsing, categories, tags, and post workflow persistence |
+| `discussion`    | Typed comments, comment editing, reactions, and the combined discussion feed             |
+| `review`        | Official publication, outcome display, review queue, and audited category corrections    |
+| `subscriptions` | Following, notification delivery, and private inbox/read state                           |
 
 ```text
 layers/feedback/
   nuxt.config.ts
   app/
-    pages/feedback/          Public list/detail and authenticated entrypoints
-    components/              Rendering, focus, and user events
-    composables/             Feature workflows, forms, and request state
-    api/                     Typed browser HTTP operations and error decoding
-    utils/                   Pure form transformations
+    pages/feedback/          Route entrypoints and page composition
+    posts/                   Components/stories, composables, API calls, form helpers
+    discussion/              Components/stories, composables, API calls, form helpers
+    review/                  Components/stories, composables, API calls
+    subscriptions/           Components, composables, API calls
+    components/              Shared feedback text and navigation
+    composables/             Shared request lifetime and in-memory write state
+    api/errors.ts            Transport error decoding
   server/
-    api/feedback/            HTTP entrypoints
-    posts.ts                 Creation and public queries
-    participation.ts         Comments, reactions, and author edits
-    writes.ts                Atomic mutations and retry receipts
+    api/feedback/            Stable HTTP entrypoints
+    posts/                   Creation, editing, queries, tags, categories, workflow writes
+    discussion/              Comments, reactions, combined feed
+    review/                  Publication, outcome, queue, category correction, guards
+    subscriptions/           Following, notification fanout, inbox
+    schema.ts                One schema for this collaborating domain
+    writes.ts                Actor lock, authorization, mutation and retry receipt transaction
     http.ts                  Authenticated HTTP boundary and error mapping
-    categories.ts            Category reads and operator configuration
-    tags.ts                  Administrator vocabulary and post tag assignments
-    list-input.ts            Filter and pagination validation
-    schema.ts                Feedback and participation tables
-    posts.integration.ts     Database behavior tests
+    list-input.ts            Shared query validation and pagination
   shared/
-    post-input.ts            Browser-safe submission validation
-    participation-input.ts   Comment, reaction, and edit validation
-    status.ts                Status values and labels
-    contracts.ts             Public serialized response types
-  tests/                     Fixtures and browser journeys
+    posts/                   Post/tag inputs and response contracts
+    discussion/              Comment/reaction inputs, contribution types, feed contracts
+    review/                  Official/category inputs and response contracts
+    subscriptions/           Follow/read inputs and inbox contracts
+    input.ts                 Common validation primitives
+    status.ts                Status values shared by posts, review and inbox
+  tests/
+    posts/                   Authoring and tag browser journeys
+    discussion/              Participation and contribution-type browser journeys
+    review/                  Official workflow and queue browser journeys
+    fixtures.ts              Shared test identities/content setup
+    persistence*.ts          Cross-capability restart journey
 ```
 
-Split `posts.ts` into individual use-case files when its size or complexity warrants it; vertical slices do not require a file per function.
+Database integration tests live beside their server capability. Shared validation and pure client conversion tests are colocated with their implementation. Browser journeys that span capabilities live with the initiating workflow. All database files remain in the existing logical suites.
+
+Page/container components compose capabilities through explicit imports and events. Component directories are registered explicitly with `pathPrefix: false`, preserving the existing distinct `Feedback*` names. Shared contracts are imported from their owning capability; there is no catch-all contract barrel.
 
 Nuxt layers merge into a single application. They provide physical grouping, while our import and naming conventions establish module boundaries. Use distinct feature routes and component names; do not use layer precedence to override another feature's implementation. See the official [layer structure](https://nuxt.com/docs/4.x/directory-structure/layers) and [layer priority](https://nuxt.com/docs/4.x/getting-started/layers#layer-priority) documentation.
 
@@ -74,7 +94,7 @@ Storybook uses Vue/Vite to render the same components with deterministic props, 
 
 ## A vertical slice: create feedback
 
-The feature's `new.vue` page renders the submission form. `useFeedbackSubmission` owns its validation, in-memory form state, and same-page retry lifecycle; `app/api/posts.ts` sends the typed `POST /api/feedback/posts` request. The endpoint reads the request and authenticated session and delegates creation to `server/posts.ts`.
+The feature's `new.vue` page renders the submission form. `useFeedbackSubmission` owns its validation, in-memory form state, and same-page retry lifecycle; `app/posts/api/posts.ts` sends the typed `POST /api/feedback/posts` request. The endpoint reads the request and authenticated session and delegates creation to `server/posts/creation.ts`.
 
 These browser folders separate responsibilities within the feature, without adding another Nuxt layer or a generic service framework. Simple reads may stay in pages. Post and comment editors accept their own domain contracts, and independent reads and writes keep separate loading/error states. See [UI development](ui.md) for component conventions.
 
@@ -82,7 +102,21 @@ The create operation owns authoritative input validation, participation authoriz
 
 Keep the operation's Drizzle queries near that behavior. Introduce a helper, service, or repository only when it makes existing code easier to understand or removes meaningful duplication. A small endpoint may contain its entire operation without an extra wrapper.
 
-`shared/post-input.test.ts` verifies submission validation; `server/posts.integration.ts` exercises transactions and database behavior. Browser journeys use `*.e2e.ts` and cover HTTP authorization as well as the interface. Keep feature-specific tests within their owning feature and register database-backed files in an appropriate suite.
+`shared/posts/input.test.ts` verifies submission validation; `server/posts/posts.integration.ts` exercises transactions and database behavior. Browser journeys use `*.e2e.ts` and cover HTTP authorization as well as the interface. Keep feature-specific tests within their owning feature and register database-backed files in an appropriate suite.
+
+## Operations spanning capabilities
+
+A business use case owns its transaction, including permission checks, locks, retry receipts, and all dependent writes. Participating functions receive that same transaction explicitly and do not open a second transaction or obtain a separate connection. Keep these functions with the capability that owns the records; use ordinary functions rather than a generic repository hierarchy.
+
+- [Post creation](../layers/feedback/server/posts/creation.ts) calls `replacePostTags(transaction, ...)` and subscriptions' `followPost(transaction, ...)` before committing the new post.
+- [Official publication](../layers/feedback/server/review/publication.ts) owns the manager authorization and workflow-version check, inserts the response, calls posts' `updatePostWorkflow(transaction, ...)`, and subscriptions' `notifyFollowers(transaction, ...)`. Notification failure rolls back the response, status, and receipt together.
+- [Category correction](../layers/feedback/server/review/category-correction.ts) owns the manager decision and audit; the post update participates through the same transaction-taking persistence function.
+
+These persistence helpers assume an authorized use case with the documented locks/version checks; HTTP endpoints must call the use case rather than bypassing it through a helper. `feedbackWrite` remains the common transaction boundary, keeping authorization before receipt replay.
+
+Read projections belong to the capability presenting the view. The discussion feed may join ordinary comments and official responses; the review queue may query posts and comments; inbox queries may join notification, response, and post tables. Keep multi-query projections in one snapshot where consistency requires it. Shared schema access is explicit and does not authorize cross-capability writes.
+
+The shared schema, write infrastructure and HTTP boundary remain inside this collaborating layer. They do not become an application-wide repository. Capability operation imports are acyclic; queries may use the shared schema without importing another capability's mutation coordinator.
 
 ## Dependencies and runtime boundaries
 

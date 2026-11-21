@@ -1,10 +1,10 @@
 # Feedback feature
 
-This layer owns categories, posts, follows, comments, reactions, official responses, notifications, category-change audit records, and write receipts. Its schema lives in `server/schema.ts`, aggregated by the root database schema. It consumes the shared database pool and auth's public identity/session entrypoints. The approved schema and local operations are described in [Feedback](../../docs/feedback.md).
+This layer assembles four capability groups: `posts` (authoring, browsing, categories and tags), `discussion` (comments and reactions), `review` (official decisions and queue), and `subscriptions` (following and inbox). Its schema lives in `server/schema.ts`, aggregated by the root database schema. It consumes the shared database pool and auth's public identity/session entrypoints. The approved schema and local operations are described in [Feedback](../../docs/feedback.md).
 
 ## Browser workflows
 
-Components render forms and feedback, manage focus, and emit events. Feature-local `app/composables/` owns submission, explicit post/comment editing, discussion, and management workflows. `app/api/` owns typed HTTP calls; `app/utils/` contains pure form conversions. These remain internal to this feature.
+Each `app/<capability>/` groups its components/stories, composables, typed API calls, and form conversions. Components render, manage focus, and emit events; composables own workflows. Common text/navigation and request/write/error plumbing stay in the shared `app/components`, `app/composables`, and `app/api` folders. Route pages compose the capabilities. See the [capability layout and transaction boundaries](../../docs/architecture.md#feedback-capabilities).
 
 Create request scopes during setup. Mount account/resource workflows with stable identities and remount when those identities change; submission watches session changes explicitly. Each independent read stream invalidates stale results without cancelling committed server writes. Read errors and mutation outcomes remain separate, so a failed refresh can be retried without repeating a confirmed write. See [UI conventions](../../docs/ui.md).
 
@@ -15,9 +15,9 @@ Create request scopes during setup. Mount account/resource workflows with stable
 - `GET /api/feedback/posts/:id` returns the public post, its category, and the author's current display name. Invalid or missing IDs return 404.
 - `POST /api/feedback/posts` requires a member session and the configured same-origin `Origin` header, plus a UUID `Idempotency-Key`. It accepts only title, description, optional suggested improvement, category ID, and optional tag IDs. The server supplies author, status, identity, and timestamps. Success returns 201 with `{ id }`.
 
-The `server/posts.ts` functions are internal use cases. In particular, `createPost` expects an already-authenticated internal user ID and validated input; it must not be exposed directly to arbitrary client-supplied authors. Future features must preserve this boundary.
+The `server/posts/` functions own post use cases. In particular, `createPost` expects an already-authenticated internal user ID and validated input; it must not be exposed directly to arbitrary client-supplied authors. Future features must preserve this boundary.
 
-`shared/post-input.ts` owns browser-safe validation and limits. `shared/contracts.ts` describes the serialized public responses; database types remain derived from Drizzle. Server-only `list-input.ts` validates filters and decodes the pagination cursor before any SQL query.
+`shared/posts/input.ts` owns browser-safe post validation and limits. Each `shared/<capability>/contracts.ts` describes its serialized public responses; database types remain derived from Drizzle. Server-only `list-input.ts` validates filters and decodes the pagination cursor before any SQL query.
 
 Additional endpoints:
 
@@ -29,7 +29,7 @@ Additional endpoints:
 - `GET /api/feedback/posts/:id/reactions` returns separate agree/disagree counts and the current viewer's choice.
 - `PUT /api/feedback/posts/:id/reactions` accepts `kind: 'agree' | 'disagree' | null`, explicitly setting or removing the member's reaction.
 
-Tag endpoints (implemented in `server/tags.ts`):
+Tag endpoints (implemented in `server/posts/tags.ts`):
 
 - `GET /api/feedback/tags` returns `{ tags }`, including inactive entries for existing assignments. Tags have `id`, `name`, `isActive`, and `version`.
 - `POST /api/feedback/tags` requires current administrator access and `{ name }`.
@@ -37,7 +37,7 @@ Tag endpoints (implemented in `server/tags.ts`):
 
 Post list/detail results include `tags`. See [tag rules and administration](../../docs/feedback.md#tags) for assignment, disabled-tag, version, and omitted-field semantics.
 
-Official workflow endpoints (implemented in `server/outcomes.ts`):
+Cross-capability endpoints are implemented in `server/review/`, `server/discussion/feed.ts`, and `server/subscriptions/`:
 
 - `GET /api/feedback/posts/:id/outcome` returns current `status`, workflow `version`, `latestResponse`, the latest status-changing `statusResponse`, viewer `following`, and `canRespond`.
 - `POST /api/feedback/posts/:id/responses` requires current community-manager access and `{ body, version, status? }`. It returns `{ id, version }`; omitted status preserves the current status. Ordinary privileged comments are never automatically official.
@@ -48,9 +48,17 @@ Official workflow endpoints (implemented in `server/outcomes.ts`):
 - `GET /api/feedback/review` requires community-manager access. It accepts category slug, status (default `new`, or `all`), `followUp=true|false`, cursor, and limit. Results are oldest-first. Follow-up requires an ordinary comment newer than the latest response, from an author who is not currently a community manager; unanswered posts are excluded.
 - `PATCH /api/feedback/posts/:id/category` requires community-manager access and `{ categoryId, version }`; only active destination categories are accepted. `GET /api/feedback/posts/:id/category-history` exposes the bounded operational audit to community managers.
 
-`shared/outcome-input.ts` validates official response, follow, read, and category commands. All new lists default to 20 and cap HTTP page sizes at 50. Direct official links use `?response=<id>#response-<id>` and resolve independently of discussion filters.
+`shared/review/input.ts` validates official response and category commands; `shared/subscriptions/input.ts` validates follow and read commands. All new lists default to 20 and cap HTTP page sizes at 50. Direct official links use `?response=<id>#response-<id>` and resolve independently of discussion filters.
 
-All writes require a member session, the configured origin, and a UUID idempotency key. Viewer-aware reads are `no-store`; public projections expose `canEdit` rather than user IDs. Input validators live in `shared/participation-input.ts`; `shared/contribution-types.ts` owns type values, labels, and prompts. The page uses `?contribution=<type>` for its filter and a separate `comment` query parameter for a direct link. A linked contribution outside the selected filter is resolved independently and labelled accordingly. HTTP entrypoints use `server/http.ts`; use cases in `server/participation.ts` enforce ownership. `server/writes.ts` owns the common transaction and receipt logic.
+All writes require a member session, the configured origin, and a UUID idempotency key. Viewer-aware reads are `no-store`; public projections expose `canEdit` rather than user IDs. Input validators live in `shared/discussion/input.ts`; `shared/discussion/contribution-types.ts` owns type values, labels, and prompts. The page uses `?contribution=<type>` for its filter and a separate `comment` query parameter for a direct link. A linked contribution outside the selected filter is resolved independently and labelled accordingly. HTTP entrypoints use `server/http.ts`; post/comment editing use cases enforce ownership in their respective capability. `server/writes.ts` owns the common transaction and receipt logic.
+
+## Cross-capability operations
+
+- Posts expose `server/posts/workflow.ts` for post locking and workflow persistence. `updatePostWorkflow` requires the caller's transaction, post lock, and checked workflow version.
+- Subscriptions expose `followPost(transaction, postId, userId)` from `server/subscriptions/following.ts` and `notifyFollowers(transaction, postId, responseId, createdAt)` from `server/subscriptions/notifications.ts`. They participate in creation/publication rather than opening their own transaction.
+- Review owns publication and category-correction coordination. Discussion owns the combined feed; cross-capability read projections may reference the shared schema explicitly.
+
+These helpers are internal persistence contracts, not alternative HTTP commands. Keep their preconditions in the owning use case. See [multi-capability transactions](../../docs/architecture.md#operations-spanning-capabilities) for the canonical rules.
 
 ## Domain rules
 

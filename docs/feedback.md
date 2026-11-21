@@ -133,6 +133,8 @@ Official updates and category corrections use `workflow_version`, independent of
 
 ## Persistence and concurrency
 
+Use cases coordinate capability-owned persistence functions by passing one transaction explicitly. Post creation includes its author follow; official publication includes the post workflow update and follower notifications. See [capability ownership and transaction boundaries](architecture.md#operations-spanning-capabilities) for code locations.
+
 Creation inserts the post, tags, and author follow atomically. Category availability is checked under a shared row lock; selected tag rows are locked while validating assignments. An actor row lock serializes writes, including successful-post limits. Mutations and receipts commit together, with authorization before replay and replay before quota/version checks. Receipt fingerprints include operation and target; results hold only resource IDs and versions. Keep receipts until an explicit retention decision.
 
 Official publication locks the post and atomically writes the immutable response, optional status delta, follower notifications, and receipt. An unchanged status stores no delta. Follow changes take the same post lock; replay returns the recorded result without applying it again. Category correction shares the workflow version and writes its own audit. Author edits use an independent version. Current community-manager authority is checked inside the actor transaction; administrator alone is insufficient. Actor locks use `FOR NO KEY UPDATE`, allowing notification foreign keys to reference other active members while still conflicting with role-management locks.

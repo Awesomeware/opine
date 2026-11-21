@@ -38,7 +38,9 @@ The app runs at <http://localhost:3000>. See [README.md](README.md) for setup de
 Follow [docs/architecture.md](docs/architecture.md). Opine uses feature modules with vertical slices, assembled into one Nuxt application.
 
 - Put product features in `layers/<feature>/`, with their own `nuxt.config.ts`, UI, server endpoints, use cases, schema, and tests. Start with `pnpm layer:new <feature>` and add folders as needed. Create layers as features are implemented.
+- Within feedback, group code by `posts`, `discussion`, `review`, and `subscriptions` in `app/`, `server/`, and `shared/`. Keep route composition and common plumbing explicit; a capability does not automatically need a separate Nuxt layer.
 - Organize behavior around use cases within each feature. Keep validation, authorization, queries, and transactions close to the operation; introduce service or repository layers only for a concrete benefit.
+- A use case owns the transaction for cross-capability writes. Pass that transaction to owning persistence functions; participating helpers must not open independent transactions. Keep authorization, locks, receipts, and dependent writes in the same transaction. Joined read projections belong to the capability presenting them.
 - Keep HTTP entrypoints focused on request/response handling and delegate substantial behavior to the feature's use-case code. Small endpoints can remain self-contained.
 - Keep the application shell, shared database pool, lifecycle hooks, and operational endpoints at the root. Extract shared code only when there is actual reuse.
 - Put reusable presentation in `layers/ui/`: shared tokens and document defaults, with component-owned `<style scoped>` CSS. Keep domain components and their stories in their feature layer. See [UI development](docs/ui.md).

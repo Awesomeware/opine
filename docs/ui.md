@@ -39,21 +39,25 @@ layers/ui/
     UiBrand.stories.ts
     UiIcon.vue
     UiIcon.stories.ts
-layers/feedback/app/components/
-  FeedbackContributionType.vue
-  FeedbackContributionType.stories.ts
-  FeedbackText.vue
-  FeedbackText.stories.ts
-  FeedbackPostRow.vue
-  FeedbackPostRow.stories.ts
-  FeedbackOfficialResponse.vue
-  FeedbackOfficialResponse.stories.ts
-  FeedbackStatusBadge.vue
-  FeedbackStatusBadge.stories.ts
-  FeedbackTagPicker.vue
-  FeedbackTagPicker.stories.ts
-  FeedbackTags.vue
-  FeedbackTags.stories.ts
+layers/feedback/app/
+  components/
+    FeedbackText.vue
+    FeedbackText.stories.ts
+  posts/components/
+    FeedbackPostRow.vue
+    FeedbackPostRow.stories.ts
+    FeedbackTagPicker.vue
+    FeedbackTagPicker.stories.ts
+    FeedbackTags.vue
+    FeedbackTags.stories.ts
+  discussion/components/
+    FeedbackContributionType.vue
+    FeedbackContributionType.stories.ts
+  review/components/
+    FeedbackOfficialResponse.vue
+    FeedbackOfficialResponse.stories.ts
+    FeedbackStatusBadge.vue
+    FeedbackStatusBadge.stories.ts
 .storybook/
   main.ts
   preview.ts
@@ -84,7 +88,7 @@ Root `app/assets/css/main.css` owns application page/form layout. Shared native 
 
 Separate imports, props/events, related state, effects, and functions with blank lines. Keep dependent state close to its use rather than enforcing a rigid file-wide ordering. Use braces around nested control flow, named event handlers for coordination, and short intent comments where the reason is not evident from the code. Reusable composables document their lifetime and guarantees.
 
-Complex forms and asynchronous workflows belong in feature-local composables. The component renders state, manages focus, and emits events. Small typed API modules own URLs, methods, and request/response shapes; plain helpers own stateless input conversion. Keep simple `useFetch` reads local when extraction adds no clarity. An ordinary `$fetch` mutation is appropriate inside the operation's API function; automatic refetch must not replay a write.
+Complex forms and asynchronous workflows belong in capability-local composables under `app/<capability>/composables`. Components, API calls, and pure form helpers live alongside them in that capability; common request/write/error utilities remain shared within the feedback layer. The component renders state, manages focus, and emits events. Small typed API modules own URLs, methods, and request/response shapes; plain helpers own stateless input conversion. Keep simple `useFetch` reads local when extraction adds no clarity. An ordinary `$fetch` mutation is appropriate inside the operation's API function; automatic refetch must not replay a write.
 
 Use the feedback request-scope helper for manual reads: a new request supersedes the previous result, and disposal invalidates all callbacks. Give independent reads separate scopes and independent operations separate busy/error state. Keep successful writes distinct from failed refreshes. Apply confirmed mutation results, including returned versions, directly to the saved baseline. Refresh parent lists once; a failed list refresh must not block subsequent edits or require a special saved-state recovery flow. Post/account identity is fixed for a mounted workflow; callers key components by identity or explicitly recreate that workflow when it changes.
 

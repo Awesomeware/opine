@@ -50,7 +50,7 @@ Migration checks share a small test-only helper for temporary database lifecycle
 
 ## Adding tests
 
-Keep feature tests inside their layer, near the behavior they verify and outside Nuxt route or plugin discovery folders. Use these suffixes consistently:
+Keep feature tests inside their layer, near the behavior they verify and outside Nuxt route or plugin discovery folders. Feedback server tests are grouped under `server/{posts,discussion,review,subscriptions}/`; browser journeys under `tests/{posts,discussion,review}/` follow the initiating capability, including cross-capability journeys. Shared validation tests live beside `shared/<capability>/input.ts`. Moving tests into capability folders does not create new logical suites or containers. Use these suffixes consistently:
 
 - `*.test.ts`: lightweight tests, discovered automatically by `pnpm test`; no Docker or `.env` loading.
 - `*.integration.ts`: Node database tests; add the file to an integration suite in `tests/suites.ts`.
