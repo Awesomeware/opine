@@ -47,6 +47,6 @@ a:hover {
 a.active,
 a.router-link-exact-active {
   border-bottom-color: var(--color-accent);
-  font-weight: 600;
+  font-weight: var(--font-weight-bold);
 }
 </style>

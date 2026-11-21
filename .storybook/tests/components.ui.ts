@@ -229,3 +229,113 @@ test('shared form defaults keep native checkboxes compact and keyboard usable', 
   await page.keyboard.press('Space')
   await expect(checkbox).toBeChecked()
 })
+
+test('shared typography loads real font faces and applies them to native elements', async ({
+  page,
+}) => {
+  await page.goto(story('ui-button--default'))
+  const button = page.getByRole('button', { name: 'Save changes' })
+  await expect(button).toBeVisible()
+
+  const loaded = await page.evaluate(async () => {
+    const results = []
+    for (const family of ['Source Sans 3', 'Source Serif 4']) {
+      for (const weight of [400, 600, 700]) {
+        const font = `${weight} 16px "${family}"`
+        const faces = await document.fonts.load(font, 'Feedback')
+        results.push({
+          font,
+          count: faces.length,
+          loaded: faces.every((face) => face.status === 'loaded'),
+          available: document.fonts.check(font, 'Feedback'),
+        })
+      }
+    }
+
+    const defaults = document.createElement('section')
+    defaults.id = 'typography-defaults'
+    defaults.innerHTML =
+      '<h1>Feedback</h1><h2>Discussion</h2><input><textarea></textarea><select><option>All</option></select>'
+    document.body.append(defaults)
+    return results
+  })
+
+  // check() alone also succeeds for missing families that fall back to a system font.
+  for (const face of loaded) {
+    expect(face.count, face.font).toBeGreaterThan(0)
+    expect(face.loaded, face.font).toBe(true)
+    expect(face.available, face.font).toBe(true)
+  }
+  for (const element of [
+    page.locator('body'),
+    button,
+    ...(await page
+      .locator(
+        '#typography-defaults input, #typography-defaults textarea, #typography-defaults select',
+      )
+      .all()),
+  ]) {
+    await expect(element).toHaveCSS('font-family', /^"?Source Sans 3"?(?:,|$)/)
+  }
+  for (const heading of await page.locator('#typography-defaults :is(h1, h2)').all()) {
+    await expect(heading).toHaveCSS('font-family', /^"?Source Serif 4"?(?:,|$)/)
+  }
+})
+
+test('semantic theme colors retain readable text and distinguish controls and focus', async ({
+  page,
+}) => {
+  await page.goto(story('ui-button--primary'))
+  await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible()
+
+  const contrasts = await page.evaluate(() => {
+    const probe = document.createElement('span')
+    document.body.append(probe)
+
+    function luminance(token: string) {
+      probe.style.color = `var(--color-${token})`
+      const channels = getComputedStyle(probe)
+        .color.match(/[\d.]+/g)!
+        .map(Number)
+      const linear = channels.slice(0, 3).map((channel) => {
+        const value = channel / 255
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+      })
+      return linear[0]! * 0.2126 + linear[1]! * 0.7152 + linear[2]! * 0.0722
+    }
+
+    const pairs: [string, string, number][] = [
+      ['on-action', 'action-start', 4.5],
+      ['on-action', 'action-hover', 4.5],
+      ['official', 'official-background', 4.5],
+      ['badge-text', 'badge-background', 4.5],
+      ['review-text', 'review-background', 4.5],
+      ['planned-text', 'planned-background', 4.5],
+    ]
+    for (const background of ['background', 'surface', 'control', 'control-hover']) {
+      pairs.push(
+        ['text-muted', background, 4.5],
+        ['text', background, 4.5],
+        ['focus', background, 3],
+        ['control-border', background, 3],
+        ['accent', background, 3],
+      )
+    }
+
+    const results = pairs.map(([foreground, background, minimum]) => {
+      const first = luminance(foreground)
+      const second = luminance(background)
+      return {
+        pair: `${foreground} on ${background}`,
+        ratio: (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05),
+        minimum,
+      }
+    })
+    probe.remove()
+    return results
+  })
+
+  for (const { pair, ratio, minimum } of contrasts) {
+    expect(ratio, `${pair}: ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(minimum)
+  }
+})

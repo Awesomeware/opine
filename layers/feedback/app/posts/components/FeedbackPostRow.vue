@@ -43,6 +43,7 @@ defineProps<{ post: FeedbackPostSummary }>()
 }
 h2 {
   font-family: var(--font-body);
+  font-weight: var(--font-weight-bold);
   font-size: 1.05rem;
   line-height: 1.4;
   margin: 0 0 3px;

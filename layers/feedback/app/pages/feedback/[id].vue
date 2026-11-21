@@ -200,7 +200,7 @@ h1 {
 }
 .byline strong {
   color: var(--color-text);
-  font-weight: 500;
+  font-weight: var(--font-weight-semibold);
 }
 .prose {
   font-size: 1rem;

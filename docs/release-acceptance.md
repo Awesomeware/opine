@@ -55,3 +55,20 @@ Measured shared color pairs met the relevant contrast thresholds (ratios below r
 | Focus outline / page or panel                            | At least 11.32:1 |
 
 These are scoped local results, not a WCAG certification. Keyboard tests, DOM/accessible-name assertions, rendered audits and visual inspection do not replace hands-on testing with screen readers or voice-control software. Those assistive-technology combinations were not exercised here. Repeat the relevant checks when changing controls, navigation, theme tokens or installation rules; the real deployment checks in #10 still gate a public pilot.
+
+## Theme refinement follow-up
+
+The approved gold/cyan and Source Sans 3 / Source Serif 4 refinement was verified
+on **2026-11-21**, after revision `7eb5409`. The contrast table above records the
+original acceptance palette; the updated palette is checked directly from computed
+semantic tokens in [Storybook tests](../.storybook/tests/components.ui.ts).
+
+Lint, formatting, both typechecks, production and Storybook builds passed, along
+with 29 unit tests, 16 component tests and all 46 application/restart journeys.
+The new component checks verify actual font loading and shared font inheritance,
+4.5:1 text contrast and 3:1 control/focus contrast. Existing application journeys
+also verify official-response text contrast, keyboard focus and narrow reflow.
+Desktop and narrow screenshots of populated discussions and official responses
+were inspected. This follow-up used isolated build outputs and disposable test
+databases; the development server and database were preserved. The earlier
+supplementary axe audit was not repeated for this styling pass.

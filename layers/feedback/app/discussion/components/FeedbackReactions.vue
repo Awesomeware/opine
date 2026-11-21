@@ -69,8 +69,9 @@ const {
   gap: 0.25rem 1rem;
 }
 .actions [aria-pressed='true'] {
-  color: var(--color-accent);
-  box-shadow: inset 0 -2px var(--color-accent);
+  color: var(--color-text);
+  box-shadow: inset 0 -2px var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
 }
 .reactions p {
   margin: 0.5rem 0 0;

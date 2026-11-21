@@ -107,6 +107,7 @@ function saved() {
 }
 .comment-header strong {
   color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
 }
 .comment-header time {
   margin-left: auto;

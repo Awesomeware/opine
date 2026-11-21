@@ -72,6 +72,22 @@ Native checkbox/radio controls have their own restrained defaults; full-width te
 
 Scoped styles prevent a component's selectors from leaking outward, but global CSS and inherited properties can still affect it. Keep global defaults restrained and load exactly the same foundations in Storybook and Nuxt.
 
+## Theme foundations
+
+Set shared colors, font families and weights in `layers/ui/app/assets/css/tokens.css`;
+components consume these semantic roles through scoped styles. `base.css` applies
+them to document headings, native controls, links, buttons and keyboard focus.
+
+- `--color-accent` is the primary gold (`#f6d16f`): links, primary actions and selected filter underlines. Action tokens derive from it; `--color-selected-background` supplies a subtle selection tint.
+- `--color-official` is vivid cyan (`#50e0d5`), paired with `--color-official-background` for official response headings and accents. Keep ordinary reactions neutral.
+- `--color-background` (`#101522`), `--color-surface` (`#1b2432`) and the control tokens provide blue-charcoal surfaces. Use text/muted-text tokens for readable hierarchy, and control-border/focus tokens for interactive boundaries.
+- `--font-body` uses Source Sans 3; `--font-heading` uses Source Serif 4. Normal, semibold and bold weight tokens provide hierarchy without adding unrelated colors. Variable upright and italic WOFF2 files and their licenses live in [the fonts directory](../layers/ui/app/assets/fonts/README.md). Both builds bundle these local assets; no font service or runtime download dependency is needed.
+
+Use semantic tokens instead of copying palette values into components. The standalone
+favicon cannot inherit page CSS, so keep its two colors aligned when changing the theme.
+Storybook checks that the fonts actually load and that semantic text, control and focus
+color pairs meet the contrast thresholds below.
+
 ## Components
 
 Buttons, status badges, and notices now use `UiButton`, `UiBadge`, and `UiNotice` in the application. `UiButton` defaults to `type="button"`; form actions must explicitly use `type="submit"`. Set `busy` for an operation in progress and `disabled` for an unavailable action. A notice does not announce itself automatically: its caller chooses `role="status"` or `role="alert"` when appropriate.

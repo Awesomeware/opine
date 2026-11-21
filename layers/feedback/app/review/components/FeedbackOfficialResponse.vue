@@ -68,7 +68,8 @@ h2,
 h3 {
   margin: 0;
   font-size: 1.05rem;
-  font-weight: 650;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-official);
 }
 .response-byline {
   margin: 0.2rem 0 0.75rem;
@@ -76,7 +77,7 @@ h3 {
   color: var(--color-text-muted);
 }
 .response-byline strong {
-  font-weight: 400;
+  font-weight: var(--font-weight-semibold);
 }
 footer {
   display: flex;

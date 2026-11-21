@@ -48,7 +48,7 @@ fieldset {
   min-width: 0;
 }
 legend {
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   margin-bottom: 0.75rem;
 }
 .type-options {
@@ -82,8 +82,9 @@ legend {
 }
 .type-options label.selected {
   border-color: var(--color-accent);
-  background: var(--color-surface);
+  background: var(--color-selected-background);
   color: var(--color-accent);
+  font-weight: var(--font-weight-bold);
 }
 .type-options label:has(input:focus-visible) {
   outline: 2px solid var(--color-focus);
