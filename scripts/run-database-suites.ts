@@ -113,7 +113,11 @@ async function runSuite(suite: TestSuite) {
       await mkdir(configDirectory)
       await writeFile(
         join(configDirectory, 'community.json'),
-        JSON.stringify({ name: testCommunity.name, url: testCommunity.url }),
+        JSON.stringify({
+          name: testCommunity.name,
+          url: testCommunity.url,
+          footerDisclaimer: testCommunity.footerDisclaimer,
+        }),
       )
       await writeFile(join(configDirectory, 'rules.md'), testCommunity.rules)
       const browserEnv = {

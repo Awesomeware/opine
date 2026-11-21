@@ -11,11 +11,14 @@ Edit `config/community.json`:
 ```json
 {
   "name": "Pine Valley",
-  "url": "https://example.com/community"
+  "url": "https://example.com/community",
+  "footerDisclaimer": "An independent fan community, not affiliated with the game's developers or publishers."
 }
 ```
 
 `name` must be a nonempty string. `url` is optional: omit it or use an empty string to hide the community link. When supplied, it must be an absolute HTTP or HTTPS address without embedded credentials. This navigation link is separate from the application's origin, configured through `BETTER_AUTH_URL`.
+
+`footerDisclaimer` is optional plain text displayed below the footer links on every page. Omit it or use an empty string to hide it. HTML and Markdown are displayed literally. The EQ: Legends installation uses this field to state that it is not officially affiliated with GameJawn, Daybreak Games or EQ: Legends. Other installations should replace it with their own wording. Restart the server after changing it; on Render, commit and deploy the updated configuration.
 
 Write the community rules as Markdown in `config/rules.md`, for example:
 
@@ -35,7 +38,7 @@ The rules file must contain nonempty text. The server uses [markdown-it](https:/
 
 The page supplies the `h1` (“Community rules”); start sections with `##` and keep heading levels in order. Use descriptive link text and meaningful alternative text for informative images so the configured content remains accessible.
 
-The public `GET /api/community` endpoint returns only the name, URL and rendered rules HTML. Extra JSON keys and raw configuration files are not exposed. Missing files, malformed JSON or invalid settings fail server startup with a configuration error; there is no environment-variable fallback.
+The public `GET /api/community` endpoint returns only the name, URL, footer disclaimer and rendered rules HTML. Extra JSON keys and raw configuration files are not exposed. Missing files, malformed JSON or invalid settings fail server startup with a configuration error; there is no environment-variable fallback.
 
 ## Apply settings
 

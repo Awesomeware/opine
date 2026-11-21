@@ -20,13 +20,19 @@ async function configuration(
 test('installation files expose only public settings and render Markdown structure', async (t) => {
   const directory = await configuration(
     t,
-    { name: ' 1984 ', url: ' https://example.test/community ', extra: 'not public' },
+    {
+      name: ' 1984 ',
+      url: ' https://example.test/community ',
+      footerDisclaimer: ' Independent community. ',
+      extra: 'not public',
+    },
     '## Discussion\n\n**Criticism** is welcome.\n\n- Stay relevant\n- [Community](https://example.test)',
   )
   const community = readCommunity(directory)
-  assert.deepEqual(Object.keys(community).sort(), ['name', 'rulesHtml', 'url'])
+  assert.deepEqual(Object.keys(community).sort(), ['footerDisclaimer', 'name', 'rulesHtml', 'url'])
   assert.equal(community.name, '1984')
   assert.equal(community.url, 'https://example.test/community')
+  assert.equal(community.footerDisclaimer, 'Independent community.')
   assert.match(community.rulesHtml, /<h2>Discussion<\/h2>/)
   assert.match(community.rulesHtml, /<strong>Criticism<\/strong>/)
   assert.match(community.rulesHtml, /<ul>/)
@@ -39,8 +45,9 @@ test('rules escape embedded HTML and reject executable Markdown links', async (t
     { name: 'Community' },
     '<script>alert(1)</script>\n\n<img src=x onerror="alert(1)">\n\n[bad](javascript:alert%281%29)\n\n[encoded](jav&#x61;script:alert%281%29)\n\n![bad image](javascript:alert%281%29)',
   )
-  const { rulesHtml, url } = readCommunity(directory)
+  const { rulesHtml, url, footerDisclaimer } = readCommunity(directory)
   assert.equal(url, '')
+  assert.equal(footerDisclaimer, '')
   assert.match(rulesHtml, /&lt;script&gt;/)
   assert.match(rulesHtml, /&lt;img/)
   assert.doesNotMatch(rulesHtml, /<script|<img|<a\s/i)
@@ -54,6 +61,7 @@ test('invalid names, URLs, JSON and missing or empty rules report configuration 
     { name: 'Community', url: 'javascript:alert(1)' },
     { name: 'Community', url: 'https://user:secret@example.test' },
     { name: 'Community', url: '/relative' },
+    { name: 'Community', footerDisclaimer: 42 },
   ]) {
     await writeFile(join(directory, 'community.json'), JSON.stringify(settings))
     assert.throws(() => readCommunity(directory), /community.json/)

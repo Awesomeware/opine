@@ -17,6 +17,9 @@ test('installation files configure the community and rules render Markdown safel
 }) => {
   await page.goto('/feedback')
   await expect(page.getByRole('banner')).toContainText(testCommunity.name)
+  const disclaimer = page.getByRole('contentinfo').locator('.footer-disclaimer')
+  await expect(disclaimer).toHaveText(testCommunity.footerDisclaimer)
+  await expect(disclaimer.locator('strong')).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Opine home', exact: true })).toBeVisible()
   const community = page.getByRole('navigation', { name: 'Community', exact: true })
   await expect(
@@ -39,7 +42,12 @@ test('installation files configure the community and rules render Markdown safel
   await expect(rules.getByRole('link', { name: 'Unsafe link' })).toHaveCount(0)
   const response = await request.get('/api/community')
   expect(response.status()).toBe(200)
-  expect(Object.keys(await response.json()).sort()).toEqual(['name', 'rulesHtml', 'url'])
+  expect(Object.keys(await response.json()).sort()).toEqual([
+    'footerDisclaimer',
+    'name',
+    'rulesHtml',
+    'url',
+  ])
 
   await page.reload()
   await expect(rules.getByRole('heading', { name: 'Discussion', level: 2 })).toBeVisible()

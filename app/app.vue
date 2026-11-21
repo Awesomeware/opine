@@ -38,6 +38,9 @@ watch(
         <NuxtLink to="/rules">Community rules</NuxtLink>
         <a v-if="community?.url" :href="community.url">Visit {{ community.name }}</a>
       </nav>
+      <p v-if="community?.footerDisclaimer" class="footer-disclaimer">
+        {{ community.footerDisclaimer }}
+      </p>
       <p v-if="communityError" role="alert">
         Unable to load community settings.
         <UiButton variant="quiet" @click="refreshCommunity()">Retry community settings</UiButton>
@@ -94,6 +97,10 @@ watch(
   gap: 12px 24px;
   margin-top: 12px;
   overflow-wrap: anywhere;
+}
+.footer-disclaimer {
+  max-width: 80ch;
+  margin: 16px auto 0;
 }
 .skip-link {
   position: absolute;

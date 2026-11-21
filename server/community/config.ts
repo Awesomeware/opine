@@ -47,7 +47,17 @@ export function readCommunity(directory: string): CommunitySettings {
       throw new Error('config/community.json url must be an HTTP(S) address without credentials.')
     }
   }
+
+  const footerDisclaimer = 'footerDisclaimer' in settings ? settings.footerDisclaimer : ''
+  if (typeof footerDisclaimer !== 'string')
+    throw new Error('config/community.json footerDisclaimer must be a string.')
+
   if (!rules.trim()) throw new Error('config/rules.md must contain community rules.')
 
-  return { name: settings.name.trim(), url, rulesHtml: markdown.render(rules) }
+  return {
+    name: settings.name.trim(),
+    url,
+    footerDisclaimer: footerDisclaimer.trim(),
+    rulesHtml: markdown.render(rules),
+  }
 }
