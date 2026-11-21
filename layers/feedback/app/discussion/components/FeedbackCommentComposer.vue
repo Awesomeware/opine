@@ -39,7 +39,18 @@ defineExpose({ focus })
       />
     </div>
     <p v-if="fieldErrors.body" id="comment-error" class="field-error">{{ fieldErrors.body }}</p>
-    <p class="field-help">Your comment and display name will be public.</p>
+    <p class="field-help">
+      Your comment and display name will be public. Read the
+      <NuxtLink
+        to="/rules"
+        target="_blank"
+        rel="noopener"
+        aria-label="community rules (opens in a new tab)"
+      >
+        community rules
+      </NuxtLink>
+      before contributing.
+    </p>
     <UiButton variant="primary" type="submit" :busy="busy" :disabled="busy">
       {{ busy ? 'Submitting…' : 'Submit comment' }}
     </UiButton>

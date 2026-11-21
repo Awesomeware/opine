@@ -11,6 +11,7 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { Pool } from 'pg'
 import { suites } from '../tests/suites.ts'
 import { runSuites, type TestSuite } from '../tests/run-suites.ts'
+import { testCommunity } from '../tests/helpers/community.ts'
 
 const kind = process.argv[2]
 if ((kind !== 'integration' && kind !== 'e2e') || process.argv.length !== 3) {
@@ -108,6 +109,9 @@ async function runSuite(suite: TestSuite) {
       artifacts = await mkdtemp(join(tmpdir(), 'opine-e2e-'))
       const browserEnv = {
         ...env,
+        NUXT_PUBLIC_COMMUNITY_NAME: testCommunity.name,
+        NUXT_PUBLIC_COMMUNITY_URL: testCommunity.url,
+        NUXT_PUBLIC_COMMUNITY_RULES: testCommunity.rules,
         OPINE_TEST_BASE_URL: baseURL,
         BETTER_AUTH_URL: baseURL,
         OPINE_TEST_ARTIFACT_DIR: artifacts,

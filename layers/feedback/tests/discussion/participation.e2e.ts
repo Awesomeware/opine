@@ -447,6 +447,17 @@ test('members submit and edit comments, then review conflicting post edits', asy
     await expect(page.getByLabel('Add a comment', { exact: true })).toHaveValue(originalComment)
     await expect(page.getByRole('radio', { name: 'Context or example', exact: true })).toBeChecked()
 
+    const rulesPopup = page.waitForEvent('popup')
+    await page
+      .getByRole('link', { name: 'community rules (opens in a new tab)', exact: true })
+      .click()
+    const rulesPage = await rulesPopup
+    await expect(
+      rulesPage.getByRole('heading', { name: 'Community rules', exact: true }),
+    ).toBeVisible()
+    await rulesPage.close()
+    await expect(page.getByLabel('Add a comment', { exact: true })).toHaveValue(originalComment)
+
     const releaseComment = await holdResponse(page, `${base}/comments`, 'POST')
     pendingResponses.push(releaseComment)
     await page.getByRole('button', { name: 'Submit comment', exact: true }).click()

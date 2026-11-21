@@ -2,7 +2,7 @@
 
 These journeys cover only the reduced first version in [requirements.md](requirements.md). `V1-` identifiers replace the broader draft's journey identifiers.
 
-These describe release acceptance, not a claim that every journey is already implemented. The [implementation checklist](docs/TODO.md) tracks completion; remaining community configuration and operational readiness are the next work.
+These describe release acceptance, not a claim that every journey is already implemented. The [implementation checklist](docs/TODO.md) tracks completion; operational readiness and release verification are the next work.
 
 ## Discover feedback
 
@@ -38,7 +38,7 @@ These describe release acceptance, not a claim that every journey is already imp
 - V1-J18: As a community manager, I can lock and unlock a feedback post to stop or resume edits, comments, reactions and official workflow changes.
 - V1-J19: As a community manager, I can archive a feedback post so it and its discussion disappear from application views, direct links, review queues and notifications. The data remains stored, but there is no unarchive UI.
 - V1-J20: As an administrator, I can grant and revoke privileged roles without automatically making my own contributions official.
-- V1-J21: As an administrator, I can configure the installation's name, categories, rules and community link through the documented configuration mechanism.
+- V1-J21: As an administrator, I can configure the installation's name, categories, rules and community link through the [documented configuration mechanism](docs/community.md), with public rules available without signing in.
 
 - V1-J22: As an administrator, I can create, rename, disable, and re-enable tags. Disabled tags remain readable on existing posts, while authors choose which available tags describe their own feedback.
 
@@ -58,6 +58,6 @@ These describe release acceptance, not a claim that every journey is already imp
 7. A CM locks the post. Readers can still view the discussion and manage following, but attempts to edit, comment, react or publish official updates are rejected. The CM unlocks it and those actions become available again.
 8. A CM archives the post. Verify it and its related content disappear from public and CM queries, shared links and notifications, including unread counts. No follower alert is generated, no new interaction is accepted, and the underlying records remain stored.
 
-Separately verify the configured public name and community link, production Discord sign-in, accessibility, the operator retention process and a documented backup restoration. These release checks complement the product walkthrough.
+Separately verify the configured public name in the header, community link in the footer, and public `/rules` page reached from the footer and contribution forms. Also verify production Discord sign-in, accessibility, the operator retention process and a documented backup restoration. These release checks complement the product walkthrough.
 
 The walkthrough requires no curator, summary, duplicate merge, or Discord bot integration. Removed workflows are listed under "Explicitly deferred" in the requirements and are not first-release acceptance criteria.

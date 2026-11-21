@@ -93,6 +93,10 @@ The local `layers/ui/` Nuxt layer owns reusable presentation: design tokens, glo
 
 Storybook uses Vue/Vite to render the same components with deterministic props, slots, and events. It loads the UI layer's CSS directly, without starting Nuxt or PostgreSQL. Components intended for isolated stories import their Vue APIs and child components explicitly; application integration remains covered by Nuxt typechecking, builds, and browser journeys.
 
+## Installation configuration
+
+Community identity and rules are application-shell concerns, kept at the root rather than in a new feature layer. `runtimeConfig.public.community` supplies the public name, optional community URL and plain-text rules. The root shell and public `/rules` page consume these settings; feedback contribution forms link to that page. Keep normalization browser-safe, render rules as text, and keep credentials outside public runtime configuration. This requires no database table, settings API or administration editor. [Community configuration](community.md) owns the operator setup and environment semantics.
+
 ## A vertical slice: create feedback
 
 The feature's `new.vue` page renders the submission form. `useFeedbackSubmission` owns its validation, in-memory form state, and submission state; `app/posts/api/posts.ts` sends the typed `POST /api/feedback/posts` request. The endpoint reads and validates the request, resolves its authenticated session, and delegates creation to `server/posts/creation.ts`.

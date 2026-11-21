@@ -37,6 +37,8 @@ Install Docker Engine (or Docker Desktop) with Docker Compose before starting Po
 
 Configure the Discord application and authentication secrets using [Authentication and access](docs/authentication.md), then open <http://localhost:3000>. The homepage opens the public feedback feed. Sign in to submit feedback, contribute context, a different view, a suggestion, or a question, react with Agree / Disagree, and edit your own text and optional tags. Filter the discussion by contribution type or official responses. Follow posts and read official-update notifications; community managers can publish responses, change status, correct categories, and use the review queue. Administrator alone does not grant community-manager permission. Share public post and comment links. Administrators can manage the available tags from **Tags** in the navigation. See [Feedback](docs/feedback.md) for tag/category configuration and the current schema. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
 
+Configure the public game/community name, rules and optional community link using [Community configuration](docs/community.md). The header identifies the community, the footer links to its website and public `/rules` page, and contribution forms link to those rules. These runtime settings require a server restart, not a rebuild.
+
 The server creates a shared database connection pool on first use and closes it during Nitro shutdown. It reads `DATABASE_URL` only on the server. The page and liveness endpoint can still run without a database; readiness and database-backed features require one. Authentication requires the configured Discord credentials and Better Auth secret. Local `.env` files are ignored by Git.
 
 PostgreSQL data lives in the Compose-managed `postgres_data` volume. `docker compose stop` / `docker compose start --wait`, `docker compose restart`, and `docker compose down` / `docker compose up -d --wait` preserve it. After a restart, run `docker compose up -d --wait` to wait for readiness. **`docker compose down --volumes` deletes the local database permanently.** Use that only when intentionally resetting local data, then start PostgreSQL and reapply migrations. Do not change the PostgreSQL major version on an existing volume without a database upgrade or dump/restore.
@@ -128,7 +130,7 @@ Opine uses feature modules with vertical slices. See [Architecture](docs/archite
 ```text
 app/
   app.vue                    Application shell
-  pages/                     Root route redirect
+  pages/                     Root redirect and public community rules
   components/                Application shell components, when needed
   composables/               Client-side Vue helpers
   spa-loading-template.html  Initial SPA loading state
@@ -147,7 +149,7 @@ shared/                      Contracts genuinely shared across features and runt
 drizzle/                     Committed SQL migrations
 tests/                       Shared test harness, suite catalog, browser smoke tests
 scripts/                     Operator commands and database-backed test runner
-docs/                        Architecture, authentication, feedback, testing, and checklist
+docs/                        Architecture, community setup, authentication, feedback, and tests
 public/                      Static public assets
 compose.yaml                 Local PostgreSQL service and persistent volume
 drizzle.config.ts            Database tooling configuration
@@ -165,6 +167,6 @@ The tree includes planned feature locations; no empty feature layers are require
 
 The core feedback loop is implemented: proposals, typed contributions and filters, official responses and statuses, review queues, follows, notifications, and admin-defined author-selected tags. Agree / Disagree reactions remain secondary.
 
-CM lock/unlock and archive actions are implemented, with an internal application event log. Archived content disappears from application queries and notifications; no unarchive UI is included. Next is community configuration. Remaining release work covers production operation and backup restoration, the operator account-retention process, accessibility and release verification, and an open-source license before repository publication. Follow [steps 7–9 and the publication checklist](docs/TODO.md#7-complete-community-configuration) for the implementation sequence.
+CM lock/unlock and archive actions are implemented, with an internal application event log. Archived content disappears from application queries and notifications; no unarchive UI is included. Community configuration is also implemented through public runtime settings. Remaining release work covers production operation and backup restoration, the operator account-retention process, accessibility and release verification, and an open-source license before repository publication. Follow [steps 8–9 and the publication checklist](docs/TODO.md#8-complete-operational-readiness-and-retention) for the implementation sequence.
 
 The [deferred features](requirements.md#explicitly-deferred) are outside this release, including reports, suspensions, moderation-history UI/appeals, individual contribution hiding, summaries/highlights, nested replies, tag filtering, duplicate handling, Discord bots and external notifications. CI remains deferred; local validation and release-readiness checks still apply.

@@ -40,6 +40,10 @@ Keep moderation tests in the existing feedback integration and application brows
 
 For the event log, verify mutation/event atomicity, typed metadata without text snapshots, human and system actors, restrictive actor deletion, and no duplicate events for unchanged operations. Test cleanup removes its event fixtures before deleting referenced users. Reset checks include log removal; migration checks preserve existing content. These tests use existing suite containers, never the development database.
 
+## Community configuration coverage
+
+Lightweight tests cover public setting defaults, empty/non-string values and rejection of unsafe or credential-bearing community URLs. Browser checks use runtime environment overrides on the built application to verify the configured name and link, public rules navigation, links from contribution forms, and escaped rules text with preserved line breaks. Keep these checks in the existing application browser suite; configuration does not need another database suite or container.
+
 ## Current coverage
 
 - Tags are covered within the existing feedback integration and application browser suites: catalog authorization, case-insensitive names, migration of existing posts, disabled assignments, atomic edits, ephemeral forms, catalog outages, lost replies, and persistence after restart. Reset/seed checks cover default tags and preservation of removed example assignments.
@@ -56,9 +60,8 @@ Migration checks share a small test-only helper for temporary database lifecycle
 
 ## Remaining release verification
 
-The checks below are planned release work, not completed coverage. Track them in [steps 7–9](TODO.md#7-complete-community-configuration):
+The checks below are planned release work, not completed coverage. Track them in [steps 8–9](TODO.md#8-complete-operational-readiness-and-retention):
 
-- Community configuration: public name, rules and community link appear in the intended views.
 - Accessibility: keyboard navigation, accessible names, focus, contrast, form errors and status identification across the release journeys, plus basic narrow-screen readability.
 - Deployment: a real Discord consent/sign-in, session reload and sign-out on the configured HTTPS origin, and operational errors that do not disclose private data.
 - Recovery: back up the database and installation configuration, restore into an isolated installation, and verify content, accounts, permissions and post lock/archive state. The existing database/application restart test does not prove backup restoration.

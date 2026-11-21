@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import FeedbackNavigation from '../layers/feedback/app/components/FeedbackNavigation.vue'
 import AuthControls from '../layers/auth/app/components/AuthControls.vue'
+import { communitySettings } from '../shared/community'
+
+const community = communitySettings(useRuntimeConfig().public.community)
 </script>
 
 <template>
@@ -8,14 +11,23 @@ import AuthControls from '../layers/auth/app/components/AuthControls.vue'
     <a class="skip-link" href="#main-content">Skip to content</a>
     <NuxtRouteAnnouncer />
     <header class="site-header">
-      <NuxtLink class="brand" to="/feedback" aria-label="Opine home">
-        <UiBrand />
-      </NuxtLink>
+      <div class="identity">
+        <NuxtLink class="brand" to="/feedback" aria-label="Opine home">
+          <UiBrand />
+        </NuxtLink>
+        <span class="community-name">{{ community.name }}</span>
+      </div>
       <FeedbackNavigation />
       <AuthControls />
     </header>
     <NuxtPage />
-    <footer class="site-footer">Help shape the game with your feedback.</footer>
+    <footer class="site-footer">
+      <span>Help shape the game with your feedback.</span>
+      <nav aria-label="Community">
+        <NuxtLink to="/rules">Community rules</NuxtLink>
+        <a v-if="community.url" :href="community.url">Visit {{ community.name }}</a>
+      </nav>
+    </footer>
   </div>
 </template>
 
@@ -38,6 +50,19 @@ import AuthControls from '../layers/auth/app/components/AuthControls.vue'
   flex-shrink: 0;
   text-decoration: none;
 }
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  max-width: 240px;
+  padding: 12px 0;
+}
+.community-name {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
 .site-footer {
   max-width: 1124px;
   margin: 0 auto;
@@ -46,6 +71,14 @@ import AuthControls from '../layers/auth/app/components/AuthControls.vue'
   font-size: 0.8rem;
   padding: 24px;
   border-top: 1px solid var(--color-border);
+}
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px 24px;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
 }
 .skip-link {
   position: absolute;

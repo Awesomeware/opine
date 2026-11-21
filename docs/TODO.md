@@ -4,7 +4,7 @@ First milestone complete: **a player signs in with Discord, submits feedback, an
 
 Work through these steps individually. Each step should include its schema changes, UI, endpoints, and relevant tests. The [requirements](../requirements.md) define the release scope.
 
-The core feedback loop and steps 1–6 are implemented. The next work is **#7: community configuration**. Steps 7–9 are prerequisites for a public pilot; the license is required before publishing the repository. CI is explicitly deferred.
+The core feedback loop and steps 1–7 are implemented. The next work is **#8: operational readiness and retention**. Steps 8–9 are prerequisites for a public pilot; the license is required before publishing the repository. CI is explicitly deferred.
 
 ## 1. Make local development reproducible
 
@@ -98,11 +98,11 @@ Reports, individual comment/response hiding, account suspension, moderation reas
 
 ## 7. Complete community configuration
 
-Completes V1-F28. Categories, privileged-role management and tags already have supported management paths.
+Completes V1-F28. [Community configuration](community.md) documents the public runtime settings alongside existing category, privileged-role and tag management.
 
-- [ ] Provide documented configuration for the public name, community rules and community link.
-- [ ] Surface that configuration in the relevant public views. Moderation-review contact and appeals UI are deferred.
-- [ ] Document the complete installation configuration alongside the existing category, role and tag commands/UI. A full settings or branding editor is not required.
+- [x] Provide documented configuration for the public name, community rules and community link.
+- [x] Surface that configuration in the relevant public views. Moderation-review contact and appeals UI are deferred.
+- [x] Document the complete installation configuration alongside the existing category, role and tag commands/UI. A full settings or branding editor is not required.
 
 ## 8. Complete operational readiness and retention
 

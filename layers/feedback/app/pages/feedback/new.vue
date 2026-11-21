@@ -45,7 +45,17 @@ async function publish() {
     <NuxtLink class="back-link" to="/feedback">← All feedback</NuxtLink>
     <h1>Share feedback</h1>
     <p class="intro">
-      Tell us what could work better, what you’d like to see, or what’s already working well.
+      Tell us what could work better, what you’d like to see, or what’s already working well. Read
+      the
+      <NuxtLink
+        to="/rules"
+        target="_blank"
+        rel="noopener"
+        aria-label="community rules (opens in a new tab)"
+      >
+        community rules
+      </NuxtLink>
+      before posting.
     </p>
     <UiNotice v-if="message" ref="errorSummary" role="alert" tabindex="-1">{{ message }}</UiNotice>
     <p v-if="route.query.signIn" role="alert">
