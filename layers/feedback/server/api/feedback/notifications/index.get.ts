@@ -1,5 +1,5 @@
 import { feedbackViewer, feedbackResponse } from '../../../http.ts'
-import { listNotifications } from '../../../outcomes.ts'
+import { listNotifications } from '../../../subscriptions/inbox.ts'
 import { parseNotificationListInput } from '../../../list-input.ts'
 export default defineEventHandler(async (event) => {
   const access = await feedbackViewer(event)

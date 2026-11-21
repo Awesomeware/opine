@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FeedbackNavigation from '../layers/feedback/app/components/FeedbackNavigation.vue'
 import AuthControls from '../layers/auth/app/components/AuthControls.vue'
 </script>
 

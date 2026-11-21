@@ -1,5 +1,5 @@
 import { feedbackParam, feedbackResponse, feedbackViewer } from '../../../../../http.ts'
-import { listComments } from '../../../../../participation.ts'
+import { listComments } from '../../../../../discussion/comments.ts'
 import { parseCommentListInput } from '../../../../../list-input.ts'
 export default defineEventHandler(async (event) => {
   const access = await feedbackViewer(event)

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FeedbackInbox from '../../subscriptions/components/FeedbackInbox.vue'
 import { authClient } from '../../../../auth/app/auth-client'
 
 const session = authClient.useSession()

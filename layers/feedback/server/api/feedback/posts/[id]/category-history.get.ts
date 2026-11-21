@@ -1,5 +1,5 @@
 import { feedbackViewer, feedbackParam, feedbackResponse } from '../../../../http.ts'
-import { listCategoryHistory } from '../../../../outcomes.ts'
+import { listCategoryHistory } from '../../../../review/category-correction.ts'
 import { parsePaginationInput } from '../../../../list-input.ts'
 export default defineEventHandler(async (event) => {
   const access = await feedbackViewer(event)

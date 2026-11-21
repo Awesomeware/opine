@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
 import UiButton from '../../../../ui/app/components/UiButton.vue'
-import FeedbackTagPicker from '../../components/FeedbackTagPicker.vue'
+import FeedbackTagPicker from '../../posts/components/FeedbackTagPicker.vue'
 import UiNotice from '../../../../ui/app/components/UiNotice.vue'
-import { useFeedbackSubmission } from '../../composables/useFeedbackSubmission'
-import { postLimits } from '../../../shared/post-input'
+import { useFeedbackSubmission } from '../../posts/composables/useFeedbackSubmission'
+import { postLimits } from '../../../shared/posts/input'
 
 useHead({ title: 'Share feedback · Opine' })
 const route = useRoute()

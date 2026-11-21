@@ -1,8 +1,13 @@
 <script setup lang="ts">
+import FeedbackDiscussion from '../../discussion/components/FeedbackDiscussion.vue'
+import FeedbackOutcome from '../../review/components/FeedbackOutcome.vue'
+import FeedbackReactions from '../../discussion/components/FeedbackReactions.vue'
+import FeedbackTags from '../../posts/components/FeedbackTags.vue'
+import FeedbackText from '../../components/FeedbackText.vue'
 import { computed, ref, watch } from 'vue'
-import FeedbackPostEditor from '../../components/FeedbackPostEditor.vue'
+import FeedbackPostEditor from '../../posts/components/FeedbackPostEditor.vue'
 import { authClient } from '../../../../auth/app/auth-client'
-import type { FeedbackPost } from '../../../shared/contracts'
+import type { FeedbackPost } from '../../../shared/posts/contracts'
 
 const route = useRoute()
 const session = authClient.useSession()

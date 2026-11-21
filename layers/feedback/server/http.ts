@@ -1,7 +1,7 @@
 import { fromNodeHeaders } from 'better-auth/node'
 import { createError, getHeader, getRouterParam, setResponseHeader, type H3Event } from 'h3'
 import { getAccess } from '../../auth/server/access.ts'
-import { isUuid } from '../shared/post-input.ts'
+import { isUuid } from '../shared/input.ts'
 import { FeedbackWriteError } from './writes.ts'
 
 export async function feedbackViewer(event: H3Event) {

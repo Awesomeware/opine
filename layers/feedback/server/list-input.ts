@@ -1,5 +1,8 @@
-import { isContributionType, type ContributionType } from '../shared/contribution-types.ts'
-import { isUuid } from '../shared/post-input.ts'
+import {
+  isContributionType,
+  type ContributionType,
+} from '../shared/discussion/contribution-types.ts'
+import { isUuid } from '../shared/input.ts'
 import { isPostStatus, type PostStatus } from '../shared/status.ts'
 
 export type PostCursor = { createdAt: string; id: string }

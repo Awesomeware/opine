@@ -1,5 +1,5 @@
 import { feedbackViewer, feedbackParam, feedbackResponse } from '../../../../../http.ts'
-import { getOfficialResponse } from '../../../../../outcomes.ts'
+import { getOfficialResponse } from '../../../../../review/outcome.ts'
 export default defineEventHandler(async (event) => {
   await feedbackViewer(event)
   return feedbackResponse(event, async () => {

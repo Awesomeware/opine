@@ -1,5 +1,5 @@
 import { feedbackViewer, feedbackResponse } from '../../http.ts'
-import { listReviewQueue } from '../../outcomes.ts'
+import { listReviewQueue } from '../../review/queue.ts'
 import { parseReviewInput } from '../../list-input.ts'
 export default defineEventHandler(async (event) => {
   const access = await feedbackViewer(event)

@@ -1,5 +1,5 @@
-import { validatePostInput } from '../../../../shared/post-input.ts'
-import { createPost } from '../../../posts.ts'
+import { validatePostInput } from '../../../../shared/posts/input.ts'
+import { createPost } from '../../../posts/creation.ts'
 import { feedbackActor, feedbackResponse } from '../../../http.ts'
 
 export default defineEventHandler(async (event) => {

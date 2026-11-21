@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FeedbackReviewQueue from '../../review/components/FeedbackReviewQueue.vue'
 import { authClient } from '../../../../auth/app/auth-client'
 
 const session = authClient.useSession()

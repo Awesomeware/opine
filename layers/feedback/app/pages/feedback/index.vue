@@ -1,7 +1,12 @@
 <script setup lang="ts">
+import FeedbackPostRow from '../../posts/components/FeedbackPostRow.vue'
 import { useRequestScope } from '../../composables/useRequestScope'
 import { statusLabels, postStatuses } from '../../../shared/status'
-import type { FeedbackCategory, FeedbackPage, FeedbackPostSummary } from '../../../shared/contracts'
+import type {
+  FeedbackCategory,
+  FeedbackPage,
+  FeedbackPostSummary,
+} from '../../../shared/posts/contracts'
 
 useHead({ title: 'Community feedback · Opine' })
 

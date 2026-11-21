@@ -1,6 +1,6 @@
 import { feedbackActor, feedbackParam, feedbackResponse, validated } from '../../../http.ts'
-import { markNotificationRead } from '../../../outcomes.ts'
-import { validateReadInput } from '../../../../shared/outcome-input.ts'
+import { markNotificationRead } from '../../../subscriptions/inbox.ts'
+import { validateReadInput } from '../../../../shared/subscriptions/input.ts'
 export default defineEventHandler(async (event) => {
   const { actorId, requestId } = await feedbackActor(event)
   validated(validateReadInput(await readBody(event)))

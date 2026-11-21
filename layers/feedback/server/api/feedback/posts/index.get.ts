@@ -1,5 +1,5 @@
 import { parseListInput } from '../../../list-input.ts'
-import { listPosts } from '../../../posts.ts'
+import { listPosts } from '../../../posts/queries.ts'
 
 export default defineEventHandler(async (event) => {
   const parsed = parseListInput(getQuery(event))

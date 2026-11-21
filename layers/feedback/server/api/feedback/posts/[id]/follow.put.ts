@@ -1,6 +1,6 @@
 import { feedbackActor, feedbackParam, feedbackResponse, validated } from '../../../../http.ts'
-import { setFollowing } from '../../../../outcomes.ts'
-import { validateFollowInput } from '../../../../../shared/outcome-input.ts'
+import { setFollowing } from '../../../../subscriptions/following.ts'
+import { validateFollowInput } from '../../../../../shared/subscriptions/input.ts'
 export default defineEventHandler(async (event) => {
   const { actorId, requestId } = await feedbackActor(event)
   const input = validated(validateFollowInput(await readBody(event)))

@@ -1,8 +1,8 @@
 import { and, eq, inArray, sql } from 'drizzle-orm'
-import { defaultFeedbackTags } from './tags.ts'
+import { defaultFeedbackTags } from './posts/tags.ts'
 import { getDatabase } from '../../../server/db/index.ts'
 import { user, userRole } from '../../auth/server/schema.ts'
-import type { ContributionType } from '../shared/contribution-types.ts'
+import type { ContributionType } from '../shared/discussion/contribution-types.ts'
 import type { PostStatus } from '../shared/status.ts'
 import {
   feedbackCategory,

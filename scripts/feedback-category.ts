@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import { closeDatabase } from '../server/db/index.ts'
-import { setCategoryActive, upsertCategory } from '../layers/feedback/server/categories.ts'
+import { setCategoryActive, upsertCategory } from '../layers/feedback/server/posts/categories.ts'
 
 const [action, slug, name, sortOrder, ...extra] = process.argv.slice(2)
 try {

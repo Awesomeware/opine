@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FeedbackTagManagement from '../../posts/components/FeedbackTagManagement.vue'
 import { authClient } from '../../../../auth/app/auth-client'
 
 const session = authClient.useSession()

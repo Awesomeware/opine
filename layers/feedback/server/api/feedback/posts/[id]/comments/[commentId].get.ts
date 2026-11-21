@@ -1,5 +1,5 @@
 import { feedbackParam, feedbackViewer } from '../../../../../http.ts'
-import { getComment } from '../../../../../participation.ts'
+import { getComment } from '../../../../../discussion/comments.ts'
 export default defineEventHandler(async (event) => {
   const access = await feedbackViewer(event)
   const comment = await getComment(

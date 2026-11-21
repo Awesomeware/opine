@@ -1,6 +1,6 @@
 import { feedbackActor, feedbackParam, feedbackResponse, validated } from '../../../../../http.ts'
-import { createComment } from '../../../../../participation.ts'
-import { validateCommentInput } from '../../../../../../shared/participation-input.ts'
+import { createComment } from '../../../../../discussion/comments.ts'
+import { validateCommentInput } from '../../../../../../shared/discussion/input.ts'
 export default defineEventHandler(async (event) => {
   const { actorId, requestId } = await feedbackActor(event)
   const id = feedbackParam(event, 'id')

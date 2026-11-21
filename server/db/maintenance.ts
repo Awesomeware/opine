@@ -4,7 +4,7 @@ import { PgTable } from 'drizzle-orm/pg-core'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { getDatabase } from './index.ts'
 import * as schema from './schema.ts'
-import { defaultFeedbackTags } from '../../layers/feedback/server/tags.ts'
+import { defaultFeedbackTags } from '../../layers/feedback/server/posts/tags.ts'
 
 export async function migrateDatabase() {
   await migrate(getDatabase(), {

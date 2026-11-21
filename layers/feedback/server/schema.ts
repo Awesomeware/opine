@@ -14,7 +14,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import { user } from '../../auth/server/schema.ts'
-import { contributionTypes } from '../shared/contribution-types.ts'
+import { contributionTypes } from '../shared/discussion/contribution-types.ts'
 import { postStatuses } from '../shared/status.ts'
 
 export const feedbackCategory = pgTable(
