@@ -4,7 +4,7 @@ First milestone complete: **a player signs in with Discord, submits feedback, an
 
 Work through these steps individually. Each step should include its schema changes, UI, endpoints, and relevant tests. The [requirements](../requirements.md) define the release scope.
 
-The core feedback loop and steps 1–8 are implemented. The next work is **#9: release acceptance**. Steps 9–10 are prerequisites for a public pilot; the license is required before publishing the repository. CI is explicitly deferred.
+The core feedback loop and steps 1–9 are complete locally; see the [release acceptance evidence](release-acceptance.md). The next work is **#10: final deployment and retention checks**, required before a public pilot. The license is required before publishing the repository. CI is explicitly deferred.
 
 ## 1. Make local development reproducible
 
@@ -114,9 +114,9 @@ Covers deployment and recovery work in V1-T01, T03 and T09–T11. Final deployed
 
 ## 9. Verify release acceptance
 
-- [ ] Complete keyboard, accessible-name, focus, contrast, error-state and non-color-only status checks against V1-U02–U05, including moderation screens and basic narrow-screen layout.
-- [ ] Run the full local validation set and the [pilot walkthrough](../journeys.md#pilot-walkthrough), including moderation and configuration journeys, on the release candidate.
-- [ ] Record local validation, accessibility and restoration evidence against [first-release acceptance](../requirements.md#first-release-acceptance). Complete the final deployed checks and retention process in #10 before a public pilot.
+- [x] Complete keyboard, accessible-name, focus, contrast, error-state and non-color-only status checks against V1-U02–U05, including moderation screens and basic narrow-screen layout. Adopt the [semantic HTML and focus conventions](ui.md#accessibility).
+- [x] Run the full local validation set and the [pilot walkthrough](../journeys.md#pilot-walkthrough), including moderation and configuration journeys, on the release candidate. Local browser journeys use isolated authenticated fixtures; real Discord consent remains in #10.
+- [x] Record local validation, accessibility and restoration evidence against [first-release acceptance](../requirements.md#first-release-acceptance). See the [results and verification limits](release-acceptance.md). Complete the final deployed checks and retention process in #10 before a public pilot.
 
 ## 10. Complete final deployment and retention checks
 

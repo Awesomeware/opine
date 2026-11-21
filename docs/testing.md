@@ -64,15 +64,15 @@ The [restoration evidence](deployment.md#restoration-evidence) also records a su
 
 Migration checks share a small test-only helper for temporary database lifecycle and applying migration ranges; each test keeps its SQL setup and assertions visible. They apply the committed authentication and feedback schema to fresh databases. The contribution-type upgrade test also creates a temporary database inside the existing feedback suite container, applies migrations through the untyped-comment schema, seeds an old comment and receipt, then applies the new migration. It verifies the historical migration preserves the original content and receipt and sets the new type to NULL, then drops that temporary database. A separate current-upgrade check verifies receipt removal retains posts, comments, follows and cooldown timestamps. The official-workflow upgrade test similarly verifies existing posts and comments retain their text, versions, and follows while receiving the initial workflow version. No extra container or development database is used. Auth tests use a small feature-owned `createMember` factory that creates genuine database identities and signed sessions; it is guarded against use outside the isolated test database. Browser tests do not require real Discord credentials or introduce a test-only login endpoint. A real Discord consent round trip remains a deployment check; see [Authentication](authentication.md). CI remains deferred.
 
-## Remaining release verification
+## Accessibility and release verification
 
-The checks below are planned release work, not completed coverage. Track them in [steps 9–10](TODO.md#9-verify-release-acceptance):
+The application suite includes [accessibility journeys](../tests/e2e/accessibility.e2e.ts) for semantic landmarks, keyboard navigation, focus after route/editor/moderation changes, field descriptions, required controls, retained invalid input and a narrow moderation view. Related feature tests cover keyboard pagination and sign-out. Storybook checks native controls, associated errors, labels and status presentation. Keep these in the existing suites; accessibility does not need a separate database container.
 
-- Accessibility: keyboard navigation, accessible names, focus, contrast, form errors and status identification across the release journeys, plus basic narrow-screen readability.
-- Deployment: a real Discord consent/sign-in, session reload and sign-out on the configured HTTPS origin, and operational errors that do not disclose private data.
-- Recovery: repeat the documented restoration drill for the release installation and retain its evidence. The local restoration check above is complete; restart checks alone do not prove recovery.
+The [local acceptance record](release-acceptance.md) maps the pilot journeys to test evidence and records accessibility findings, contrast measurements and limitations. Follow the [UI conventions](ui.md#accessibility) when adding or changing interfaces. Automated scans complement keyboard/visual checks and require review of findings; they are not proof of complete accessibility.
 
-Run the full local checks and [pilot walkthrough](../journeys.md#pilot-walkthrough) on the release candidate and record the results. CI remains deferred; these checks still gate the public pilot.
+Remaining deployed verification is tracked in [step 10](TODO.md#10-complete-final-deployment-and-retention-checks): real Discord consent/sign-in, session reload and sign-out on the HTTPS origin, private operational error reporting, and the operator retention process. Repeat the documented restoration drill for the release installation and retain its evidence; the completed local check and restart checks do not validate that installation.
+
+Run the full local checks and [pilot walkthrough](../journeys.md#pilot-walkthrough) for subsequent release candidates and update the record. CI remains deferred.
 
 ## Adding tests
 

@@ -31,6 +31,8 @@ For general discussion, visit [our community](https://example.com/community).
 
 The rules file must contain nonempty text. The server uses [markdown-it](https://github.com/markdown-it/markdown-it) to render headings, lists, emphasis, links, code blocks and images. Raw HTML is disabled and the renderer's default URL filtering remains enabled. This Markdown support applies to installation rules; feedback posts and comments remain plain text.
 
+The page supplies the `h1` (“Community rules”); start sections with `##` and keep heading levels in order. Use descriptive link text and meaningful alternative text for informative images so the configured content remains accessible.
+
 The public `GET /api/community` endpoint returns only the name, URL and rendered rules HTML. Extra JSON keys and raw configuration files are not exposed. Missing files, malformed JSON or invalid settings fail server startup with a configuration error; there is no environment-variable fallback.
 
 ## Apply settings

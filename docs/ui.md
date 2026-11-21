@@ -84,6 +84,20 @@ Root `app/assets/css/main.css` owns application page/form layout. Shared native 
 
 `FeedbackTagPicker` uses native checkboxes with no default selection. It can retain disabled tags already assigned to a post and expose unavailable saved selections for removal. `FeedbackTags` renders non-interactive public labels; these are distinct from status badges and discussion filters. Both accept data through props and have isolated stories.
 
+## Accessibility
+
+Use native HTML first. Follow the [W3C page structure](https://www.w3.org/WAI/tutorials/page-structure/regions/) and [forms guidance](https://www.w3.org/WAI/tutorials/forms/labels/):
+
+- Each page has one `<main id="main-content" tabindex="-1">`, a descriptive title, and an `h1`. Keep heading levels meaningful within sections. The shell owns the header, footer, labeled navigation, English document language and first-focusable skip link. Use real links for navigation and buttons for actions; never make a clickable `div` imitate a button.
+- Use explicit labels, native `required` attributes, and `fieldset`/`legend` for related choices. Associate help and errors through `aria-describedby`; set `aria-invalid` when validation fails. Keep entered values after validation errors and focus the error summary or invalid field. Custom validation forms use `novalidate` so the application can present its complete error summary.
+- Keep native keyboard behavior and visible focus. Do not add positive `tabindex` values. Open inline editors at their primary input and return focus when they close. If a refreshed list removes the focused row, move focus to a stable nearby heading or filter. `UiButton` and `UiNotice` expose `focus()` for this purpose; components own focus, not API composables.
+- On a pathname change, focus the new main content after rendering. Query/filter changes retain focus on the initiating control. Keep `NuxtRouteAnnouncer` for page-title announcements; it does not move focus. See [Nuxt accessibility](https://nuxt.com/docs/4.x/guide/best-practices/accessibility).
+- Prefer native `details`/`summary` for disclosures. Custom disclosure buttons expose `aria-expanded` and `aria-controls`. The archive confirmation is inline content, not a modal dialog: preserve normal tab order and return focus on cancellation.
+- Use `role="status"` for concise asynchronous progress/results and `role="alert"` for errors requiring attention. Do not make whole discussions live regions. Keep visual labels for status, official responses and selected actions; color and decorative icons alone cannot convey those states. Filter/reaction buttons use `aria-pressed`; native radios and checkboxes expose their own state.
+- Check normal text at 4.5:1 contrast, essential control boundaries and focus indicators at 3:1 against adjacent colors. Decorative separators need not identify a control. Preserve simple reflow without page-level horizontal scrolling at narrow widths. See [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html) and [non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html).
+
+Use existing Storybook controls and application Playwright journeys to verify semantics and keyboard behavior. Automated audits supplement those checks; they do not establish usability with every screen reader or certify WCAG conformance. Record scope and manual interpretations in [release acceptance](release-acceptance.md).
+
 ## Vue component readability
 
 Separate imports, props/events, related state, effects, and functions with blank lines. Keep dependent state close to its use rather than enforcing a rigid file-wide ordering. Use braces around nested control flow, named event handlers for coordination, and short intent comments where the reason is not evident from the code. Reusable composables document their lifetime and guarantees.
