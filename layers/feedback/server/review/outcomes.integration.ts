@@ -462,9 +462,13 @@ test('discussion pages use one snapshot when publication commits between source 
     await writer.query('begin')
     // Let the comment SELECT finish, then hold the response SELECT at the table lock.
     await writer.query('lock table feedback_official_response in access exclusive mode')
+    // Prime the statistics cache before the reader starts, exercising refresh on polling.
+    await writer.query('select pid from pg_stat_activity')
     pending = listDiscussion(post.id, { limit: 1 })
     const deadline = Date.now() + 4000
     while (true) {
+      // Activity is cached for this transaction, even as other sessions advance.
+      await writer.query('select pg_stat_clear_snapshot()')
       const waiting = await writer.query(`select 1 from pg_stat_activity
         where datname = current_database() and pid <> pg_backend_pid()
           and wait_event_type = 'Lock' and query like '%feedback_official_response%'
