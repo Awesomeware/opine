@@ -50,15 +50,15 @@ Cross-capability endpoints are implemented in `server/review/`, `server/discussi
 
 `shared/review/input.ts` validates official response and category commands; `shared/subscriptions/input.ts` validates follow and read commands. All new lists default to 20 and cap HTTP page sizes at 50. Direct official links use `?response=<id>#response-<id>` and resolve independently of discussion filters.
 
-All writes require a member session, the configured origin, and a UUID idempotency key. Viewer-aware reads are `no-store`; public projections expose `canEdit` rather than user IDs. Input validators live in `shared/discussion/input.ts`; `shared/discussion/contribution-types.ts` owns type values, labels, and prompts. The page uses `?contribution=<type>` for its filter and a separate `comment` query parameter for a direct link. A linked contribution outside the selected filter is resolved independently and labelled accordingly. HTTP entrypoints use `server/http.ts`; post/comment editing use cases enforce ownership in their respective capability. `server/writes.ts` owns the common transaction and receipt logic.
+All writes require a member session, the configured origin, and a UUID idempotency key. Viewer-aware reads are `no-store`; public projections expose `canEdit` rather than user IDs. Input validators live in `shared/discussion/input.ts`; `shared/discussion/contribution-types.ts` owns type values, labels, and prompts. The page uses `?contribution=<type>` for its filter and a separate `comment` query parameter for a direct link. A linked contribution outside the selected filter is resolved independently and labelled accordingly. HTTP entrypoints use `server/http.ts`; post/comment editing use cases enforce ownership in their respective capability. `server/write-repository.ts` owns common write serialization, receipt and rate-limit operations; each use case owns its transaction explicitly.
 
 ## Cross-capability operations
 
 - Posts expose `server/posts/workflow.ts` for post locking and workflow persistence. `updatePostWorkflow` requires the caller's transaction, post lock, and checked workflow version.
 - Subscriptions expose `followPost(transaction, postId, userId)` from `server/subscriptions/following.ts` and `notifyFollowers(transaction, postId, responseId, createdAt)` from `server/subscriptions/notifications.ts`. They participate in creation/publication rather than opening their own transaction.
-- Review owns publication and category-correction coordination. Discussion owns the combined feed; cross-capability read projections may reference the shared schema explicitly.
+- Review owns publication and category-correction coordination. The HTTP boundary validates the request and requires the appropriate role before invoking review or tag operations; use cases do not recheck roles mid-write. Discussion owns the combined feed; cross-capability read projections may reference the shared schema explicitly.
 
-These helpers are internal persistence contracts, not alternative HTTP commands. Keep their preconditions in the owning use case. See [multi-capability transactions](../../docs/architecture.md#operations-spanning-capabilities) for the canonical rules.
+These helpers are internal persistence contracts, not alternative HTTP commands. Protected read projections such as the review queue and category history likewise require authorization at their HTTP entrypoint. Keep their preconditions in the owning use case. See [multi-capability transactions](../../docs/architecture.md#operations-spanning-capabilities) for the canonical rules.
 
 ## Domain rules
 

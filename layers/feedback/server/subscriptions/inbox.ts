@@ -2,7 +2,8 @@ import { and, count, desc, eq, isNull, lt, or } from 'drizzle-orm'
 import { getDatabase } from '../../../../server/db/index.ts'
 import { cursorFor, type PostCursor } from '../list-input.ts'
 import { feedbackNotification, feedbackOfficialResponse, feedbackPost } from '../schema.ts'
-import { feedbackWrite, FeedbackWriteError } from '../writes.ts'
+import { findWriteReceipt, lockActorWrites, saveWriteReceipt } from '../write-repository.ts'
+import { FeedbackWriteError } from '../writes.ts'
 
 type Pagination = { cursor?: PostCursor; limit?: number }
 
@@ -64,24 +65,29 @@ export async function markNotificationRead(
     eq(feedbackNotification.id, notificationId),
     eq(feedbackNotification.userId, actorId),
   )
-  return feedbackWrite(
-    actorId,
-    requestId,
-    'read-notification',
-    { notificationId },
-    async (transaction) => {
-      const [notification] = await transaction
-        .select({ id: feedbackNotification.id })
-        .from(feedbackNotification)
-        .where(where)
-      if (!notification) throw new FeedbackWriteError(404, 'Notification not found.')
-    },
-    async (transaction) => {
-      await transaction
-        .update(feedbackNotification)
-        .set({ readAt: new Date() })
-        .where(and(where, isNull(feedbackNotification.readAt)))
-      return { id: notificationId }
-    },
-  )
+  return getDatabase().transaction(async (transaction) => {
+    const request = {
+      actorId,
+      requestId,
+      operation: 'read-notification',
+      input: { notificationId },
+    }
+
+    await lockActorWrites(transaction, actorId)
+    const [notification] = await transaction
+      .select({ id: feedbackNotification.id })
+      .from(feedbackNotification)
+      .where(where)
+    if (!notification) throw new FeedbackWriteError(404, 'Notification not found.')
+
+    const receipt = await findWriteReceipt(transaction, request)
+    if (receipt) return receipt
+
+    await transaction
+      .update(feedbackNotification)
+      .set({ readAt: new Date() })
+      .where(and(where, isNull(feedbackNotification.readAt)))
+
+    return saveWriteReceipt(transaction, request, { id: notificationId })
+  })
 }

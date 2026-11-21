@@ -42,17 +42,23 @@ async function setup() {
   }
   return { member, admin, input }
 }
-test('migration seeds optional defaults and tag administration enforces roles, names, versions and replay', async () => {
-  const { member, admin } = await setup()
+test('migration seeds optional defaults and tag administration enforces names, versions and replay', async () => {
+  const { admin } = await setup()
   const tags = await listTags()
   for (const tag of defaultFeedbackTags)
     assert.ok(tags.some((row) => row.id === tag.id && row.name === tag.name))
-  await assert.rejects(createTag(member.user.id, { name: 'New' }, randomUUID()), status(403))
   const key = randomUUID()
   const created = await createTag(admin.user.id, { name: 'New' }, key)
   assert.deepEqual(await createTag(admin.user.id, { name: 'New' }, key), created)
   await assert.rejects(createTag(admin.user.id, { name: 'new' }, randomUUID()), status(409))
   await assert.rejects(createTag(admin.user.id, { name: 'Other' }, key), status(409))
+  const unchanged = { name: 'New', isActive: true, version: 1 }
+  const unchangedKey = randomUUID()
+  assert.deepEqual(await updateTag(admin.user.id, created.id, unchanged, unchangedKey), created)
+  await assert.rejects(
+    updateTag(admin.user.id, created.id, { ...unchanged, name: 'Different' }, unchangedKey),
+    status(409),
+  )
   await updateTag(
     admin.user.id,
     created.id,
@@ -63,8 +69,10 @@ test('migration seeds optional defaults and tag administration enforces roles, n
     updateTag(admin.user.id, created.id, { name: 'Old', isActive: true, version: 1 }, randomUUID()),
     status(409),
   )
+  assert.deepEqual(await updateTag(admin.user.id, created.id, unchanged, unchangedKey), created)
   await setUserRole(admin.user.id, 'administrator', false)
-  await assert.rejects(createTag(admin.user.id, { name: 'New' }, key), status(403))
+  // Role authorization belongs to the request boundary, including replay requests.
+  assert.deepEqual(await createTag(admin.user.id, { name: 'New' }, key), created)
 })
 test('optional tag sets save atomically with text, retain disabled assignments, clear explicitly and preserve omission', async () => {
   const { member, admin, input } = await setup()

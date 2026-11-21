@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 import { eq, inArray } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
+import { setUserRole } from '../../../auth/server/roles.ts'
 import { feedbackCategory, feedbackPost, feedbackTag } from '../../server/schema.ts'
 import { createCategory } from '../fixtures.ts'
 
@@ -341,6 +342,22 @@ test('a confirmed tag edit survives catalog refresh failure without repeating th
     expect(updated).toMatchObject({ name: names[2], version: 3 })
   } finally {
     await database.delete(feedbackTag).where(inArray(feedbackTag.name, names))
+    await admin.cleanup()
+  }
+})
+
+test('tag retries authorize again after administrator access is revoked', async ({ request }) => {
+  const admin = await createMember({ roles: ['administrator'] })
+  const name = `Role retry ${randomUUID().slice(0, 8)}`
+  try {
+    const options = { headers: headers(admin.cookieHeader), data: { name } }
+    expect((await request.post('/api/feedback/tags', options)).status()).toBe(201)
+    await setUserRole(admin.user.id, 'administrator', false)
+    expect((await request.post('/api/feedback/tags', options)).status()).toBe(403)
+    // Input validation precedes authentication, even for an unauthenticated caller.
+    expect((await request.post('/api/feedback/tags', { data: { name: '' } })).status()).toBe(400)
+  } finally {
+    await getDatabase().delete(feedbackTag).where(eq(feedbackTag.name, name))
     await admin.cleanup()
   }
 })

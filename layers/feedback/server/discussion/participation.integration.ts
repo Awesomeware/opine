@@ -158,11 +158,20 @@ test('comment edits enforce ownership and versions without retaining original te
     editComment(author.user.id, post.id, created.id, unchanged, randomUUID()),
     status(403),
   )
-  await editComment(commenter.user.id, post.id, created.id, unchanged, randomUUID())
+  const unchangedKey = randomUUID()
+  await editComment(commenter.user.id, post.id, created.id, unchanged, unchangedKey)
   assert.equal((await getComment(post.id, created.id))?.editedAt, null)
   const requestId = randomUUID()
   const input = { body: 'Updated comment', version: 1 }
+  await assert.rejects(
+    editComment(commenter.user.id, post.id, created.id, input, unchangedKey),
+    status(409),
+  )
   const saved = await editComment(commenter.user.id, post.id, created.id, input, requestId)
+  assert.deepEqual(
+    await editComment(commenter.user.id, post.id, created.id, unchanged, unchangedKey),
+    { id: created.id, version: 1 },
+  )
   assert.equal(saved.version, 2)
   assert.deepEqual(
     await editComment(commenter.user.id, post.id, created.id, input, requestId),

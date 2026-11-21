@@ -62,7 +62,7 @@ const response = await fetch('/api/access/roles', {
 console.log(response.status, await response.json())
 ```
 
-The browser sends the session cookie and same-origin `Origin` header. Success returns `200` with `{ "success": true }`; visitors receive `401`, non-administrators or invalid origins `403`, invalid input `400`, and unknown target IDs `404`. Role changes recheck the caller's administrator role inside the mutation transaction, after locking the actor and target identities in a consistent order. A request delayed before this check is denied if revocation has already committed, even when its session remains valid. If the role change acquires the locks first, it completes before the revocation. The operator CLI locks its target identity so it participates in the same ordering.
+The browser sends the session cookie and same-origin `Origin` header. Success returns `200` with `{ "success": true }`; visitors receive `401`, non-administrators or invalid origins `403`, invalid input `400`, and unknown target IDs `404`. The endpoint reads and validates the request body before checking the session and administrator role. Authorization applies to that request: once authorized it may finish even if the actor's role is subsequently revoked; later requests must pass a fresh check. Role mutation itself does not recheck the caller or lock identities to coordinate revocation. The operator CLI invokes the same persistence operation using its database credentials.
 
 ## Sign-in rate limits
 

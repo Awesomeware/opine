@@ -8,7 +8,7 @@ import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
 import { createMember } from '../tests/fixtures.ts'
 import { createAuth } from './auth.ts'
 import { account, rateLimit, session, user, verification } from './schema.ts'
-import { getUserRoles, setUserRole, setUserRoleAsAdministrator } from './roles.ts'
+import { getUserRoles, setUserRole } from './roles.ts'
 
 assert.ok(process.env.OPINE_TEST_DATABASE_URL, 'Run with pnpm test:integration.')
 assert.equal(process.env.DATABASE_URL, process.env.OPINE_TEST_DATABASE_URL)
@@ -221,31 +221,4 @@ test('HTTP social sign-in rate limit returns 429 after the configured allowance'
   )
   assert.equal(response.status, 429)
   assert.ok(Number(response.headers.get('x-retry-after')) > 0)
-})
-
-test('authenticated role changes reject revoked administrators and safely serialize cross-administrator grants', async () => {
-  const first = await createMember({ roles: ['administrator'] })
-  const second = await createMember({ roles: ['administrator'] })
-  assert.deepEqual(
-    await Promise.all([
-      setUserRoleAsAdministrator(first.user.id, second.user.id, 'community-manager', true),
-      setUserRoleAsAdministrator(second.user.id, first.user.id, 'community-manager', true),
-    ]),
-    ['updated', 'updated'],
-  )
-  assert.equal(
-    await setUserRoleAsAdministrator(first.user.id, 'missing-user', 'administrator', true),
-    'not-found',
-  )
-  await setUserRole(first.user.id, 'administrator', false)
-  assert.equal(
-    await setUserRoleAsAdministrator(first.user.id, first.user.id, 'administrator', true),
-    'forbidden',
-  )
-  assert.deepEqual(await getUserRoles(first.user.id), ['member', 'community-manager'])
-  assert.equal(
-    await setUserRoleAsAdministrator(second.user.id, second.user.id, 'administrator', false),
-    'updated',
-  )
-  assert.deepEqual(await getUserRoles(second.user.id), ['member', 'community-manager'])
 })

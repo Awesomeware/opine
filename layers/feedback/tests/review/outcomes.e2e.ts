@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { Client } from 'pg'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
@@ -426,5 +427,59 @@ test('official response retries after a lost reply and conflict review preserve 
     await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await cm.cleanup()
     await otherCm.cleanup()
+  }
+})
+
+test('an authorized publication can finish after revocation but its retry must authorize again', async ({
+  request,
+}) => {
+  const manager = await createMember({ roles: ['community-manager'] })
+  const category = await createCategory()
+  const post = await createFeedbackPost({ authorId: manager.user.id, categoryId: category.id })
+  const blocker = new Client({ connectionString: process.env.OPINE_TEST_DATABASE_URL })
+  const observer = new Client({ connectionString: process.env.OPINE_TEST_DATABASE_URL })
+  await blocker.connect()
+  await observer.connect()
+  let pending: ReturnType<typeof request.post> | undefined
+  try {
+    await blocker.query('begin')
+    const { rows } = await blocker.query('select pg_backend_pid() as pid')
+    await blocker.query('select id from auth_user where id = $1 for no key update', [
+      manager.user.id,
+    ])
+    const options = {
+      headers: headers(manager.cookieHeader),
+      data: { body: 'Authorized before access was revoked.', status: 'planned', version: 1 },
+    }
+    const endpoint = `/api/feedback/posts/${post.id}/responses`
+    pending = request.post(endpoint, options)
+    // The writer has passed the HTTP boundary and is waiting to serialize its mutation.
+    await expect
+      .poll(async () => {
+        const waiting = await observer.query(
+          'select 1 from pg_stat_activity where $1::integer = any(pg_blocking_pids(pid))',
+          [rows[0].pid],
+        )
+        return waiting.rowCount
+      })
+      .toBeGreaterThan(0)
+    await observer.query('delete from auth_user_role where user_id = $1 and role = $2', [
+      manager.user.id,
+      'community-manager',
+    ])
+    await blocker.query('commit')
+    expect((await pending).status()).toBe(201)
+    expect((await request.post(endpoint, options)).status()).toBe(403)
+  } finally {
+    await blocker.query('rollback')
+    await pending?.catch(() => {})
+    await blocker.end()
+    await observer.end()
+    await getDatabase()
+      .delete(feedbackOfficialResponse)
+      .where(eq(feedbackOfficialResponse.postId, post.id))
+    await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await manager.cleanup()
   }
 })

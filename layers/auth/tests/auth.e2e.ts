@@ -1,5 +1,4 @@
 import { request as httpRequest } from 'node:http'
-import { Client } from 'pg'
 import { expect, test } from '@playwright/test'
 import { closeDatabase } from '../../../server/db/index.ts'
 import { createMember } from './fixtures.ts'
@@ -101,6 +100,9 @@ test('only administrators manage roles, with current grants and same-origin requ
       const response = await request.post('/api/access/roles', { headers, data: invalid })
       expect(response.status()).toBe(400)
     }
+    expect(
+      (await request.post('/api/access/roles', { data: { ...data, action: 'delete' } })).status(),
+    ).toBe(400)
     const unknown = await request.post('/api/access/roles', {
       headers,
       data: { ...data, userId: 'missing-user' },
@@ -146,10 +148,8 @@ test('forged IP headers cannot bypass the sign-in limit', async ({ request }) =>
   expect(status).toBe(429)
 })
 
-test('a revoked administrator cannot restore their role through a delayed request body', async () => {
+test('role requests authorize only after the complete body is parsed', async () => {
   const administrator = await createMember({ roles: ['administrator'] })
-  const observer = new Client({ connectionString: process.env.OPINE_TEST_DATABASE_URL })
-  await observer.connect()
   const origin = process.env.BETTER_AUTH_URL!
   const body = JSON.stringify({
     userId: administrator.user.id,
@@ -159,7 +159,6 @@ test('a revoked administrator cannot restore their role through a delayed reques
   let request: ReturnType<typeof httpRequest> | undefined
   let reply: Promise<number> | undefined
   try {
-    const started = new Date()
     reply = new Promise<number>((resolve, reject) => {
       request = httpRequest(
         `${origin}/api/access/roles`,
@@ -180,19 +179,6 @@ test('a revoked administrator cannot restore their role through a delayed reques
       request.once('error', reject)
       request.write(body.slice(0, -1))
     })
-    // Observe the completed authorization lookup rather than relying on a timing sleep.
-    await expect
-      .poll(async () => {
-        const result = await observer.query(
-          `select 1 from pg_stat_activity
-        where datname = current_database() and pid <> pg_backend_pid()
-          and query_start >= $1 and state = 'idle'
-          and query like 'select%' and query like '%auth_user_role%'`,
-          [started],
-        )
-        return result.rowCount
-      })
-      .toBeGreaterThan(0)
     await setUserRole(administrator.user.id, 'administrator', false)
     request!.end(body.slice(-1))
     expect(await reply).toBe(403)
@@ -200,7 +186,6 @@ test('a revoked administrator cannot restore their role through a delayed reques
   } finally {
     request?.destroy()
     await reply?.catch(() => {})
-    await observer.end()
     await administrator.cleanup()
   }
 })

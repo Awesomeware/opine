@@ -3,10 +3,12 @@ import { getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import type { CategoryCorrectionInput } from '../../shared/review/input.ts'
 import { cursorFor, type PostCursor } from '../list-input.ts'
+import { findActiveCategory } from '../posts/categories.ts'
 import { lockPost, updatePostWorkflow } from '../posts/workflow.ts'
-import { feedbackCategory, feedbackCategoryChange } from '../schema.ts'
-import { feedbackWrite, FeedbackWriteError } from '../writes.ts'
-import { checkWorkflowVersion, requireManager } from './guards.ts'
+import { feedbackCategoryChange } from '../schema.ts'
+import { findWriteReceipt, lockActorWrites, saveWriteReceipt } from '../write-repository.ts'
+import { FeedbackWriteError } from '../writes.ts'
+import { checkWorkflowVersion } from './guards.ts'
 
 type Pagination = { cursor?: PostCursor; limit?: number }
 
@@ -16,42 +18,42 @@ export async function correctCategory(
   input: CategoryCorrectionInput,
   requestId: string,
 ) {
-  return feedbackWrite(
-    actorId,
-    requestId,
-    'correct-category',
-    { postId, ...input },
-    (transaction) => requireManager(actorId, transaction),
-    async (transaction) => {
-      const post = await lockPost(transaction, postId)
-      checkWorkflowVersion(post.workflowVersion, input.version)
-      const [category] = await transaction
-        .select({ id: feedbackCategory.id })
-        .from(feedbackCategory)
-        .where(and(eq(feedbackCategory.id, input.categoryId), eq(feedbackCategory.isActive, true)))
-        .for('share')
-      if (!category) throw new FeedbackWriteError(400, 'Choose an active category.')
-      if (post.categoryId === input.categoryId) return { id: postId, version: post.workflowVersion }
-      await transaction.insert(feedbackCategoryChange).values({
-        postId,
-        actorId,
-        previousCategoryId: post.categoryId,
-        categoryId: input.categoryId,
-      })
-      await updatePostWorkflow(transaction, postId, post.workflowVersion + 1, {
-        categoryId: input.categoryId,
-      })
-      return { id: postId, version: post.workflowVersion + 1 }
-    },
-  )
+  return getDatabase().transaction(async (transaction) => {
+    const request = {
+      actorId,
+      requestId,
+      operation: 'correct-category',
+      input: { postId, ...input },
+    }
+
+    await lockActorWrites(transaction, actorId)
+
+    const receipt = await findWriteReceipt<{ id: string; version: number }>(transaction, request)
+    if (receipt) return receipt
+
+    const post = await lockPost(transaction, postId)
+    checkWorkflowVersion(post.workflowVersion, input.version)
+
+    const category = await findActiveCategory(transaction, input.categoryId)
+    if (!category) throw new FeedbackWriteError(400, 'Choose an active category.')
+    if (post.categoryId === input.categoryId) {
+      return saveWriteReceipt(transaction, request, { id: postId, version: post.workflowVersion })
+    }
+    await transaction.insert(feedbackCategoryChange).values({
+      postId,
+      actorId,
+      previousCategoryId: post.categoryId,
+      categoryId: input.categoryId,
+    })
+    await updatePostWorkflow(transaction, postId, post.workflowVersion + 1, {
+      categoryId: input.categoryId,
+    })
+
+    return saveWriteReceipt(transaction, request, { id: postId, version: post.workflowVersion + 1 })
+  })
 }
 
-export async function listCategoryHistory(
-  actorId: string,
-  postId: string,
-  { cursor, limit = 20 }: Pagination = {},
-) {
-  await requireManager(actorId)
+export async function listCategoryHistory(postId: string, { cursor, limit = 20 }: Pagination = {}) {
   const t = feedbackCategoryChange
   const rows = await getDatabase()
     .select({

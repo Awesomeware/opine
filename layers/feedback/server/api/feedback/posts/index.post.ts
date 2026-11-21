@@ -3,7 +3,6 @@ import { createPost } from '../../../posts/creation.ts'
 import { feedbackActor, feedbackResponse } from '../../../http.ts'
 
 export default defineEventHandler(async (event) => {
-  const { actorId, requestId } = await feedbackActor(event)
   const parsed = validatePostInput(await readBody(event))
   if (!parsed.success)
     throw createError({
@@ -11,7 +10,8 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Check your feedback.',
       data: { fieldErrors: parsed.fieldErrors },
     })
-  const post = await feedbackResponse(event, () => createPost(actorId, parsed.data, requestId))
+  const { actorId, requestId } = await feedbackActor(event)
+  const post = await feedbackResponse(event, createPost(actorId, parsed.data, requestId))
   if (!post)
     throw createError({
       statusCode: 400,

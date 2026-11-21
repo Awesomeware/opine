@@ -1,6 +1,13 @@
 import { and, eq } from 'drizzle-orm'
+import { getDatabase } from '../../../../server/db/index.ts'
 import { feedbackFollow, feedbackPost } from '../schema.ts'
-import { feedbackWrite, FeedbackWriteError, type FeedbackTransaction } from '../writes.ts'
+import {
+  enforceWriteRate,
+  findWriteReceipt,
+  lockActorWrites,
+  saveWriteReceipt,
+} from '../write-repository.ts'
+import { FeedbackWriteError, type FeedbackTransaction } from '../writes.ts'
 
 export async function setFollowing(
   actorId: string,
@@ -8,29 +15,32 @@ export async function setFollowing(
   following: boolean,
   requestId: string,
 ) {
-  return feedbackWrite(
-    actorId,
-    requestId,
-    'set-following',
-    { postId, following },
-    async (transaction) => {
-      const [post] = await transaction
-        .select({ id: feedbackPost.id })
-        .from(feedbackPost)
-        .where(eq(feedbackPost.id, postId))
-        .for('no key update')
-      if (!post) throw new FeedbackWriteError(404, 'Feedback not found.')
-    },
-    async (transaction) => {
-      if (following) await followPost(transaction, postId, actorId)
-      else
-        await transaction
-          .delete(feedbackFollow)
-          .where(and(eq(feedbackFollow.postId, postId), eq(feedbackFollow.userId, actorId)))
-      return { id: postId }
-    },
-    { env: 'FEEDBACK_FOLLOW_MAX', fallback: 30 },
-  )
+  return getDatabase().transaction(async (transaction) => {
+    const request = { actorId, requestId, operation: 'set-following', input: { postId, following } }
+
+    await lockActorWrites(transaction, actorId)
+    const [post] = await transaction
+      .select({ id: feedbackPost.id })
+      .from(feedbackPost)
+      .where(eq(feedbackPost.id, postId))
+      .for('no key update')
+    if (!post) throw new FeedbackWriteError(404, 'Feedback not found.')
+
+    const receipt = await findWriteReceipt(transaction, request)
+    if (receipt) return receipt
+
+    await enforceWriteRate(transaction, request, { env: 'FEEDBACK_FOLLOW_MAX', fallback: 30 })
+
+    if (following) {
+      await followPost(transaction, postId, actorId)
+    } else {
+      await transaction
+        .delete(feedbackFollow)
+        .where(and(eq(feedbackFollow.postId, postId), eq(feedbackFollow.userId, actorId)))
+    }
+
+    return saveWriteReceipt(transaction, request, { id: postId })
+  })
 }
 
 // The owning use case supplies its transaction so post creation and following commit together.

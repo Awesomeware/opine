@@ -1,6 +1,7 @@
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import { getDatabase } from '../../../../server/db/index.ts'
 import { feedbackCategory } from '../schema.ts'
+import type { FeedbackTransaction } from '../writes.ts'
 
 export function listCategories() {
   return getDatabase()
@@ -45,4 +46,14 @@ export async function setCategoryActive(slug: string, isActive: boolean) {
     .where(eq(feedbackCategory.slug, slug))
     .returning({ id: feedbackCategory.id })
   return Boolean(category)
+}
+
+// The share lock keeps the category active until the caller commits its write.
+export async function findActiveCategory(transaction: FeedbackTransaction, categoryId: string) {
+  const [category] = await transaction
+    .select({ id: feedbackCategory.id })
+    .from(feedbackCategory)
+    .where(and(eq(feedbackCategory.id, categoryId), eq(feedbackCategory.isActive, true)))
+    .for('share')
+  return category
 }

@@ -10,21 +10,16 @@ import {
   feedbackOfficialResponse,
   feedbackPost,
 } from '../schema.ts'
-import { requireManager } from './guards.ts'
 
 type Pagination = { cursor?: PostCursor; limit?: number }
 
-export async function listReviewQueue(
-  actorId: string,
-  {
-    status = 'new',
-    category,
-    followUp,
-    cursor,
-    limit = 20,
-  }: Pagination & { status?: PostStatus | 'all'; category?: string; followUp?: boolean } = {},
-) {
-  await requireManager(actorId)
+export async function listReviewQueue({
+  status = 'new',
+  category,
+  followUp,
+  cursor,
+  limit = 20,
+}: Pagination & { status?: PostStatus | 'all'; category?: string; followUp?: boolean } = {}) {
   const t = feedbackPost
   const rows = await getDatabase()
     .select({

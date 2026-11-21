@@ -141,14 +141,9 @@ test('official publication atomically changes status and notifies each follower 
     status(409),
   )
   await setUserRole(manager.user.id, 'community-manager', false)
-  await assert.rejects(publishResponse(manager.user.id, post.id, input, key), status(403))
+  // The HTTP boundary authorizes requests; the use case only preserves the receipt.
+  assert.deepEqual(await publishResponse(manager.user.id, post.id, input, key), results[0])
   assert.equal((await getOutcome(post.id, manager.user.id))?.canRespond, false)
-  const administrator = await createMember({ roles: ['administrator'] })
-  await assert.rejects(
-    publishResponse(administrator.user.id, post.id, input, randomUUID()),
-    status(403),
-  )
-  await assert.rejects(publishResponse(author.user.id, post.id, input, randomUUID()), status(403))
   const publicResponse = await getOfficialResponse(post.id, results[0]!.id)
   assert.deepEqual(publicResponse?.author, { name: 'Community manager' })
   for (const privateValue of [manager.user.email, manager.user.id, manager.session.token])
@@ -250,10 +245,7 @@ test('workflow conflicts serialize managers while author edits and later respons
   assert.equal(current?.status, 'reviewing')
   assert.equal(current?.latestResponse?.id, later.id)
   assert.ok(current.latestResponse.createdAt.getTime() > priorCommentTime.getTime())
-  assert.equal(
-    (await listReviewQueue(manager.user.id, { status: 'all', followUp: true })).posts.length,
-    0,
-  )
+  assert.equal((await listReviewQueue({ status: 'all', followUp: true })).posts.length, 0)
   assert.equal(current?.latestResponse?.status, null)
   assert.equal(current?.statusResponse?.id, acknowledged?.statusResponse?.id)
   await createComment(
@@ -262,10 +254,7 @@ test('workflow conflicts serialize managers while author edits and later respons
     { body: 'Thank you for reviewing.', type: 'context' },
     randomUUID(),
   )
-  assert.equal(
-    (await listReviewQueue(manager.user.id, { status: 'all', followUp: true })).posts.length,
-    1,
-  )
+  assert.equal((await listReviewQueue({ status: 'all', followUp: true })).posts.length, 1)
   assert.equal((await getDatabase().select().from(feedbackNotification)).length, 4)
 })
 
@@ -354,13 +343,13 @@ test('the review queue defaults to oldest New posts and follow-up excludes manag
     categoryId: otherCategory.id,
     createdAt: new Date('2020-01-02'),
   })
-  const initial = await listReviewQueue(manager.user.id, { limit: 1 })
+  const initial = await listReviewQueue({ limit: 1 })
   assert.deepEqual(
     initial.posts.map((row) => row.id),
     [oldest.id],
   )
   assert.ok(initial.nextCursor)
-  const following = await listReviewQueue(manager.user.id, {
+  const following = await listReviewQueue({
     limit: 1,
     cursor: cursor(initial.nextCursor),
   })
@@ -369,14 +358,9 @@ test('the review queue defaults to oldest New posts and follow-up excludes manag
     [second.id],
   )
   assert.deepEqual(
-    (await listReviewQueue(manager.user.id, { category: otherCategory.slug })).posts.map(
-      (row) => row.id,
-    ),
+    (await listReviewQueue({ category: otherCategory.slug })).posts.map((row) => row.id),
     [second.id],
   )
-  await assert.rejects(listReviewQueue(author.user.id), status(403))
-  const administrator = await createMember({ roles: ['administrator'] })
-  await assert.rejects(listReviewQueue(administrator.user.id), status(403))
   await publishResponse(
     manager.user.id,
     oldest.id,
@@ -411,10 +395,7 @@ test('the review queue defaults to oldest New posts and follow-up excludes manag
       createdAt: new Date('2022-01-01'),
     },
   ])
-  assert.equal(
-    (await listReviewQueue(manager.user.id, { followUp: true, status: 'all' })).posts.length,
-    0,
-  )
+  assert.equal((await listReviewQueue({ followUp: true, status: 'all' })).posts.length, 0)
   await database.insert(feedbackComment).values({
     postId: oldest.id,
     authorId: author.user.id,
@@ -423,13 +404,11 @@ test('the review queue defaults to oldest New posts and follow-up excludes manag
     createdAt: new Date('2022-01-01'),
   })
   assert.deepEqual(
-    (await listReviewQueue(manager.user.id, { followUp: true, status: 'all' })).posts.map(
-      (row) => row.id,
-    ),
+    (await listReviewQueue({ followUp: true, status: 'all' })).posts.map((row) => row.id),
     [oldest.id],
   )
   assert.deepEqual(
-    (await listReviewQueue(manager.user.id, { status: 'reviewing' })).posts.map((row) => row.id),
+    (await listReviewQueue({ status: 'reviewing' })).posts.map((row) => row.id),
     [oldest.id],
   )
   await publishResponse(
@@ -438,20 +417,27 @@ test('the review queue defaults to oldest New posts and follow-up excludes manag
     { body: 'Answer to follow-up', version: 2 },
     randomUUID(),
   )
-  assert.equal(
-    (await listReviewQueue(manager.user.id, { followUp: true, status: 'all' })).posts.length,
-    0,
-  )
+  assert.equal((await listReviewQueue({ followUp: true, status: 'all' })).posts.length, 0)
 })
 
-test('category corrections are authorized, conflict-safe, audited once, and independent of author text edits', async () => {
-  const { author, manager, category, post } = await discussion()
+test('category corrections are conflict-safe, audited once, and independent of author text edits', async () => {
+  const { manager, category, post } = await discussion()
   const target = await createCategory()
   const input = { categoryId: target.id, version: 1 }
-  await assert.rejects(correctCategory(author.user.id, post.id, input, randomUUID()), status(403))
+  const unchanged = { categoryId: category.id, version: 1 }
+  const unchangedKey = randomUUID()
+  assert.deepEqual(await correctCategory(manager.user.id, post.id, unchanged, unchangedKey), {
+    id: post.id,
+    version: 1,
+  })
+  await assert.rejects(correctCategory(manager.user.id, post.id, input, unchangedKey), status(409))
   const key = randomUUID()
   const result = await correctCategory(manager.user.id, post.id, input, key)
   assert.deepEqual(await correctCategory(manager.user.id, post.id, input, key), result)
+  assert.deepEqual(await correctCategory(manager.user.id, post.id, unchanged, unchangedKey), {
+    id: post.id,
+    version: 1,
+  })
   const audit = await getDatabase().select().from(feedbackCategoryChange)
   assert.equal(audit.length, 1)
   assert.equal(audit[0]!.previousCategoryId, category.id)
@@ -467,7 +453,7 @@ test('category corrections are authorized, conflict-safe, audited once, and inde
     ),
     status(409),
   )
-  await assert.rejects(listCategoryHistory(author.user.id, post.id), status(403))
+  assert.equal((await listCategoryHistory(post.id)).changes.length, 1)
   const inactive = await createCategory({ isActive: false })
   await assert.rejects(
     correctCategory(

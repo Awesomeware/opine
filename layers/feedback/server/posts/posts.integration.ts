@@ -312,15 +312,21 @@ test('authors edit current post content only, unchanged saves do not mark edits,
     version: 1,
   }
   await assert.rejects(editPost(commenter.user.id, post.id, original, randomUUID()), status(403))
-  assert.deepEqual(await editPost(author.user.id, post.id, original, randomUUID()), {
+  const unchangedKey = randomUUID()
+  assert.deepEqual(await editPost(author.user.id, post.id, original, unchangedKey), {
     id: post.id,
     version: 1,
   })
   assert.equal((await getPost(post.id))?.editedAt, null)
   const input = { ...original, title: 'A clearer combat indicator' }
+  await assert.rejects(editPost(author.user.id, post.id, input, unchangedKey), status(409))
   const requestId = randomUUID()
   const updated = await editPost(author.user.id, post.id, input, requestId)
   assert.equal(updated.version, 2)
+  assert.deepEqual(await editPost(author.user.id, post.id, original, unchangedKey), {
+    id: post.id,
+    version: 1,
+  })
   assert.deepEqual(await editPost(author.user.id, post.id, input, requestId), updated)
   const current = await getPost(post.id, author.user.id)
   assert.ok(current?.editedAt)

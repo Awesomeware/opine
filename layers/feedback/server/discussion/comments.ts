@@ -6,7 +6,13 @@ import type { CommentEditInput, CommentInput } from '../../shared/discussion/inp
 import { cursorFor, type PostCursor } from '../list-input.ts'
 import { requirePost } from '../posts/workflow.ts'
 import { feedbackComment, feedbackOfficialResponse, feedbackPost } from '../schema.ts'
-import { feedbackWrite, FeedbackWriteError, type FeedbackTransaction } from '../writes.ts'
+import {
+  enforceWriteRate,
+  findWriteReceipt,
+  lockActorWrites,
+  saveWriteReceipt,
+} from '../write-repository.ts'
+import { FeedbackWriteError, type FeedbackTransaction } from '../writes.ts'
 
 export async function createComment(
   actorId: string,
@@ -14,28 +20,31 @@ export async function createComment(
   input: CommentInput,
   requestId: string,
 ) {
-  return feedbackWrite(
-    actorId,
-    requestId,
-    'create-comment',
-    { postId, ...input },
-    (transaction) => requirePost(transaction, postId),
-    async (transaction) => {
-      const [comment] = await transaction
-        .insert(feedbackComment)
-        .values({
-          postId,
-          authorId: actorId,
-          body: input.body,
-          type: input.type,
-          // A waiting transaction must appear after the response it follows.
-          createdAt: sql`greatest(clock_timestamp(), coalesce((select max(created_at) + interval '1 millisecond' from ${feedbackOfficialResponse} where post_id = ${postId}::uuid), clock_timestamp()))`,
-        })
-        .returning({ id: feedbackComment.id, version: feedbackComment.version })
-      return comment!
-    },
-    { env: 'FEEDBACK_COMMENT_MAX', fallback: 10 },
-  )
+  return getDatabase().transaction(async (transaction) => {
+    const request = { actorId, requestId, operation: 'create-comment', input: { postId, ...input } }
+
+    await lockActorWrites(transaction, actorId)
+    await requirePost(transaction, postId)
+
+    const receipt = await findWriteReceipt<{ id: string; version: number }>(transaction, request)
+    if (receipt) return receipt
+
+    await enforceWriteRate(transaction, request, { env: 'FEEDBACK_COMMENT_MAX', fallback: 10 })
+
+    const [comment] = await transaction
+      .insert(feedbackComment)
+      .values({
+        postId,
+        authorId: actorId,
+        body: input.body,
+        type: input.type,
+        // A waiting transaction must appear after the response it follows.
+        createdAt: sql`greatest(clock_timestamp(), coalesce((select max(created_at) + interval '1 millisecond' from ${feedbackOfficialResponse} where post_id = ${postId}::uuid), clock_timestamp()))`,
+      })
+      .returning({ id: feedbackComment.id, version: feedbackComment.version })
+
+    return saveWriteReceipt(transaction, request, comment!)
+  })
 }
 
 export async function editComment(
@@ -46,46 +55,55 @@ export async function editComment(
   requestId: string,
 ) {
   const where = and(eq(feedbackComment.postId, postId), eq(feedbackComment.id, commentId))
-  return feedbackWrite(
-    actorId,
-    requestId,
-    'edit-comment',
-    { postId, commentId, ...input },
-    async (transaction) => {
-      const [comment] = await transaction
-        .select({ authorId: feedbackComment.authorId })
-        .from(feedbackComment)
-        .where(where)
-      if (!comment) throw new FeedbackWriteError(404, 'Comment not found.')
-      if (comment.authorId !== actorId)
-        throw new FeedbackWriteError(403, 'Only the author can edit this comment.')
-    },
-    async (transaction) => {
-      const [comment] = await transaction.select().from(feedbackComment).where(where).for('update')
-      if (!comment) throw new FeedbackWriteError(404, 'Comment not found.')
-      if (comment.version !== input.version)
-        throw new FeedbackWriteError(
-          409,
-          'This comment has changed. Review the latest version before saving.',
-        )
-      const type = input.type ?? comment.type
-      if (comment.body === input.body && comment.type === type)
-        return { id: comment.id, version: comment.version }
-      const [updated] = await transaction
-        .update(feedbackComment)
-        .set({
-          body: input.body,
-          type,
-          version: comment.version + 1,
-          editedAt: new Date(),
-        })
-        .where(and(where, eq(feedbackComment.version, input.version)))
-        .returning({ id: feedbackComment.id, version: feedbackComment.version })
-      if (!updated) throw new FeedbackWriteError(409, 'This comment has changed.')
-      return updated
-    },
-    { env: 'FEEDBACK_EDIT_MAX', fallback: 20 },
-  )
+  return getDatabase().transaction(async (transaction) => {
+    const request = {
+      actorId,
+      requestId,
+      operation: 'edit-comment',
+      input: { postId, commentId, ...input },
+    }
+
+    await lockActorWrites(transaction, actorId)
+    const [ownedComment] = await transaction
+      .select({ authorId: feedbackComment.authorId })
+      .from(feedbackComment)
+      .where(where)
+    if (!ownedComment) throw new FeedbackWriteError(404, 'Comment not found.')
+    if (ownedComment.authorId !== actorId) {
+      throw new FeedbackWriteError(403, 'Only the author can edit this comment.')
+    }
+
+    const receipt = await findWriteReceipt<{ id: string; version: number }>(transaction, request)
+    if (receipt) return receipt
+
+    await enforceWriteRate(transaction, request, { env: 'FEEDBACK_EDIT_MAX', fallback: 20 })
+
+    const [comment] = await transaction.select().from(feedbackComment).where(where).for('update')
+    if (!comment) throw new FeedbackWriteError(404, 'Comment not found.')
+    if (comment.version !== input.version) {
+      throw new FeedbackWriteError(
+        409,
+        'This comment has changed. Review the latest version before saving.',
+      )
+    }
+    const type = input.type ?? comment.type
+    if (comment.body === input.body && comment.type === type) {
+      return saveWriteReceipt(transaction, request, { id: comment.id, version: comment.version })
+    }
+    const [updated] = await transaction
+      .update(feedbackComment)
+      .set({
+        body: input.body,
+        type,
+        version: comment.version + 1,
+        editedAt: new Date(),
+      })
+      .where(and(where, eq(feedbackComment.version, input.version)))
+      .returning({ id: feedbackComment.id, version: feedbackComment.version })
+    if (!updated) throw new FeedbackWriteError(409, 'This comment has changed.')
+
+    return saveWriteReceipt(transaction, request, updated)
+  })
 }
 
 function commentFields(viewerId?: string) {
