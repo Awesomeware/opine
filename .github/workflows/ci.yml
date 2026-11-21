@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main, railway]
+  pull_request:
+    branches: [main, railway]
+
+permissions:
+  contents: read
+
+# Railway waits for the entire workflow. Do not skip checks or cancel older runs.
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      NUXT_TELEMETRY_DISABLED: '1'
+      OPINE_TEST_SUITE_CONCURRENCY: '2'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - uses: pnpm/action-setup@v6
+        with:
+          cache: true
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install browser and system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Check application types
+        run: pnpm typecheck
+
+      - name: Check component and story types
+        run: pnpm storybook:typecheck
+
+      - name: Check migration history
+        run: pnpm db:check
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Database integration tests
+        run: pnpm test:integration
+
+      - name: Production build and browser journeys
+        run: pnpm test:e2e
+
+      - name: Storybook build and component tests
+        run: pnpm test:ui
+
+      - name: Build deployment image
+        run: docker build --tag opine:ci .
+
+      - name: Smoke test deployment image
+        run: bash scripts/test-deployment.sh opine:ci

@@ -1,0 +1,31 @@
+# Only application inputs enter the build context; local secrets and outputs do not.
+**
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!nuxt.config.ts
+!tsconfig.json
+!drizzle.config.ts
+!app/
+!app/**
+!layers/
+!layers/**
+!server/
+!server/**
+!shared/
+!shared/**
+!public/
+!public/**
+!config/
+!config/**
+!drizzle/
+!drizzle/**
+!scripts/
+!scripts/**
+
+# Exclude local secrets even if they sit beneath an included source directory.
+**/.env
+**/.env.*
+**/node_modules
+**/.nuxt
+**/.output

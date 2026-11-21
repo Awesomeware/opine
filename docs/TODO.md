@@ -4,14 +4,14 @@ First milestone complete: **a player signs in with Discord, submits feedback, an
 
 Work through these steps individually. Each step should include its schema changes, UI, endpoints, and relevant tests. The [requirements](../requirements.md) define the release scope.
 
-The core feedback loop and steps 1–9 are complete locally; see the [release acceptance evidence](release-acceptance.md). The next work is **#10: final deployment and retention checks**, required before a public pilot. The license is required before publishing the repository. CI is explicitly deferred.
+The core feedback loop and steps 1–9 are complete locally; see the [release acceptance evidence](release-acceptance.md). The next work is **#10: final deployment and retention checks**, required before a public pilot. The license is required before publishing the repository. Railway trial files and CI configuration are prepared on the `railway` branch; deployment verification remains outstanding.
 
 ## 1. Make local development reproducible
 
 - [x] Add PostgreSQL through Docker Compose.
 - [x] Wire up the server-side database connection.
 - [x] Establish the Drizzle migration workflow.
-- CI remains deferred; run the documented checks locally.
+- CI configuration is included in the Railway trial; retain local checks during development.
 
 ## 2. Implement authentication and permissions
 
@@ -120,8 +120,11 @@ Covers deployment and recovery work in V1-T01, T03 and T09–T11. Final deployed
 
 ## 10. Complete final deployment and retention checks
 
-Deferred until after #9, but still required before a public pilot. Completes the remaining deployed checks and operator retention work, including V1-T13.
+Required before a public pilot. Completes the Railway hosting trial, deployed checks and operator retention work, including V1-T13. See [Railway trial](railway.md) for setup and deployment boundaries.
 
+- [x] Add a reproducible application image, documented Railway service settings and GitHub CI workflow on the `railway` trial branch.
+- [ ] Connect the GitHub repository and Railway services, select source branch `railway`, enable Wait for CI, and observe successful hosted CI and deployment. Local checks do not prove these integrations.
+- [ ] Configure PostgreSQL recovery, retain installation secrets/configuration, rehearse restoration and verify monitoring and spending alerts before public use.
 - [ ] Verify Discord sign-in, session reload and sign-out on the deployed HTTPS origin; automated provider fixtures do not replace this check.
 - [ ] Verify operational error reporting does not expose credentials or archived content.
 - [ ] Define and document an operator process for account deletion/anonymization requests that preserves contributions and explains attribution and retention. No self-service deletion UI is required.
@@ -141,4 +144,4 @@ The canonical product exclusions are in [Explicitly deferred](../requirements.md
 - Attachments, rich text, profile/branding editors, application-level exports and multi-community hosting.
 - Bug-report diagnostics, persisted drafts/offline replay, a separate mobile redesign and self-service account deletion.
 
-CI automation remains deferred separately from product scope. Local checks, accessibility verification, backups and a demonstrated restoration remain required for this release.
+CI and the documented deployment workflow are included in the Railway trial. A successful hosted run and the deployed checks above remain outstanding; local checks, accessibility verification, backups and a demonstrated restoration still apply.

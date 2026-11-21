@@ -1,6 +1,6 @@
 # Deployment and recovery
 
-Opine runs as one Node application backed by PostgreSQL 18. Keep Nitro in the deployment: the client-rendered SPA still needs its authentication and API endpoints. This guide uses a Linux host, systemd and nginx; provisioning the host, database and TLS certificate is installation-specific.
+Opine runs as one Node application backed by PostgreSQL 18. Keep Nitro in the deployment: the client-rendered SPA still needs its authentication and API endpoints. The current hosting evaluation is the [Railway trial](railway.md), developed on branch `railway`. This guide remains the Linux-host alternative using systemd and nginx, and the canonical guide for the portable backup/restore commands; provisioning the host, database and TLS certificate is installation-specific.
 
 ## Install
 
