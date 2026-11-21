@@ -2,6 +2,8 @@
 
 Each Opine installation serves one community. Configure its public name and link in `config/community.json`, and its rules in `config/rules.md`. Both files ship with usable defaults. Opine keeps its own wordmark beside the community name; no settings editor or configuration table is needed.
 
+The current `render` branch configures the installation for **EQ: Legends**, linking to the [official EverQuest Legends website](https://www.everquestlegends.com/). These checked-in files also apply to local runs of this branch. Forks can replace them with their own community settings.
+
 ## Configuration files
 
 Edit `config/community.json`:

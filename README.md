@@ -105,7 +105,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-Open <http://localhost:3000/feedback>. The command applies pending migrations and adds three example posts with optional tags, comments covering all four contribution types, and official responses with status changes. Repeating it preserves existing posts and any edits to the examples. Example people are labelled `(example)` and have no login credentials; sign in with your own Discord account to participate.
+Open <http://localhost:3000/feedback>. The command applies pending migrations and adds three fictional EQ: Legends example posts about gear upgrades, multiclass abilities and raid preparation, with optional tags, comments covering all four contribution types, and official responses with status changes. Posts and responses are labelled as examples, not actual player reports or developer commitments. Repeating it preserves existing posts and any edits to the examples, including older seed content. Example people are labelled `(example)` and have no login credentials; sign in with your own Discord account to participate. For the deployed installation, run the same command from the [Render application shell](docs/render.md#example-feedback).
 
 To start over, stop the application and confirm the database name from `DATABASE_URL` (the default local name is `opine`):
 

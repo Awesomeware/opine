@@ -57,6 +57,22 @@ These independent roles use the existing [operator commands](authentication.md).
 
 The [sign-in limiter](authentication.md#sign-in-rate-limits) uses the socket address. Behind Render's proxy, visitors may share its default allowance of 10 sign-in starts per 60 seconds. Tune `AUTH_SIGN_IN_MAX` and `AUTH_SIGN_IN_WINDOW_SECONDS` for aggregate traffic and verify behavior through the deployed ingress before the pilot. This is not a verified per-person limit; do not enable arbitrary forwarded-header trust.
 
+## Example feedback
+
+This branch ships community configuration for **EQ: Legends**, with a link to the official game website and game-specific rules text. Deploy the updated commit to apply it; the server reads these files at startup.
+
+After deployment, open the **opine web service → Shell** in Render and run:
+
+```sh
+pnpm db:seed
+```
+
+This explicitly adds three fictional discussions: gear-upgrade previews, class labels for multiclass abilities, and preparation for small raids. They include eight typed comments and three fictional official responses across two posts, with `reviewing`, `planned` and `new` statuses. Their game themes draw on the [official game overview](https://www.everquestlegends.com/home); they are not reports of actual bugs or promises from the game team.
+
+Refresh `/feedback` to see them. The command uses the service's existing private database connection, applies pending migrations and preserves real accounts and contributions. Repeated runs do not duplicate examples or overwrite edits. If an older seed was already applied, its examples remain unchanged. Example accounts cannot sign in and their notifications do not go to real users. Archive unwanted example posts with your own community-manager account; do not reset the deployed database to remove examples.
+
+Seeding remains a manual operator action, never a build, startup or pre-deploy command.
+
 ## Recovery and release checks
 
 Paid Render Postgres provides automatic point-in-time recovery. The documented window is three days for Hobby workspaces and seven days for Pro or higher. Confirm the database's actual recovery window in Render. A recovery creates a separate database, allowing verification before changing the application's connection. See [recovery and backups](https://render.com/docs/postgresql-backups).

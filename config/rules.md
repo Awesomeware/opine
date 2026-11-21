@@ -1,5 +1,7 @@
 ## Criticism is welcome
 
+This community collects feedback about EQ: Legends.
+
 Criticism, disagreement, and negative feedback about the game are welcome.
 Explain what you think and why. **Negative sentiment alone is not grounds for moderation.**
 

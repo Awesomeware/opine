@@ -40,81 +40,81 @@ const examples: {
 }[] = [
   {
     tagNames: ['UI'],
-    title: 'Keep the inventory filters when reopening the backpack',
+    title: '[Example] Preview all gear effects before committing an upgrade',
     description:
-      'I often switch between crafting and my backpack. Each time I reopen it, the selected item category resets, so finding the same materials takes several extra clicks.',
+      'Fictional EQ: Legends feedback: with gear upgrades and swappable focus, click and proc effects, I would like to compare the complete result before deciding which item to invest in.',
     desiredImprovement:
-      'Remember the last selected inventory filter for the current play session, with a clear way to return to all items.',
+      'Show the current and proposed item side by side, including every effect and the upgrade level, before confirming a change.',
     categoryId: categories[0]!.id,
     comments: [
       {
         type: 'context',
-        body: 'This happens most when preparing several potions at the workbench. I reopen the ingredients tab after every recipe.',
+        body: 'For a character mixing melee and spellcasting, the effects can matter as much as the raw stats. A combined comparison would help me weigh both.',
       },
       {
         type: 'different_view',
-        body: 'I like seeing all items when I open the backpack during exploration. Could remembering the filter be an option?',
+        body: 'I would prefer a compact default view. Showing every effect at once could make a straightforward upgrade harder to read.',
       },
       {
         type: 'suggestion',
-        body: 'Keep the filter, but show its name beside the backpack heading and add an obvious Clear filter button.',
+        body: 'Start with the differences and offer an Expand all effects option for a detailed comparison.',
       },
       {
         type: 'question',
-        body: 'Should the search text also be remembered, or just the item category?',
+        body: 'Could the comparison distinguish a focus effect from an activated click effect and a combat proc?',
       },
     ],
     responses: [
       {
         status: 'reviewing',
-        body: 'We have acknowledged this and are reviewing how persistent filters affect crafting and exploration. The examples here help us compare both uses.',
+        body: 'Fictional example response, not an EQ: Legends team statement: we are reviewing a comparison layout that keeps upgrade levels and effect changes together.',
       },
       {
-        body: 'A quick follow-up: our first prototype keeps the category but clears search text. We are still reviewing the interaction; this is not a delivery commitment.',
+        body: 'Fictional example follow-up: the proposed layout would show changes first, with full item details available on demand. This demonstrates a follow-up without changing the post status.',
       },
     ],
   },
   {
-    tagNames: ['UI', 'Gameplay'],
-    title: 'Make objective markers distinguishable without relying on color',
+    tagNames: ['UI', 'Class-specific'],
+    title: '[Example] Make ability origins clear in three-class builds',
     description:
-      'The active quest and optional objectives use similar marker shapes. In a busy area, the color difference alone makes it difficult to identify which marker to follow.',
+      'Fictional EQ: Legends feedback: a character can combine up to three active classes. When planning a build, I would like to quickly understand which class contributes each spell or ability.',
     desiredImprovement:
-      'Give active quests and optional objectives distinct marker shapes, and include a small legend in the map.',
+      'Offer readable class labels and filters in ability lists, without relying on class colors alone or cluttering combat hotbars.',
     categoryId: categories[0]!.id,
     comments: [
       {
         type: 'context',
-        body: 'In the snowy region the markers also blend into the background. A contrasting outline would help.',
+        body: 'When trying a new class combination, I would use the labels to learn where my healing, control and damage options come from.',
       },
       {
         type: 'suggestion',
-        body: 'A diamond for the active quest and a circle for optional objectives would be easy to explain in a legend.',
+        body: 'Keep class names in tooltips and detailed lists, with an optional small badge for players who want it on the hotbar.',
       },
       {
         type: 'question',
-        body: 'Will the new shapes appear on the compass as well as the full map?',
+        body: 'How would the labels explain abilities that overlap between the selected classes?',
       },
     ],
     responses: [
       {
         status: 'planned',
-        body: 'Distinct objective shapes and stronger outlines are planned for both the map and compass. We will share timing after the accessibility review; there is no release date yet.',
+        body: 'Fictional example response, not an EQ: Legends roadmap commitment: class labels and filters are marked planned here to demonstrate how an official status update appears in Opine.',
       },
     ],
   },
   {
     tagNames: ['Gameplay', 'Combat'],
-    title: 'Let co-op groups practise boss encounters without spending a key',
+    title: '[Example] Add an optional preparation checklist for eight-player raids',
     description:
-      'Our group would like to learn boss mechanics together, but spending an entry key on each attempt discourages experimentation, especially when introducing a new player.',
+      'Fictional EQ: Legends feedback: with raids of up to eight players and flexible class combinations, our group would like a quick way to coordinate healing, control and other responsibilities before an encounter.',
     desiredImprovement:
-      'Offer a practice version with no entry cost and no rewards, clearly separated from the regular encounter.',
+      'Let players share a small, optional readiness checklist with notes about their intended role. Keep it separate from encounter rewards and avoid enforcing a particular party composition.',
     categoryId: categories[1]!.id,
     comments: [
       {
         type: 'different_view',
-        body: 'Learning under pressure is part of the fun for our group. I would support an optional practice mode if regular attempts still feel worthwhile.',
+        body: 'Our group prefers to sort this out in chat. I would welcome an optional checklist, provided it does not become a mandatory role assignment screen.',
       },
     ],
     responses: [],
