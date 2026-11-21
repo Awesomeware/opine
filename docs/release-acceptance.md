@@ -1,6 +1,6 @@
 # Local release acceptance
 
-Recorded **2026-11-21** for application revision `10b5b91`. This completes the local scope of [TODO #9](TODO.md#9-verify-release-acceptance). Final deployed checks and the operator retention process remain in [#10](TODO.md#10-complete-final-deployment-and-retention-checks); a license is still required before publishing the repository.
+Recorded **2026-11-21** for application revision `10b5b91`. This completes the local scope of [TODO #9](TODO.md#9-verify-release-acceptance). Final deployed checks and the operator retention process remain in [#10](TODO.md#10-complete-final-deployment-and-retention-checks). The repository is now licensed under [MIT](../LICENSE).
 
 ## Environment and validation
 

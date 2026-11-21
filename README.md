@@ -2,6 +2,8 @@
 
 Opine is an open-source community feedback tool for players and community managers. Its visual identity is an **O enclosing a pine tree, followed by lowercase “pine”**.
 
+Licensed under the [MIT License](LICENSE). Third-party dependencies retain their own licenses; bundled fonts use the [SIL Open Font License](layers/ui/app/assets/fonts/README.md).
+
 ## Technology choices
 
 - **Nuxt and Vue with TypeScript** for a client-rendered single-page application.
@@ -171,6 +173,6 @@ The tree includes planned feature locations; no empty feature layers are require
 
 The core feedback loop is implemented: proposals, typed contributions and filters, official responses and statuses, review queues, follows, notifications, and admin-defined author-selected tags. Agree / Disagree reactions remain secondary.
 
-CM lock/unlock and archive actions are implemented, with an internal application event log. Archived content disappears from application queries and notifications; no unarchive UI is included. Community configuration uses installation files with Markdown rules. Deployment documentation and backup/restore commands are complete, with a successful isolated restoration recorded. Local accessibility and release acceptance checks are complete. Remaining release work covers the Railway trial and hosted CI/deployment verification, real deployed sign-in and error-reporting checks, the operator account-retention process, and an open-source license before repository publication. Follow [step 10 and the publication checklist](docs/TODO.md#10-complete-final-deployment-and-retention-checks) for the implementation sequence.
+CM lock/unlock and archive actions are implemented, with an internal application event log. Archived content disappears from application queries and notifications; no unarchive UI is included. Community configuration uses installation files with Markdown rules. Deployment documentation and backup/restore commands are complete, with a successful isolated restoration recorded. Local accessibility and release acceptance checks are complete. Remaining release work covers the Railway trial and hosted CI/deployment verification, real deployed sign-in and error-reporting checks, and the operator account-retention process. Follow [step 10 and the publication checklist](docs/TODO.md#10-complete-final-deployment-and-retention-checks) for the implementation sequence.
 
 The [deferred features](requirements.md#explicitly-deferred) are outside this release, including reports, suspensions, moderation-history UI/appeals, individual contribution hiding, summaries/highlights, nested replies, tag filtering, duplicate handling, Discord bots and external notifications. GitHub CI and documented Railway service settings are included in the hosting trial; successful hosted runs still need verification. Local validation and release-readiness checks also apply.

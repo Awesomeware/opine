@@ -1,5 +1,6 @@
 # Only application inputs enter the build context; local secrets and outputs do not.
 **
+!LICENSE
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml

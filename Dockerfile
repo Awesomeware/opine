@@ -17,6 +17,7 @@ ENV HOST=0.0.0.0
 
 COPY --from=build --chown=node:node /app/.output ./.output
 COPY --from=build --chown=node:node /app/config ./config
+COPY --from=build --chown=node:node /app/LICENSE ./
 
 # Keep the existing migration and operator commands available in the same image.
 # They use source schemas and development tooling (including drizzle-kit).

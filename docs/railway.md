@@ -22,7 +22,7 @@ the development database or real Discord credentials. CI runs the same check.
 
 ## Provision the trial
 
-1. Make the branch available in a GitHub repository and grant the Railway GitHub integration access. Keep the repository private until its license is chosen.
+1. Make the branch available in a GitHub repository and grant the Railway GitHub integration access.
 2. Create a Railway project/environment for the trial. Add PostgreSQL and verify its major version is **18** before creating data. Use Railway's supported database image and volume configuration; do not change the major version of an existing database volume.
 3. Add the application from the GitHub repository, selecting **`railway`** as its source branch and the repository root as its root directory. Use the checked-in Dockerfile and configure the dashboard fields below. Place app and database in the same region.
 4. Configure the variables below, generate a stable HTTPS domain, and register its exact Discord callback URL.

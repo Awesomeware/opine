@@ -4,7 +4,7 @@ First milestone complete: **a player signs in with Discord, submits feedback, an
 
 Work through these steps individually. Each step should include its schema changes, UI, endpoints, and relevant tests. The [requirements](../requirements.md) define the release scope.
 
-The core feedback loop and steps 1–9 are complete locally; see the [release acceptance evidence](release-acceptance.md). The next work is **#10: final deployment and retention checks**, required before a public pilot. The license is required before publishing the repository. Railway trial files and CI configuration are prepared on the `railway` branch; deployment verification remains outstanding.
+The core feedback loop and steps 1–9 are complete locally; see the [release acceptance evidence](release-acceptance.md). The next work is **#10: final deployment and retention checks**, required before a public pilot. The repository is licensed under [MIT](../LICENSE). Railway trial files and CI configuration are prepared on the `railway` branch; deployment verification remains outstanding.
 
 ## 1. Make local development reproducible
 
@@ -131,7 +131,7 @@ Required before a public pilot. Completes the Railway hosting trial, deployed ch
 
 ## Before publishing the repository
 
-- [ ] Choose and add the open-source license.
+- [x] License Opine under [MIT](../LICENSE), preserving third-party license notices.
 
 ## Deferred and outside the current release
 
