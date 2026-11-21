@@ -36,6 +36,11 @@ async function activate(control: Locator) {
 test('public navigation exposes landmarks and moves keyboard focus into the destination', async ({
   page,
 }) => {
+  await page.goto('/')
+  await expect(page).toHaveURL('/feedback')
+  await expect(page.getByRole('main')).toBeFocused()
+  await expect(page.getByRole('main')).toHaveCSS('outline-style', 'none')
+
   await page.goto('/feedback')
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await expect(page.getByRole('banner')).toHaveCount(1)
@@ -48,6 +53,7 @@ test('public navigation exposes landmarks and moves keyboard focus into the dest
   await expect(skip).toBeInViewport()
   await skip.press('Enter')
   await expect(page.getByRole('main')).toBeFocused()
+  await expect(page.getByRole('main')).toHaveCSS('outline-style', 'none')
 
   await activate(
     page
@@ -56,6 +62,7 @@ test('public navigation exposes landmarks and moves keyboard focus into the dest
   )
   await expect(page).toHaveURL('/rules')
   await expect(page.getByRole('main')).toBeFocused()
+  await expect(page.getByRole('main')).toHaveCSS('outline-style', 'none')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Community rules')
   await expect(page.getByRole('group', { name: 'Account' })).toBeVisible()
 })
@@ -76,6 +83,7 @@ test('invalid submission describes the field error, focuses its summary and reta
     await category.selectOption(fixture.category.id)
     await activate(page.getByRole('button', { name: 'Submit feedback', exact: true }))
     await expect(page.getByRole('alert')).toBeFocused()
+    await expect(page.getByRole('alert')).toHaveCSS('outline-style', 'solid')
     await expect(title).toHaveAttribute('aria-invalid', 'true')
     await expect(title).toHaveAccessibleDescription(/Enter a title/)
     await expect(description).toHaveValue('Keep this feedback while I correct the missing title.')

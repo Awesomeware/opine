@@ -67,6 +67,10 @@ summary:focus-visible,
   outline: 3px solid var(--color-focus);
   outline-offset: 4px;
 }
+/* Main is a navigation focus target, not a control to outline as a whole page. */
+#main-content:focus {
+  outline: none;
+}
 h1,
 h2 {
   font-family: var(--font-heading);
