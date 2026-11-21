@@ -2,6 +2,8 @@
 
 These journeys cover only the reduced first version in [requirements.md](requirements.md). `V1-` identifiers replace the broader draft's journey identifiers.
 
+These describe release acceptance, not a claim that every journey is already implemented. The [implementation checklist](docs/TODO.md) tracks completion; moderation, remaining community configuration and operational readiness are the next work.
+
 ## Discover feedback
 
 - V1-J01: As a visitor, I can browse recent feedback and read posts, comments, and official responses without signing in.
@@ -42,7 +44,8 @@ These journeys cover only the reduced first version in [requirements.md](require
 
 ## Operate an independent installation
 
-- V1-J22: As an operator, I can install and upgrade Opine for one community, back up its data and configuration, and verify restoration using the documentation.
+- V1-J23: As an operator, I can install and upgrade Opine for one community, back up its data and configuration, and verify restoration using the documentation.
+- V1-J24: As an operator, I can follow the documented process for account deletion/anonymization requests while preserving contributions and handling attribution consistently.
 
 ## Pilot walkthrough
 
@@ -52,5 +55,9 @@ These journeys cover only the reduced first version in [requirements.md](require
 4. The author and other followers receive one notification for the official update.
 5. New player comments after that response bring the post into the CM follow-up filter.
 6. The CM records the outcome with an explanation, distinguishing a planned or delivered change from a declined change or an explanation-only answer.
+7. A member reads the community rules and privately reports prohibited conduct. A CM records a resolution and reason, hides the content, and verifies public links, search and notifications no longer expose its text. Restoration makes permitted content visible again.
+8. A CM suspends and later restores participation. While suspended, the member can still read permitted content, see the moderation reason and find the configured external review contact.
+
+Separately verify the configured public name and community link, production Discord sign-in, accessibility, the operator retention process and a documented backup restoration. These release checks complement the product walkthrough.
 
 The walkthrough requires no curator, summary, duplicate merge, or Discord bot integration. Removed workflows are listed under "Explicitly deferred" in the requirements and are not first-release acceptance criteria.

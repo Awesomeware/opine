@@ -8,6 +8,8 @@ The first version must work without volunteer curation. Its core loop is: submit
 
 This is the first-release boundary, replacing the broader draft. `V1-` identifiers belong to this reduced scope. Deferred features are not prerequisites for release.
 
+Implementation status and the agreed sequence live in [the implementation checklist](docs/TODO.md). Unfinished release requirements remain in scope; the deferred list below is not a backlog that must be completed before launch.
+
 ## Scope and operating model
 
 - V1-S01: Support feedback about player experiences and proposed improvements. A player shall not need to propose a solution to describe a concern.
@@ -127,7 +129,13 @@ These are possible later additions, not a committed roadmap:
 - Additional sign-in providers, including a potential Daybreak integration, and an account-linking interface. The identity model and authentication tooling shall allow these to be added later.
 - Attachments, rich text editing, profile customization, and an interactive branding editor.
 - Application-level content exports and multi-community hosting in one installation. Full operational backups remain required.
+- Bug-report diagnostic fields, persisted drafts, restoration of unsaved forms, offline replay and a separate mobile redesign. Basic narrow-screen readability and accessibility remain required.
+- A self-service account-deletion interface. A documented operator process for deletion/anonymization requests and contribution retention remains required.
+
+CI automation is also deferred for now. This does not waive the local validation and release checks recorded in [the implementation checklist](docs/TODO.md).
 
 ## First-release acceptance
 
 A player can find or submit feedback; another player can choose a contribution type and add context, a different view, a suggestion, or a question. Readers can filter those contributions and find official responses without scanning the entire discussion. A CM can acknowledge the feedback and respond with a visible status and explanation, and followers can see the response and eventual outcome. Agree / Disagree remains available without driving ranking or obscuring substantive contributions. This works without a curator. Basic moderation, access controls, accessibility, and a successful backup restoration are part of release readiness.
+
+Before a public pilot, the installation must also provide community rules and the configured review contact, private reporting and moderation reasons, consistent restrictions on hidden content, and suspension that preserves read access. Complete the installation configuration, operator retention process, production sign-in checks and accessibility verification. Record a successful backup restoration, rather than treating a service restart as proof of recovery. Choose and add the open-source license before publishing the repository.

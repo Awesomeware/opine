@@ -11,7 +11,7 @@ The approved [mockup](feedback-direction.png) is the visual reference for the fe
 - Present the author's proposal as open reading text. Place status and follow controls in a supporting desktop column. Show the latest official response above the discussion, using a labelled teal surface and accent rule. Filters must never hide the featured response or current status.
 - Use flat contribution entries, a small identifying symbol and explicit type label, and underline-style filter buttons. Filters remain views of one chronological discussion; selection and keyboard focus must remain visible.
 - Keep Agree and Disagree neutral and secondary, with separate labelled counts. Use quiet Copy link and edit actions. Give following and adding a typed contribution more emphasis.
-- Keep response publication and category correction available to community managers through compact disclosure controls. Preserve authorization, validation, same-page retries, conflict review, and explicit publication. Form state follows [UI conventions](../ui.md#vue-component-readability).
+- Keep response publication and category correction available to community managers through compact disclosure controls. Preserve authorization, validation, clear handling of uncertain responses, conflict review, and explicit publication. Form state follows [UI conventions](../ui.md#vue-component-readability).
 
 ## Scope and practical adaptations
 
@@ -22,6 +22,8 @@ The image's **Implemented** is represented by the existing **Delivered** status.
 Use genuine stored content and dates. Initials may identify contributors decoratively, but do not add profile images, fabricated activity counts, popularity scores, curated summaries, related posts, or new statuses. The existing flat discussion, four required contribution types, plain-text editor, and permission model remain unchanged.
 
 Tags are a subsequent approved scope addition: show author-selected tags as quiet labels on feedback rows and the proposal. Keep them visually distinct from status and contribution types. Selection uses optional checkboxes; tag management is an administrator action.
+
+Moderation and remaining community configuration are the next release work in [the implementation checklist](../TODO.md#6-add-basic-moderation--next). Extend the existing visual system for those flows; a new visual redesign, separate mobile experience and interactive branding editor are outside the current release.
 
 ## Implementation and verification
 

@@ -48,6 +48,18 @@ An E2E suite can declare `restartFiles` for a second phase. After its ordinary t
 
 Migration checks share a small test-only helper for temporary database lifecycle and applying migration ranges; each test keeps its SQL setup and assertions visible. They apply the committed authentication and feedback schema to fresh databases. The contribution-type upgrade test also creates a temporary database inside the existing feedback suite container, applies migrations through the untyped-comment schema, seeds an old comment and receipt, then applies the new migration. It verifies the historical migration preserves the original content and receipt and sets the new type to NULL, then drops that temporary database. A separate current-upgrade check verifies receipt removal retains posts, comments, follows and cooldown timestamps. The official-workflow upgrade test similarly verifies existing posts and comments retain their text, versions, and follows while receiving the initial workflow version. No extra container or development database is used. Auth tests use a small feature-owned `createMember` factory that creates genuine database identities and signed sessions; it is guarded against use outside the isolated test database. Browser tests do not require real Discord credentials or introduce a test-only login endpoint. A real Discord consent round trip remains a deployment check; see [Authentication](authentication.md). CI remains deferred.
 
+## Remaining release verification
+
+The checks below are planned release work, not completed coverage. Track them in [steps 6–9](TODO.md#6-add-basic-moderation--next):
+
+- Moderation: private reports, CM-only actions and restricted reads, hide/restore behavior across public projections, suspension/restoration, and access to reasons and the external review contact.
+- Community configuration: public name, rules, community link and review contact appear in the intended views, including those available to suspended members.
+- Accessibility: keyboard navigation, accessible names, focus, contrast, form errors and status identification across the release journeys, plus basic narrow-screen readability.
+- Deployment: a real Discord consent/sign-in, session reload and sign-out on the configured HTTPS origin, and operational errors that do not disclose private data.
+- Recovery: back up the database and installation configuration, restore into an isolated installation, and verify content, accounts, permissions and moderation records. The existing database/application restart test does not prove backup restoration.
+
+Run the full local checks and [pilot walkthrough](../journeys.md#pilot-walkthrough) on the release candidate and record the results. CI remains deferred; these checks still gate the public pilot.
+
 ## Adding tests
 
 Keep feature tests inside their layer, near the behavior they verify and outside Nuxt route or plugin discovery folders. Feedback server tests are grouped under `server/{posts,discussion,review,subscriptions}/`; browser journeys under `tests/{posts,discussion,review}/` follow the initiating capability, including cross-capability journeys. Shared validation tests live beside `shared/<capability>/input.ts`. Moving tests into capability folders does not create new logical suites or containers. Use these suffixes consistently:

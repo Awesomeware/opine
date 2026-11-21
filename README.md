@@ -163,4 +163,8 @@ The tree includes planned feature locations; no empty feature layers are require
 - [Approved visual direction](docs/design/README.md)
 - [Interaction reference](example.png) — contribution types, official-response separation, and discussion navigation; see requirements for the included parts.
 
-The agreed first version centers on feedback proposals, typed contributions with discussion filters, prominent official responses and status, and following the outcome. Agree / Disagree reactions remain secondary. Contribution types, the official-response/status panel, Official responses filter, review queue, follow controls, and notification inbox, and admin-defined author-selected tags are implemented. Moderation and public-pilot readiness are next. Summaries and curated highlights remain deferred. See the requirements for release boundaries.
+The core feedback loop is implemented: proposals, typed contributions and filters, official responses and statuses, review queues, follows, notifications, and admin-defined author-selected tags. Agree / Disagree reactions remain secondary.
+
+Next is basic moderation, starting with a schema and visibility-rule review. Remaining release work also covers community configuration, production operation and backup restoration, the operator account-retention process, accessibility and release verification, and an open-source license before repository publication. Follow [steps 6–9 and the publication checklist](docs/TODO.md#6-add-basic-moderation--next) for the implementation sequence.
+
+The [deferred features](requirements.md#explicitly-deferred) are outside this release, including summaries/highlights, nested replies, tag filtering, duplicate handling, Discord bots and external notifications. CI remains deferred; local validation and release-readiness checks still apply.
