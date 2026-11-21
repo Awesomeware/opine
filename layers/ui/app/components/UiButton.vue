@@ -7,8 +7,9 @@ withDefaults(
     type?: 'button' | 'submit' | 'reset'
     disabled?: boolean
     busy?: boolean
+    hoverHighlight?: boolean
   }>(),
-  { variant: 'default', type: 'button', disabled: false, busy: false },
+  { variant: 'default', type: 'button', disabled: false, busy: false, hoverHighlight: false },
 )
 
 const element = ref<HTMLButtonElement | null>(null)
@@ -21,7 +22,7 @@ defineExpose({ focus: () => element.value?.focus() })
   <button
     ref="element"
     class="ui-button"
-    :class="`ui-button-${variant}`"
+    :class="[`ui-button-${variant}`, { 'ui-hover-highlight': hoverHighlight }]"
     :type="type"
     :disabled="disabled || busy"
     :aria-busy="busy || undefined"

@@ -19,7 +19,12 @@ const model = defineModel<ContributionType | ''>({ required: true })
       This older comment is unspecified. Choose a type to classify it, or leave it unchanged.
     </p>
     <div class="type-options">
-      <label v-for="type in contributionTypes" :key="type" :class="{ selected: model === type }">
+      <label
+        v-for="type in contributionTypes"
+        :key="type"
+        class="ui-hover-highlight"
+        :class="{ selected: model === type }"
+      >
         <input
           v-model="model"
           type="radio"

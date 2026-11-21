@@ -19,6 +19,8 @@ export const Primary: Story = { args: { variant: 'primary' } }
 export const Disabled: Story = { args: { disabled: true } }
 export const Busy: Story = { args: { busy: true } }
 export const Quiet: Story = { args: { variant: 'quiet' } }
+export const HoverHighlight: Story = { args: { hoverHighlight: true } }
+export const DisabledHighlight: Story = { args: { hoverHighlight: true, disabled: true } }
 export const Tab: Story = {
   args: { variant: 'tab' },
   render: (args) => ({

@@ -70,6 +70,12 @@ layers/feedback/app/
 
 Native checkbox/radio controls have their own restrained defaults; full-width text-field rules must not apply to them. Contribution selectors may keep their intentional overlay styling local.
 
+Use `<UiButton hover-highlight>` for an optional gold-tinted hover treatment.
+Native radio labels can reuse its `ui-hover-highlight` class, as contribution types
+do, without replacing radio semantics with buttons. The treatment uses shared theme
+tokens, applies only on hover-capable devices, and leaves checked or disabled radio
+choices unchanged. Keyboard focus remains a separate visible outline.
+
 Scoped styles prevent a component's selectors from leaking outward, but global CSS and inherited properties can still affect it. Keep global defaults restrained and load exactly the same foundations in Storybook and Nuxt.
 
 ## Theme foundations
