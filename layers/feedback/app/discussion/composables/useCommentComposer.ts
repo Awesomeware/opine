@@ -2,9 +2,8 @@ import { ref } from 'vue'
 import { type ContributionType } from '../../../shared/discussion/contribution-types'
 import { validateCommentInput } from '../../../shared/discussion/input'
 import { createComment } from '../api/discussion'
-import { feedbackFailure } from '../../api/errors'
+import { feedbackFailure, feedbackWriteError } from '../../api/errors'
 import { startDiscordSignIn } from '../../../../auth/app/api/session'
-import { useFeedbackWrite, feedbackWriteError } from '../../composables/useFeedbackWrite'
 import { useRequestScope } from '../../composables/useRequestScope'
 
 /** Owns one mounted account/post form; remount on either change. */
@@ -20,7 +19,6 @@ export function useCommentComposer(
   const fieldErrors = ref<Record<string, string>>({})
   const expired = ref(false)
 
-  const commentWrite = useFeedbackWrite()
   const scope = useRequestScope()
 
   async function signIn() {
@@ -47,12 +45,11 @@ export function useCommentComposer(
     message.value = ''
 
     try {
-      const result = await createComment(props.postId, payload, commentWrite.headers(payload))
+      const result = await createComment(props.postId, payload)
       if (!scope.isActive()) {
         return
       }
 
-      commentWrite.complete()
       body.value = ''
       type.value = ''
       await navigateTo({

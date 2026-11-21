@@ -2,12 +2,11 @@ import { getPost, getCategories } from '../../posts/api/posts'
 import type { CategoryHistoryPage } from '../api/outcomes'
 import { ref, onMounted } from 'vue'
 import { useRequestScope } from '../../composables/useRequestScope'
-import { feedbackFailure } from '../../api/errors'
+import { feedbackFailure, feedbackWriteError } from '../../api/errors'
 import { validateCategoryCorrectionInput } from '../../../shared/review/input'
 import { correctCategory, getOutcome, getCategoryHistory } from '../api/outcomes'
 import type { FeedbackCategory } from '../../../shared/posts/contracts'
 import type { FeedbackOutcome } from '../../../shared/review/contracts'
-import { useFeedbackWrite, feedbackWriteError } from '../../composables/useFeedbackWrite'
 
 /** Own one mounted post/account's correction, conflict review, and independent history read. */
 export function useCategoryCorrection(
@@ -16,7 +15,7 @@ export function useCategoryCorrection(
 ) {
   const categories = ref<FeedbackCategory[]>([])
   const categoryId = ref(props.categoryId)
-  // Refreshes must not change the version of an uncertain same-page retry.
+  // Advance the editing baseline only after a confirmed save or explicit conflict review.
   const version = ref(props.version)
   const busy = ref(false)
   const message = ref('')
@@ -35,7 +34,6 @@ export function useCategoryCorrection(
   const historyScope = useRequestScope()
   const reviewScope = useRequestScope()
   const historyError = ref('')
-  const write = useFeedbackWrite()
   const scope = useRequestScope()
 
   async function save() {
@@ -54,12 +52,11 @@ export function useCategoryCorrection(
     message.value = ''
 
     try {
-      const result = await correctCategory(props.postId, parsed.data, write.headers(payload))
+      const result = await correctCategory(props.postId, parsed.data)
       if (!scope.isActive()) {
         return
       }
 
-      write.complete()
       version.value = result.version
       saved()
       message.value = 'Category corrected.'
@@ -74,7 +71,6 @@ export function useCategoryCorrection(
           'The workflow changed. Review the latest outcome before correcting the category.'
       } else {
         if (feedbackFailure(failure).status === 400) {
-          write.complete()
           await loadCategories()
         }
         if (scope.isActive()) {
@@ -118,7 +114,6 @@ export function useCategoryCorrection(
     version.value = latest.value.version
     conflict.value = false
     latest.value = null
-    write.complete()
   }
 
   async function loadHistory(more = false) {

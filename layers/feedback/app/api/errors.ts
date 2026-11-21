@@ -21,3 +21,29 @@ export function feedbackFailure(error: unknown) {
     fieldErrors,
   }
 }
+
+export function feedbackWriteError(error: unknown) {
+  const { status } = feedbackFailure(error)
+
+  if (status === 401) {
+    return 'Your session has expired. Sign in again to continue.'
+  }
+
+  if (status === 403) {
+    return 'You do not have permission to make this change.'
+  }
+
+  if (status === 404) {
+    return 'This feedback is no longer available.'
+  }
+
+  if (status === 429) {
+    return 'You are posting too quickly. Please wait before trying again.'
+  }
+
+  if (status === 400) {
+    return 'Check your text and try again.'
+  }
+
+  return 'Unable to confirm the change. Check the current content before submitting again.'
+}

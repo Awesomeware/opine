@@ -10,8 +10,8 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Check your feedback.',
       data: { fieldErrors: parsed.fieldErrors },
     })
-  const { actorId, requestId } = await feedbackActor(event)
-  const post = await feedbackResponse(event, createPost(actorId, parsed.data, requestId))
+  const actorId = await feedbackActor(event)
+  const post = await feedbackResponse(event, createPost(actorId, parsed.data))
   if (!post)
     throw createError({
       statusCode: 400,

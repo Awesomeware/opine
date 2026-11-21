@@ -62,7 +62,7 @@ layers/feedback/
     review/                  Publication, outcome, queue, category correction, guards
     subscriptions/           Following, notification fanout, inbox
     schema.ts                One schema for this collaborating domain
-    write-repository.ts      Actor write serialization, receipts and rate-limit queries
+    write-repository.ts      Actor creation serialization and limits from existing rows
     writes.ts                Shared transaction type, errors and configuration
     http.ts                  Authenticated HTTP boundary and error mapping
     list-input.ts            Shared query validation and pagination
@@ -95,7 +95,7 @@ Storybook uses Vue/Vite to render the same components with deterministic props, 
 
 ## A vertical slice: create feedback
 
-The feature's `new.vue` page renders the submission form. `useFeedbackSubmission` owns its validation, in-memory form state, and same-page retry lifecycle; `app/posts/api/posts.ts` sends the typed `POST /api/feedback/posts` request. The endpoint reads and validates the request, resolves its authenticated session, and delegates creation to `server/posts/creation.ts`.
+The feature's `new.vue` page renders the submission form. `useFeedbackSubmission` owns its validation, in-memory form state, and submission state; `app/posts/api/posts.ts` sends the typed `POST /api/feedback/posts` request. The endpoint reads and validates the request, resolves its authenticated session, and delegates creation to `server/posts/creation.ts`.
 
 These browser folders separate responsibilities within the feature, without adding another Nuxt layer or a generic service framework. Simple reads may stay in pages. Post and comment editors accept their own domain contracts, and independent reads and writes keep separate loading/error states. See [UI development](ui.md) for component conventions.
 
@@ -107,13 +107,13 @@ Keep the operation's Drizzle queries near that behavior. Introduce a helper, ser
 
 ## Operations spanning capabilities
 
-A business use case owns its transaction, including resource ownership checks, data-consistency locks, retry receipts, and all dependent writes. Participating functions receive that same transaction explicitly and do not open a second transaction or obtain a separate connection. Keep these functions with the capability that owns the records; use ordinary functions rather than a generic repository hierarchy.
+A business use case owns its transaction, including resource ownership checks, data-consistency locks and all dependent writes. Participating functions receive that same transaction explicitly and do not open a second transaction or obtain a separate connection. Keep these functions with the capability that owns the records; use ordinary functions rather than a generic repository hierarchy.
 
 - [Post creation](../layers/feedback/server/posts/creation.ts) calls `replacePostTags(transaction, ...)` and subscriptions' `followPost(transaction, ...)` before committing the new post.
-- [Official publication](../layers/feedback/server/review/publication.ts) receives a manager-authorized request and owns the workflow-version check, inserts the response, calls posts' `updatePostWorkflow(transaction, ...)`, and subscriptions' `notifyFollowers(transaction, ...)`. Notification failure rolls back the response, status, and receipt together.
+- [Official publication](../layers/feedback/server/review/publication.ts) receives a manager-authorized request and owns the workflow-version check, inserts the response, calls posts' `updatePostWorkflow(transaction, ...)`, and subscriptions' `notifyFollowers(transaction, ...)`. Notification failure rolls back the response, status, and notifications together.
 - [Category correction](../layers/feedback/server/review/category-correction.ts) owns the manager decision and audit; the post update participates through the same transaction-taking persistence function.
 
-These persistence helpers assume an authorized use case with the documented locks/version checks; HTTP endpoints must call the use case rather than bypassing it through a helper. Each use case opens an explicit database transaction. Common operations live in `write-repository.ts`: serialize an actor’s writes, find a matching receipt, enforce limits, and save the receipt. These functions receive the transaction and do not run callbacks. Keep the ordering visible: resource checks before replay, replay before quotas/version checks, and receipt persistence after a successful mutation. No-op edits also save receipts.
+These persistence helpers assume an authorized use case with the documented locks/version checks; HTTP endpoints must call the use case rather than bypassing it through a helper. Each use case opens an explicit database transaction. Common operations live in `write-repository.ts`: serialize creations by one actor and enforce limits using existing domain rows. These functions receive the transaction and do not run callbacks. Keep ownership checks, version checks and mutations visible in execution order. Unchanged edits return the current version without storing another record.
 
 Read projections belong to the capability presenting the view. The discussion feed may join ordinary comments and official responses; the review queue may query posts and comments; inbox queries may join notification, response, and post tables. Keep multi-query projections in one snapshot where consistency requires it. Shared schema access is explicit and does not authorize cross-capability writes.
 
@@ -132,11 +132,11 @@ The separation of `app/`, `server/`, and `shared/` remains inside each feature. 
 
 ## Atomicity and authorization
 
-Authorization is request-scoped. Read and validate the complete request, then resolve the session, enforce origin and request-key requirements, and check the route's required role before calling a use case. An authorized request may complete after its role is revoked. Subsequent requests, including retries, must authorize again. There are no transactional role rechecks or locks intended to coordinate role revocation.
+Authorization is request-scoped. Read and validate the complete request, then resolve the session, enforce the configured origin, and check the route's required role before calling a use case. An authorized request may complete after its role is revoked. Subsequent requests, including retries, must authorize again. There are no transactional role rechecks or locks intended to coordinate role revocation.
 
 Resource ownership remains part of the operation: author editing checks the resource owner, and private inbox operations restrict the recipient. Persistence helpers assume their caller has passed the HTTP authorization boundary or is a trusted operator. They do not parse sessions or decide role policy.
 
-Transactions commit dependent database changes together; retry receipts prevent repeating a committed write. Actor write locks serialize receipt lookups and quotas, while resource locks protect edits, publication ordering, categories and tags. Retain these data guarantees independently of the request-time authorization policy. See [authentication](authentication.md#administrator-role-management) and [feedback concurrency](feedback.md#persistence-and-concurrency).
+Transactions commit dependent database changes together. There are no write receipts or request keys. Actor creation locks serialize cooldown and contribution-limit checks with insertion, while resource locks protect edits, publication ordering, categories and tags. Retain these data guarantees independently of the request-time authorization policy. See [authentication](authentication.md#administrator-role-management) and [feedback concurrency](feedback.md#persistence-and-concurrency).
 
 ## Database ownership and migrations
 

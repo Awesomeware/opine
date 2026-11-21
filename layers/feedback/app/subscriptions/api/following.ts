@@ -1,7 +1,3 @@
-export function changeFollowing(
-  postId: string,
-  body: { following: boolean },
-  headers: Record<string, string>,
-) {
-  return $fetch(`/api/feedback/posts/${postId}/follow`, { method: 'PUT', body, headers, retry: 0 })
+export function changeFollowing(postId: string, body: { following: boolean }) {
+  return $fetch(`/api/feedback/posts/${postId}/follow`, { method: 'PUT', body, retry: 0 })
 }

@@ -3,7 +3,6 @@ import { getDatabase } from '../../../../server/db/index.ts'
 import type { FeedbackTag } from '../../shared/posts/contracts.ts'
 import type { TagEditInput, TagInput } from '../../shared/posts/tag-input.ts'
 import { feedbackPost, feedbackPostTag, feedbackTag } from '../schema.ts'
-import { findWriteReceipt, lockActorWrites, saveWriteReceipt } from '../write-repository.ts'
 import { FeedbackWriteError, type FeedbackTransaction } from '../writes.ts'
 
 export const defaultFeedbackTags = ['Gameplay', 'UI', 'Class-specific', 'Combat', '$$$'].map(
@@ -27,42 +26,21 @@ function rethrowTagConflict(error: unknown): never {
   throw error
 }
 
-export async function createTag(actorId: string, input: TagInput, requestId: string) {
+export async function createTag(input: TagInput) {
   try {
-    return await getDatabase().transaction(async (transaction) => {
-      const request = { actorId, requestId, operation: 'create-tag', input }
-
-      await lockActorWrites(transaction, actorId)
-
-      const receipt = await findWriteReceipt<{ id: string; version: number }>(transaction, request)
-      if (receipt) return receipt
-
-      const [tag] = await transaction
-        .insert(feedbackTag)
-        .values(input)
-        .returning({ id: feedbackTag.id, version: feedbackTag.version })
-      return saveWriteReceipt(transaction, request, tag!)
-    })
+    const [tag] = await getDatabase()
+      .insert(feedbackTag)
+      .values(input)
+      .returning({ id: feedbackTag.id, version: feedbackTag.version })
+    return tag!
   } catch (error) {
     rethrowTagConflict(error)
   }
 }
 
-export async function updateTag(
-  actorId: string,
-  tagId: string,
-  input: TagEditInput,
-  requestId: string,
-) {
+export async function updateTag(tagId: string, input: TagEditInput) {
   try {
     return await getDatabase().transaction(async (transaction) => {
-      const request = { actorId, requestId, operation: 'update-tag', input: { tagId, ...input } }
-
-      await lockActorWrites(transaction, actorId)
-
-      const receipt = await findWriteReceipt<{ id: string; version: number }>(transaction, request)
-      if (receipt) return receipt
-
       const [tag] = await transaction
         .select()
         .from(feedbackTag)
@@ -76,14 +54,14 @@ export async function updateTag(
         )
       }
       if (tag.name === input.name && tag.isActive === input.isActive) {
-        return saveWriteReceipt(transaction, request, { id: tag.id, version: tag.version })
+        return { id: tag.id, version: tag.version }
       }
       const [updated] = await transaction
         .update(feedbackTag)
         .set({ name: input.name, isActive: input.isActive, version: tag.version + 1 })
         .where(eq(feedbackTag.id, tagId))
         .returning({ id: feedbackTag.id, version: feedbackTag.version })
-      return saveWriteReceipt(transaction, request, updated!)
+      return updated!
     })
   } catch (error) {
     rethrowTagConflict(error)

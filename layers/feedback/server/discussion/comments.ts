@@ -6,30 +6,18 @@ import type { CommentEditInput, CommentInput } from '../../shared/discussion/inp
 import { cursorFor, type PostCursor } from '../list-input.ts'
 import { requirePost } from '../posts/workflow.ts'
 import { feedbackComment, feedbackOfficialResponse, feedbackPost } from '../schema.ts'
-import {
-  enforceWriteRate,
-  findWriteReceipt,
-  lockActorWrites,
-  saveWriteReceipt,
-} from '../write-repository.ts'
+import { lockActorCreations, enforceContributionLimit } from '../write-repository.ts'
 import { FeedbackWriteError, type FeedbackTransaction } from '../writes.ts'
 
-export async function createComment(
-  actorId: string,
-  postId: string,
-  input: CommentInput,
-  requestId: string,
-) {
+export async function createComment(actorId: string, postId: string, input: CommentInput) {
   return getDatabase().transaction(async (transaction) => {
-    const request = { actorId, requestId, operation: 'create-comment', input: { postId, ...input } }
+    await lockActorCreations(transaction, actorId)
+    await enforceContributionLimit(transaction, actorId, feedbackComment, {
+      env: 'FEEDBACK_COMMENT_MAX',
+      fallback: 10,
+    })
 
-    await lockActorWrites(transaction, actorId)
     await requirePost(transaction, postId)
-
-    const receipt = await findWriteReceipt<{ id: string; version: number }>(transaction, request)
-    if (receipt) return receipt
-
-    await enforceWriteRate(transaction, request, { env: 'FEEDBACK_COMMENT_MAX', fallback: 10 })
 
     const [comment] = await transaction
       .insert(feedbackComment)
@@ -43,7 +31,7 @@ export async function createComment(
       })
       .returning({ id: feedbackComment.id, version: feedbackComment.version })
 
-    return saveWriteReceipt(transaction, request, comment!)
+    return comment!
   })
 }
 
@@ -52,34 +40,14 @@ export async function editComment(
   postId: string,
   commentId: string,
   input: CommentEditInput,
-  requestId: string,
 ) {
   const where = and(eq(feedbackComment.postId, postId), eq(feedbackComment.id, commentId))
   return getDatabase().transaction(async (transaction) => {
-    const request = {
-      actorId,
-      requestId,
-      operation: 'edit-comment',
-      input: { postId, commentId, ...input },
-    }
-
-    await lockActorWrites(transaction, actorId)
-    const [ownedComment] = await transaction
-      .select({ authorId: feedbackComment.authorId })
-      .from(feedbackComment)
-      .where(where)
-    if (!ownedComment) throw new FeedbackWriteError(404, 'Comment not found.')
-    if (ownedComment.authorId !== actorId) {
-      throw new FeedbackWriteError(403, 'Only the author can edit this comment.')
-    }
-
-    const receipt = await findWriteReceipt<{ id: string; version: number }>(transaction, request)
-    if (receipt) return receipt
-
-    await enforceWriteRate(transaction, request, { env: 'FEEDBACK_EDIT_MAX', fallback: 20 })
-
     const [comment] = await transaction.select().from(feedbackComment).where(where).for('update')
     if (!comment) throw new FeedbackWriteError(404, 'Comment not found.')
+    if (comment.authorId !== actorId) {
+      throw new FeedbackWriteError(403, 'Only the author can edit this comment.')
+    }
     if (comment.version !== input.version) {
       throw new FeedbackWriteError(
         409,
@@ -88,7 +56,7 @@ export async function editComment(
     }
     const type = input.type ?? comment.type
     if (comment.body === input.body && comment.type === type) {
-      return saveWriteReceipt(transaction, request, { id: comment.id, version: comment.version })
+      return { id: comment.id, version: comment.version }
     }
     const [updated] = await transaction
       .update(feedbackComment)
@@ -102,7 +70,7 @@ export async function editComment(
       .returning({ id: feedbackComment.id, version: feedbackComment.version })
     if (!updated) throw new FeedbackWriteError(409, 'This comment has changed.')
 
-    return saveWriteReceipt(transaction, request, updated)
+    return updated
   })
 }
 

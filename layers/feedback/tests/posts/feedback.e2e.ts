@@ -153,7 +153,7 @@ test('submission enforces identity, origin, validation, active categories, and r
     desiredImprovement: null,
     categoryId: category.id,
   }
-  const headers = { origin, cookie: member.cookieHeader, 'Idempotency-Key': randomUUID() }
+  const headers = { origin, cookie: member.cookieHeader }
   try {
     expect(
       (await request.post('/api/feedback/posts', { headers: { origin }, data })).status(),
@@ -197,17 +197,12 @@ test('submission enforces identity, origin, validation, active categories, and r
       .update(feedbackCategory)
       .set({ isActive: true })
       .where(eq(feedbackCategory.id, category.id))
-    for (let index = 0; index < 5; index++)
-      expect(
-        (
-          await request.post('/api/feedback/posts', {
-            headers: { ...headers, 'Idempotency-Key': randomUUID() },
-            data,
-          })
-        ).status(),
-      ).toBe(201)
+    const attempts = await Promise.all(
+      [0, 1].map(() => request.post('/api/feedback/posts', { headers, data })),
+    )
+    expect(attempts.map((response) => response.status()).sort()).toEqual([201, 429])
     const limited = await request.post('/api/feedback/posts', {
-      headers: { ...headers, 'Idempotency-Key': randomUUID() },
+      headers,
       data,
     })
     expect(limited.status()).toBe(429)
@@ -216,7 +211,7 @@ test('submission enforces identity, origin, validation, active categories, and r
       .select()
       .from(feedbackPost)
       .where(eq(feedbackPost.authorId, member.user.id))
-    expect(records).toHaveLength(5)
+    expect(records).toHaveLength(1)
     expect(records.every((post) => post.status === 'new')).toBe(true)
   } finally {
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.authorId, member.user.id))

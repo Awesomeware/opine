@@ -1,51 +1,41 @@
-import { and, count, eq, gte } from 'drizzle-orm'
-import { randomUUID } from 'node:crypto'
+import { and, desc, eq, gte } from 'drizzle-orm'
 import { getDatabase } from '../../../../server/db/index.ts'
 import type { PostInput } from '../../shared/posts/input.ts'
 import { feedbackPost } from '../schema.ts'
+import { lockActorCreations } from '../write-repository.ts'
 import { followPost } from '../subscriptions/following.ts'
-import { findWriteReceipt, lockActorWrites, saveWriteReceipt } from '../write-repository.ts'
 import { FeedbackWriteError, positiveInteger, type FeedbackTransaction } from '../writes.ts'
 import { findActiveCategory } from './categories.ts'
 import { replacePostTags } from './tags.ts'
 
 // The caller supplies an authenticated internal user ID and validated input.
-export async function createPost(
-  authorId: string,
-  input: PostInput,
-  requestId: string = randomUUID(),
-) {
+export async function createPost(authorId: string, input: PostInput) {
   return getDatabase().transaction(async (transaction) => {
-    const request = { actorId: authorId, requestId, operation: 'create-post', input }
-
-    await lockActorWrites(transaction, authorId)
-
-    const receipt = await findWriteReceipt(transaction, request)
-    if (receipt) return receipt
-
-    await enforcePostLimit(transaction, authorId)
+    await lockActorCreations(transaction, authorId)
 
     const category = await findActiveCategory(transaction, input.categoryId)
     if (!category) return null
 
+    await enforcePostLimit(transaction, authorId)
+
     const { tagIds, ...postInput } = input
+    const createdAt = new Date()
     const [post] = await transaction
       .insert(feedbackPost)
-      .values({ ...postInput, authorId })
+      .values({ ...postInput, authorId, createdAt, updatedAt: createdAt })
       .returning({ id: feedbackPost.id })
 
     await replacePostTags(transaction, post!.id, tagIds ?? [])
     await followPost(transaction, post!.id, authorId)
 
-    return saveWriteReceipt(transaction, request, post!)
+    return post!
   })
 }
 
 async function enforcePostLimit(transaction: FeedbackTransaction, authorId: string) {
-  const max = positiveInteger('FEEDBACK_POST_MAX', 5)
   const windowSeconds = positiveInteger('FEEDBACK_POST_WINDOW_SECONDS', 60)
   const [recent] = await transaction
-    .select({ count: count() })
+    .select({ createdAt: feedbackPost.createdAt })
     .from(feedbackPost)
     .where(
       and(
@@ -53,7 +43,17 @@ async function enforcePostLimit(transaction: FeedbackTransaction, authorId: stri
         gte(feedbackPost.createdAt, new Date(Date.now() - windowSeconds * 1000)),
       ),
     )
-  if (recent && recent.count >= max) {
-    throw new FeedbackWriteError(429, 'Please wait before submitting more feedback.', windowSeconds)
+    .orderBy(desc(feedbackPost.createdAt))
+    .limit(1)
+  if (recent) {
+    const remainingSeconds = Math.max(
+      1,
+      Math.ceil((recent.createdAt.getTime() + windowSeconds * 1000 - Date.now()) / 1000),
+    )
+    throw new FeedbackWriteError(
+      429,
+      'Please wait before submitting more feedback.',
+      remainingSeconds,
+    )
   }
 }

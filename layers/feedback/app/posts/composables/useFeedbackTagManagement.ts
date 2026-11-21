@@ -1,13 +1,12 @@
 import { getAccess } from '../../../../auth/app/api/access'
 import { getTags, createTag } from '../api/tags'
 import type { FeedbackTag } from '../../../shared/posts/contracts'
-import { useFeedbackWrite, feedbackWriteError } from '../../composables/useFeedbackWrite'
 import { ref, onMounted } from 'vue'
 import { useRequestScope } from '../../composables/useRequestScope'
-import { feedbackFailure } from '../../api/errors'
+import { feedbackFailure, feedbackWriteError } from '../../api/errors'
 
 /**
- * Mount per administrator account. A confirmed create clears its receipt even if refreshing the catalog fails.
+ * Mount per administrator account. Keep catalog refresh errors separate from creation failures.
  * Create within setup so disposal prevents late requests from updating local state.
  */
 export function useFeedbackTagManagement(props: { owner: string }) {
@@ -21,7 +20,6 @@ export function useFeedbackTagManagement(props: { owner: string }) {
   const createError = ref('')
   const name = ref('')
   const busy = ref(false)
-  const createWrite = useFeedbackWrite()
 
   async function load() {
     const isCurrent = scope.startRequest()
@@ -71,12 +69,11 @@ export function useFeedbackTagManagement(props: { owner: string }) {
     createError.value = ''
 
     try {
-      await createTag(body, createWrite.headers(body))
+      await createTag(body)
       if (!scope.isActive()) {
         return
       }
 
-      createWrite.complete()
       name.value = ''
       await load()
     } catch (failure) {

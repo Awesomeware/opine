@@ -5,6 +5,6 @@ import { validateFollowInput } from '../../../../../shared/subscriptions/input.t
 export default defineEventHandler(async (event) => {
   const id = feedbackParam(event, 'id')
   const input = validated(validateFollowInput(await readBody(event)))
-  const { actorId, requestId } = await feedbackActor(event)
-  return feedbackResponse(event, setFollowing(actorId, id, input.following, requestId))
+  const actorId = await feedbackActor(event)
+  return feedbackResponse(event, setFollowing(actorId, id, input.following))
 })

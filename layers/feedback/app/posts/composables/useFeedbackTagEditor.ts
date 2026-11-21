@@ -1,9 +1,8 @@
 import { getTags, updateTag } from '../api/tags'
 import type { FeedbackTag } from '../../../shared/posts/contracts'
-import { useFeedbackWrite, feedbackWriteError } from '../../composables/useFeedbackWrite'
 import { ref, reactive } from 'vue'
 import { useRequestScope } from '../../composables/useRequestScope'
-import { feedbackFailure } from '../../api/errors'
+import { feedbackFailure, feedbackWriteError } from '../../api/errors'
 
 /**
  * Mount per account/tag. Retain entered fields while reviewing a newer version.
@@ -13,8 +12,6 @@ export function useFeedbackTagEditor(
   props: { tag: FeedbackTag; owner: string },
   onSaved: () => void,
 ) {
-  const write = useFeedbackWrite()
-
   const form = reactive({
     name: props.tag.name,
     isActive: props.tag.isActive,
@@ -48,12 +45,11 @@ export function useFeedbackTagEditor(
     message.value = ''
 
     try {
-      const saved = await updateTag(props.tag.id, body, write.headers(body))
+      const saved = await updateTag(props.tag.id, body)
       if (!scope.isActive()) {
         return
       }
 
-      write.complete()
       Object.assign(form, { ...body, version: saved.version })
       message.value = 'Tag saved.'
 

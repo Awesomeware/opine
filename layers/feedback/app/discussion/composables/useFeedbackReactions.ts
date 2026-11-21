@@ -1,10 +1,9 @@
 import { getReactions, setReaction, type ReactionInput } from '../api/reactions'
 import type { FeedbackReactions, ReactionKind } from '../../../shared/discussion/contracts'
 import { startDiscordSignIn } from '../../../../auth/app/api/session'
-import { useFeedbackWrite, feedbackWriteError } from '../../composables/useFeedbackWrite'
 import { ref, onMounted } from 'vue'
 import { useRequestScope } from '../../composables/useRequestScope'
-import { feedbackFailure } from '../../api/errors'
+import { feedbackFailure, feedbackWriteError } from '../../api/errors'
 
 /**
  * Refresh counts after each attempt so an uncertain response does not leave a stale toggle. Mount per account/post.
@@ -20,7 +19,6 @@ export function useFeedbackReactions(props: { postId: string; owner: string | nu
   const reacting = ref(false)
   const explain = ref(false)
   const expired = ref(false)
-  const reactionWrite = useFeedbackWrite()
 
   async function loadReactions() {
     const isCurrent = scope.startRequest()
@@ -53,12 +51,11 @@ export function useFeedbackReactions(props: { postId: string; owner: string | nu
     writeError.value = ''
 
     try {
-      await setReaction(props.postId, payload, reactionWrite.headers(payload))
+      await setReaction(props.postId, payload)
       if (!scope.isActive()) {
         return
       }
 
-      reactionWrite.complete()
       explain.value = payload.kind !== null
       await loadReactions()
     } catch (failure) {

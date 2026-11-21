@@ -1,6 +1,6 @@
+import { feedbackWriteError } from '../../api/errors'
 import { ref } from 'vue'
 import { changeFollowing } from '../api/following'
-import { useFeedbackWrite, feedbackWriteError } from '../../composables/useFeedbackWrite'
 import { useRequestScope } from '../../composables/useRequestScope'
 
 /** Following refreshes server state after each attempt and never blocks publication controls. */
@@ -10,7 +10,6 @@ export function useFeedbackFollowing(
 ) {
   const busy = ref(false)
   const message = ref('')
-  const write = useFeedbackWrite()
   const scope = useRequestScope()
 
   async function follow(payload: { following: boolean }) {
@@ -22,12 +21,11 @@ export function useFeedbackFollowing(
     message.value = ''
 
     try {
-      await changeFollowing(props.postId, payload, write.headers(payload))
+      await changeFollowing(props.postId, payload)
       if (!scope.isActive()) {
         return
       }
 
-      write.complete()
       await refresh()
     } catch (failure) {
       if (scope.isActive()) {

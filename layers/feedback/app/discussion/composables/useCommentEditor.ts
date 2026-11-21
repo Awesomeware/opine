@@ -1,9 +1,8 @@
 import { computed, reactive, ref } from 'vue'
 import type { FeedbackComment } from '../../../shared/discussion/contracts'
 import type { ContributionType } from '../../../shared/discussion/contribution-types'
-import { useFeedbackWrite, feedbackWriteError } from '../../composables/useFeedbackWrite'
 import { useRequestScope } from '../../composables/useRequestScope'
-import { feedbackFailure } from '../../api/errors'
+import { feedbackFailure, feedbackWriteError } from '../../api/errors'
 import { startDiscordSignIn } from '../../../../auth/app/api/session'
 import { commentEditInput, type CommentForm } from '../utils/comment-editor-input'
 import { getComment, editComment } from '../api/comment-edits'
@@ -11,7 +10,6 @@ import { getComment, editComment } from '../api/comment-edits'
 /** Owns one mounted account/resource edit. Remount on identity changes; closing the form discards unsaved input. */
 export function useCommentEditor(comment: FeedbackComment) {
   const endpoint = `/api/feedback/posts/${comment.postId}/comments/${comment.id}`
-  const write = useFeedbackWrite()
   const scope = useRequestScope()
   const latestScope = useRequestScope()
   const route = useRoute()
@@ -59,12 +57,10 @@ export function useCommentEditor(comment: FeedbackComment) {
     saving.value = true
 
     try {
-      // Keep the receipt key until confirmation: a lost reply may conceal a committed edit.
-      await editComment(comment.postId, comment.id, parsed.data, write.headers(parsed.data))
+      await editComment(comment.postId, comment.id, parsed.data)
       if (!scope.isActive()) {
         return false
       }
-      write.complete()
 
       return true
     } catch (error) {

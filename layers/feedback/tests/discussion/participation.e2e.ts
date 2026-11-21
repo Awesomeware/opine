@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
@@ -28,10 +27,9 @@ async function participation() {
   const category = await createCategory()
   const post = await createFeedbackPost({ authorId: author.user.id, categoryId: category.id })
   const base = `/api/feedback/posts/${post.id}`
-  const headers = (cookie = member.cookieHeader, key = randomUUID()) => ({
+  const headers = (cookie = member.cookieHeader) => ({
     origin: process.env.BETTER_AUTH_URL!,
     cookie,
-    'Idempotency-Key': key,
   })
   return {
     author,
@@ -52,7 +50,7 @@ async function participation() {
 test('participation endpoints reject unauthenticated, cross-origin, and invalid writes', async ({
   request,
 }) => {
-  const { author, member, post, base, headers, cleanup } = await participation()
+  const { author, post, base, headers, cleanup } = await participation()
   try {
     const writes = [
       { method: 'POST', url: `${base}/comments`, data: { body: 'A comment', type: 'context' } },
@@ -74,7 +72,7 @@ test('participation endpoints reject unauthenticated, cross-origin, and invalid 
           await request.fetch(write.url, {
             method: write.method,
             data: write.data,
-            headers: { origin: process.env.BETTER_AUTH_URL!, 'Idempotency-Key': randomUUID() },
+            headers: { origin: process.env.BETTER_AUTH_URL! },
           })
         ).status(),
       ).toBe(401)
@@ -88,14 +86,6 @@ test('participation endpoints reject unauthenticated, cross-origin, and invalid 
         ).status(),
       ).toBe(403)
     }
-    expect(
-      (
-        await request.post(`${base}/comments`, {
-          headers: { origin: process.env.BETTER_AUTH_URL!, cookie: member.cookieHeader },
-          data: { body: 'Missing key', type: 'context' },
-        })
-      ).status(),
-    ).toBe(400)
     for (const body of ['', 'x'.repeat(10001), 'null\0character']) {
       const response = await request.post(`${base}/comments`, {
         headers: headers(),
@@ -143,7 +133,7 @@ test('participation endpoints reject unauthenticated, cross-origin, and invalid 
   }
 })
 
-test('post edits enforce versions while completed requests replay', async ({ request }) => {
+test('post edits reject repeated stale versions', async ({ request }) => {
   const { author, base, headers, cleanup } = await participation()
   try {
     const postEdit = {
@@ -152,9 +142,8 @@ test('post edits enforce versions while completed requests replay', async ({ req
       desiredImprovement: null,
       version: 1,
     }
-    const editKey = randomUUID()
     const firstEdit = await request.patch(base, {
-      headers: headers(author.cookieHeader, editKey),
+      headers: headers(author.cookieHeader),
       data: postEdit,
     })
     expect(firstEdit.status()).toBe(200)
@@ -162,11 +151,11 @@ test('post edits enforce versions while completed requests replay', async ({ req
     expect(
       (
         await request.patch(base, {
-          headers: headers(author.cookieHeader, editKey),
+          headers: headers(author.cookieHeader),
           data: postEdit,
         })
       ).status(),
-    ).toBe(200)
+    ).toBe(409)
     expect(
       (
         await request.patch(base, {
@@ -189,30 +178,23 @@ test('post edits enforce versions while completed requests replay', async ({ req
   }
 })
 
-test('comment writes replay once and enforce ownership and edit versions', async ({ request }) => {
+test('comment writes create independent contributions and enforce ownership and versions', async ({
+  request,
+}) => {
   const { author, member, base, headers, cleanup } = await participation()
   try {
-    const commentKey = randomUUID()
     const data = { body: 'I prefer a subtle visual indicator.', type: 'suggestion' }
     const results = await Promise.all(
       [0, 1].map(() =>
         request.post(`${base}/comments`, {
-          headers: headers(member.cookieHeader, commentKey),
+          headers: headers(member.cookieHeader),
           data,
         }),
       ),
     )
     expect(results.map((result) => result.status())).toEqual([201, 201])
     const comment = await results[0]!.json()
-    expect(await results[1]!.json()).toEqual(comment)
-    expect(
-      (
-        await request.post(`${base}/comments`, {
-          headers: headers(member.cookieHeader, commentKey),
-          data: { body: 'Different input', type: 'suggestion' },
-        })
-      ).status(),
-    ).toBe(409)
+    expect((await results[1]!.json()).id).not.toBe(comment.id)
     const commentPath = `${base}/comments/${comment.id}`
     expect(
       (
@@ -249,16 +231,13 @@ test('comment writes replay once and enforce ownership and edit versions', async
   }
 })
 
-test('reaction updates replace the choice and replay without undoing newer changes', async ({
-  request,
-}) => {
+test('reaction updates set the latest requested choice', async ({ request }) => {
   const { member, base, headers, cleanup } = await participation()
   try {
-    const reactionKey = randomUUID()
     expect(
       (
         await request.put(`${base}/reactions`, {
-          headers: headers(member.cookieHeader, reactionKey),
+          headers: headers(member.cookieHeader),
           data: { kind: 'agree' },
         })
       ).status(),
@@ -286,13 +265,13 @@ test('reaction updates replace the choice and replay without undoing newer chang
     expect(
       (
         await request.put(`${base}/reactions`, {
-          headers: headers(member.cookieHeader, reactionKey),
+          headers: headers(member.cookieHeader),
           data: { kind: 'agree' },
         })
       ).status(),
     ).toBe(200)
     expect(await (await request.get(`${base}/reactions`)).json()).toEqual({
-      agree: 0,
+      agree: 1,
       disagree: 0,
       mine: null,
     })
@@ -301,12 +280,12 @@ test('reaction updates replace the choice and replay without undoing newer chang
   }
 })
 
-test('a lost post response can be retried in the open form without a duplicate submission', async ({
+test('a lost post response reports uncertainty and the member finds the saved post', async ({
   page,
 }) => {
   const member = await createMember()
   const category = await createCategory()
-  const keys: (string | undefined)[] = []
+  let writes = 0
   let release!: () => void
   const gate = new Promise<void>((resolve) => {
     release = resolve
@@ -323,7 +302,7 @@ test('a lost post response can be retried in the open form without a duplicate s
     await page.getByLabel('Category', { exact: true }).selectOption(category.id)
     await page.route('**/api/feedback/posts', async (route) => {
       if (route.request().method() !== 'POST') return route.continue()
-      keys.push(route.request().headers()['idempotency-key'])
+      writes++
       await route.fetch()
       await gate
       await route.abort('failed')
@@ -339,15 +318,17 @@ test('a lost post response can be retried in the open form without a duplicate s
     await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
       'Preserve a submission when the connection drops',
     )
-    page.on('request', (request) => {
-      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/feedback/posts')
-        keys.push(request.headers()['idempotency-key'])
-    })
-    await page.getByRole('button', { name: 'Submit feedback', exact: true }).click()
-    await page.waitForURL(/\/feedback\/[0-9a-f-]{36}$/)
-    expect(keys).toHaveLength(2)
-    expect(keys[0]).toBeTruthy()
-    expect(keys[1]).toBe(keys[0])
+    await expect(page.getByRole('alert')).toContainText(
+      'Check the feedback list before submitting again.',
+    )
+    await page.goto('/feedback')
+    await page
+      .getByRole('link', { name: 'Preserve a submission when the connection drops', exact: true })
+      .click()
+    await expect(
+      page.getByRole('heading', { name: 'Preserve a submission when the connection drops' }),
+    ).toBeVisible()
+    expect(writes).toBe(1)
     expect(
       await getDatabase()
         .select()
@@ -359,6 +340,37 @@ test('a lost post response can be retried in the open form without a duplicate s
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.authorId, member.user.id))
     await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
+  }
+})
+
+test('an uncertain comment submission is inspected after reload without automatic resubmission', async ({
+  page,
+}) => {
+  const { member, post, base, cleanup } = await participation()
+  let writes = 0
+  try {
+    await page.context().addCookies([member.cookie])
+    await page.goto(`/feedback/${post.id}`)
+    await page.getByRole('radio', { name: 'Question', exact: true }).check()
+    await page.getByLabel('Add a comment', { exact: true }).fill('Can the indicator be configured?')
+    await page.route(`**${base}/comments`, async (route) => {
+      if (route.request().method() !== 'POST') return route.continue()
+      writes++
+      expect((await route.fetch()).status()).toBe(201)
+      await route.abort('failed')
+    })
+    await page.getByRole('button', { name: 'Submit comment', exact: true }).click()
+    await expect(page.getByRole('alert')).toContainText(
+      'Check the current content before submitting again.',
+    )
+    await page.unroute(`**${base}/comments`)
+    await page.reload()
+    await expect(page.locator('article.comment')).toHaveCount(1)
+    await expect(page.locator('article.comment')).toContainText('Can the indicator be configured?')
+    await expect(page.getByLabel('Add a comment', { exact: true })).toHaveValue('')
+    expect(writes).toBe(1)
+  } finally {
+    await cleanup()
   }
 })
 
@@ -467,7 +479,6 @@ test('members submit and edit comments, then review conflicting post edits', asy
           headers: {
             origin: process.env.BETTER_AUTH_URL!,
             cookie: member.cookieHeader,
-            'Idempotency-Key': randomUUID(),
           },
           data: {
             title: 'A change from another tab',
@@ -518,10 +529,10 @@ test('a lost reaction response refreshes the saved choice without replay after r
   const category = await createCategory()
   const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
   const path = `/api/feedback/posts/${post.id}/reactions`
-  const keys: (string | undefined)[] = []
+  let writes = 0
   page.on('request', (request) => {
     if (request.method() === 'PUT' && new URL(request.url()).pathname === path) {
-      keys.push(request.headers()['idempotency-key'])
+      writes++
     }
   })
   try {
@@ -544,8 +555,7 @@ test('a lost reaction response refreshes the saved choice without replay after r
       'aria-pressed',
       'true',
     )
-    expect(keys).toHaveLength(1)
-    expect(keys[0]).toBeTruthy()
+    expect(writes).toBe(1)
   } finally {
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
     await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))

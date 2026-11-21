@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { Client } from 'pg'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
@@ -13,10 +12,9 @@ import {
 import { createCategory, createFeedbackPost } from '../fixtures.ts'
 
 test.afterAll(closeDatabase)
-const headers = (cookie: string, key = randomUUID()) => ({
+const headers = (cookie: string) => ({
   origin: process.env.BETTER_AUTH_URL!,
   cookie,
-  'Idempotency-Key': key,
 })
 
 test('a typed contribution receives an official outcome and followers can read its notification', async ({
@@ -256,7 +254,7 @@ test('official writes and private queues enforce roles, origin, ownership, and v
         (
           await request.fetch(write.url, {
             ...write,
-            headers: { origin: process.env.BETTER_AUTH_URL!, 'Idempotency-Key': randomUUID() },
+            headers: { origin: process.env.BETTER_AUTH_URL! },
           })
         ).status(),
       ).toBe(401)
@@ -352,7 +350,7 @@ test('official writes and private queues enforce roles, origin, ownership, and v
   }
 })
 
-test('official response retries after a lost reply and conflict review preserve the intended publication', async ({
+test('official response uncertainty is resolved by reloading before a later conflicting publication', async ({
   page,
   request,
 }) => {
@@ -381,8 +379,15 @@ test('official response retries after a lost reply and conflict review preserve 
     await expect(
       composer.getByRole('button', { name: 'Publish official response', exact: true }),
     ).toBeEnabled()
+    await expect(page.getByRole('region', { name: 'Feedback overview' })).toContainText(
+      'Check the current content before submitting again.',
+    )
     await page.unroute(`**${base}/responses`)
-    await composer.getByRole('button', { name: 'Publish official response', exact: true }).click()
+    await page.reload()
+    await expect(page.getByRole('region', { name: 'Feedback overview' })).toContainText(
+      'We plan to improve the invitation signal.',
+    )
+    await page.getByText('Publish an official response', { exact: true }).click()
     await expect(composer.getByLabel('Official response', { exact: true })).toHaveValue('')
     expect(
       await getDatabase()

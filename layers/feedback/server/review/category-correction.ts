@@ -6,7 +6,6 @@ import { cursorFor, type PostCursor } from '../list-input.ts'
 import { findActiveCategory } from '../posts/categories.ts'
 import { lockPost, updatePostWorkflow } from '../posts/workflow.ts'
 import { feedbackCategoryChange } from '../schema.ts'
-import { findWriteReceipt, lockActorWrites, saveWriteReceipt } from '../write-repository.ts'
 import { FeedbackWriteError } from '../writes.ts'
 import { checkWorkflowVersion } from './guards.ts'
 
@@ -16,28 +15,15 @@ export async function correctCategory(
   actorId: string,
   postId: string,
   input: CategoryCorrectionInput,
-  requestId: string,
 ) {
   return getDatabase().transaction(async (transaction) => {
-    const request = {
-      actorId,
-      requestId,
-      operation: 'correct-category',
-      input: { postId, ...input },
-    }
-
-    await lockActorWrites(transaction, actorId)
-
-    const receipt = await findWriteReceipt<{ id: string; version: number }>(transaction, request)
-    if (receipt) return receipt
-
     const post = await lockPost(transaction, postId)
     checkWorkflowVersion(post.workflowVersion, input.version)
 
     const category = await findActiveCategory(transaction, input.categoryId)
     if (!category) throw new FeedbackWriteError(400, 'Choose an active category.')
     if (post.categoryId === input.categoryId) {
-      return saveWriteReceipt(transaction, request, { id: postId, version: post.workflowVersion })
+      return { id: postId, version: post.workflowVersion }
     }
     await transaction.insert(feedbackCategoryChange).values({
       postId,
@@ -49,7 +35,7 @@ export async function correctCategory(
       categoryId: input.categoryId,
     })
 
-    return saveWriteReceipt(transaction, request, { id: postId, version: post.workflowVersion + 1 })
+    return { id: postId, version: post.workflowVersion + 1 }
   })
 }
 

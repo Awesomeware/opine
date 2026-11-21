@@ -94,13 +94,10 @@ async function runSuite(suite: TestSuite) {
       DISCORD_CLIENT_SECRET: 'opine-test-secret',
       AUTH_SIGN_IN_MAX: '10',
       AUTH_SIGN_IN_WINDOW_SECONDS: '60',
-      FEEDBACK_POST_MAX: '5',
-      FEEDBACK_POST_WINDOW_SECONDS: '60',
+      // Keep the restart scenario inside its cooldown even on slower CI hosts.
+      FEEDBACK_POST_WINDOW_SECONDS: kind === 'e2e' ? '3600' : '60',
       FEEDBACK_COMMENT_MAX: '10',
-      FEEDBACK_REACTION_MAX: '30',
-      FEEDBACK_EDIT_MAX: '20',
       FEEDBACK_RESPONSE_MAX: '10',
-      FEEDBACK_FOLLOW_MAX: '30',
       FEEDBACK_PARTICIPATION_WINDOW_SECONDS: '60',
     }
 

@@ -4,7 +4,7 @@ import { validateTagInput } from '../../../../shared/posts/tag-input.ts'
 
 export default defineEventHandler(async (event) => {
   const input = validated(validateTagInput(await readBody(event)))
-  const { actorId, requestId } = await feedbackActor(event, 'administrator')
+  await feedbackActor(event, 'administrator')
   setResponseStatus(event, 201)
-  return feedbackResponse(event, createTag(actorId, input, requestId))
+  return feedbackResponse(event, createTag(input))
 })

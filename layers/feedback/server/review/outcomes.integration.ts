@@ -22,7 +22,6 @@ import {
   feedbackNotification,
   feedbackOfficialResponse,
   feedbackPost,
-  feedbackWriteReceipt,
 } from '../schema.ts'
 import { setFollowing } from '../subscriptions/following.ts'
 import { FeedbackWriteError } from '../writes.ts'
@@ -41,7 +40,6 @@ afterEach(async () => {
   await database.delete(feedbackOfficialResponse)
   await database.delete(feedbackCategoryChange)
   await database.delete(feedbackComment)
-  await database.delete(feedbackWriteReceipt)
   await database.delete(feedbackPost)
   await database.delete(feedbackCategory)
   await database.delete(user)
@@ -96,7 +94,7 @@ test('the outcomes migration preserves existing posts, comments, follows, and re
     const before = await Promise.all(
       preserved.map(async (table) => (await isolated.query(`select * from ${table}`)).rows),
     )
-    await applyMigrations(isolated, 4)
+    await applyMigrations(isolated, 4, 5)
     const afterPost = (await isolated.query('select * from feedback_post')).rows[0]
     for (const [key, value] of Object.entries(beforePost)) assert.deepEqual(afterPost[key], value)
     assert.equal(afterPost.workflow_version, 1)
@@ -105,20 +103,25 @@ test('the outcomes migration preserves existing posts, comments, follows, and re
   })
 })
 
-test('official publication atomically changes status and notifies each follower once across concurrent retries', async () => {
+test('official publication atomically changes status and notifies each follower once while concurrent stale publications conflict', async () => {
   const { author, manager, post } = await discussion()
-  await setFollowing(author.user.id, post.id, true, randomUUID())
-  await setFollowing(manager.user.id, post.id, true, randomUUID())
+  await setFollowing(author.user.id, post.id, true)
+  await setFollowing(manager.user.id, post.id, true)
   const input = {
     body: 'We are reviewing this feedback.',
     status: 'reviewing' as const,
     version: 1,
   }
-  const key = randomUUID()
-  const results = await Promise.all(
-    Array.from({ length: 4 }, () => publishResponse(manager.user.id, post.id, input, key)),
+  const attempts = await Promise.allSettled(
+    Array.from({ length: 4 }, () => publishResponse(manager.user.id, post.id, input)),
   )
-  for (const result of results) assert.deepEqual(result, results[0])
+  const results = attempts
+    .filter((attempt) => attempt.status === 'fulfilled')
+    .map((attempt) => attempt.value)
+  assert.equal(results.length, 1)
+  const rejected = attempts.filter((attempt) => attempt.status === 'rejected')
+  assert.equal(rejected.length, 3)
+  for (const attempt of rejected) assert.ok(status(409)(attempt.reason))
   const database = getDatabase()
   const responses = await database.select().from(feedbackOfficialResponse)
   assert.equal(responses.length, 1)
@@ -137,12 +140,10 @@ test('official publication atomically changes status and notifies each follower 
   assert.equal(outcome?.statusResponse?.id, results[0]!.id)
   assert.equal(outcome?.canRespond, true)
   await assert.rejects(
-    publishResponse(manager.user.id, post.id, { ...input, body: 'Changed' }, key),
+    publishResponse(manager.user.id, post.id, { ...input, body: 'Changed' }),
     status(409),
   )
   await setUserRole(manager.user.id, 'community-manager', false)
-  // The HTTP boundary authorizes requests; the use case only preserves the receipt.
-  assert.deepEqual(await publishResponse(manager.user.id, post.id, input, key), results[0])
   assert.equal((await getOutcome(post.id, manager.user.id))?.canRespond, false)
   const publicResponse = await getOfficialResponse(post.id, results[0]!.id)
   assert.deepEqual(publicResponse?.author, { name: 'Community manager' })
@@ -151,11 +152,30 @@ test('official publication atomically changes status and notifies each follower 
   assert.equal(await getOfficialResponse(randomUUID(), results[0]!.id), undefined)
 })
 
-test('notification failure rolls back response, status, and receipt so the original request can retry', async () => {
+test('official response limits count existing rows and expire', async () => {
+  const { manager, post } = await discussion()
+  const maximum = Number(process.env.FEEDBACK_RESPONSE_MAX ?? 20)
+  await getDatabase()
+    .insert(feedbackOfficialResponse)
+    .values(
+      Array.from({ length: maximum }, () => ({
+        postId: post.id,
+        authorId: manager.user.id,
+        body: 'Existing response',
+      })),
+    )
+  const input = { body: 'Another response', version: 1 }
+  await assert.rejects(publishResponse(manager.user.id, post.id, input), status(429))
+  await getDatabase()
+    .update(feedbackOfficialResponse)
+    .set({ createdAt: new Date(Date.now() - 61_000) })
+  assert.ok(await publishResponse(manager.user.id, post.id, input))
+})
+
+test('notification failure rolls back response and status so publication can be attempted again', async () => {
   const { author, manager, post } = await discussion()
-  await setFollowing(author.user.id, post.id, true, randomUUID())
+  await setFollowing(author.user.id, post.id, true)
   const database = getDatabase()
-  const key = randomUUID()
   const input = { body: 'This is now planned.', status: 'planned' as const, version: 1 }
   await database.execute(
     sql`create function reject_test_notification() returns trigger language plpgsql as $$ begin raise exception 'Simulated notification failure'; end $$`,
@@ -165,18 +185,9 @@ test('notification failure rolls back response, status, and receipt so the origi
       sql`create trigger reject_test_notification before insert on feedback_notification for each row execute function reject_test_notification()`,
     )
     try {
-      await assert.rejects(publishResponse(manager.user.id, post.id, input, key))
+      await assert.rejects(publishResponse(manager.user.id, post.id, input))
       assert.equal((await database.select().from(feedbackOfficialResponse)).length, 0)
       assert.equal((await database.select().from(feedbackNotification)).length, 0)
-      assert.equal(
-        (
-          await database
-            .select()
-            .from(feedbackWriteReceipt)
-            .where(eq(feedbackWriteReceipt.requestId, key))
-        ).length,
-        0,
-      )
       const outcome = await getOutcome(post.id)
       assert.equal(outcome?.status, 'new')
       assert.equal(outcome?.version, 1)
@@ -186,7 +197,7 @@ test('notification failure rolls back response, status, and receipt so the origi
   } finally {
     await database.execute(sql`drop function reject_test_notification()`)
   }
-  await publishResponse(manager.user.id, post.id, input, key)
+  await publishResponse(manager.user.id, post.id, input)
   assert.equal((await database.select().from(feedbackNotification)).length, 1)
 })
 
@@ -194,16 +205,15 @@ test('workflow conflicts serialize managers while author edits and later respons
   const { author, manager, post } = await discussion()
   const other = await createMember({ roles: ['community-manager'] })
   // Both representatives follow: publishing must not deadlock on each other's recipient rows.
-  await setFollowing(manager.user.id, post.id, true, randomUUID())
-  await setFollowing(other.user.id, post.id, true, randomUUID())
+  await setFollowing(manager.user.id, post.id, true)
+  await setFollowing(other.user.id, post.id, true)
   const results = await Promise.allSettled(
     [manager, other].map((actor) =>
-      publishResponse(
-        actor.user.id,
-        post.id,
-        { body: 'We acknowledge the issue.', status: 'reviewing', version: 1 },
-        randomUUID(),
-      ),
+      publishResponse(actor.user.id, post.id, {
+        body: 'We acknowledge the issue.',
+        status: 'reviewing',
+        version: 1,
+      }),
     ),
   )
   assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1)
@@ -211,17 +221,12 @@ test('workflow conflicts serialize managers while author edits and later respons
   assert.ok(rejected && status(409)(rejected.reason))
   const acknowledged = await getOutcome(post.id)
   assert.equal(acknowledged?.version, 2)
-  const edited = await editPost(
-    author.user.id,
-    post.id,
-    {
-      title: 'Clarified original feedback',
-      description: post.description,
-      desiredImprovement: null,
-      version: 1,
-    },
-    randomUUID(),
-  )
+  const edited = await editPost(author.user.id, post.id, {
+    title: 'Clarified original feedback',
+    description: post.description,
+    desiredImprovement: null,
+    version: 1,
+  })
   assert.equal(edited.version, 2)
   assert.equal((await getOutcome(post.id))?.version, 2)
   // A waiting/rounded timestamp may be ahead of the app clock. The next response
@@ -234,12 +239,10 @@ test('workflow conflicts serialize managers while author edits and later respons
     type: 'context',
     createdAt: priorCommentTime,
   })
-  const later = await publishResponse(
-    manager.user.id,
-    post.id,
-    { body: 'Here is an additional detail.', version: 2 },
-    randomUUID(),
-  )
+  const later = await publishResponse(manager.user.id, post.id, {
+    body: 'Here is an additional detail.',
+    version: 2,
+  })
   const current = await getOutcome(post.id)
   assert.equal(current?.version, 3)
   assert.equal(current?.status, 'reviewing')
@@ -248,12 +251,10 @@ test('workflow conflicts serialize managers while author edits and later respons
   assert.equal((await listReviewQueue({ status: 'all', followUp: true })).posts.length, 0)
   assert.equal(current?.latestResponse?.status, null)
   assert.equal(current?.statusResponse?.id, acknowledged?.statusResponse?.id)
-  await createComment(
-    author.user.id,
-    post.id,
-    { body: 'Thank you for reviewing.', type: 'context' },
-    randomUUID(),
-  )
+  await createComment(author.user.id, post.id, {
+    body: 'Thank you for reviewing.',
+    type: 'context',
+  })
   assert.equal((await listReviewQueue({ status: 'all', followUp: true })).posts.length, 1)
   assert.equal((await getDatabase().select().from(feedbackNotification)).length, 4)
 })
@@ -361,12 +362,11 @@ test('the review queue defaults to oldest New posts and follow-up excludes manag
     (await listReviewQueue({ category: otherCategory.slug })).posts.map((row) => row.id),
     [second.id],
   )
-  await publishResponse(
-    manager.user.id,
-    oldest.id,
-    { body: 'Under review', status: 'reviewing', version: 1 },
-    randomUUID(),
-  )
+  await publishResponse(manager.user.id, oldest.id, {
+    body: 'Under review',
+    status: 'reviewing',
+    version: 1,
+  })
   const officialTime = new Date('2021-01-01')
   await database
     .update(feedbackOfficialResponse)
@@ -411,12 +411,7 @@ test('the review queue defaults to oldest New posts and follow-up excludes manag
     (await listReviewQueue({ status: 'reviewing' })).posts.map((row) => row.id),
     [oldest.id],
   )
-  await publishResponse(
-    manager.user.id,
-    oldest.id,
-    { body: 'Answer to follow-up', version: 2 },
-    randomUUID(),
-  )
+  await publishResponse(manager.user.id, oldest.id, { body: 'Answer to follow-up', version: 2 })
   assert.equal((await listReviewQueue({ followUp: true, status: 'all' })).posts.length, 0)
 })
 
@@ -425,19 +420,14 @@ test('category corrections are conflict-safe, audited once, and independent of a
   const target = await createCategory()
   const input = { categoryId: target.id, version: 1 }
   const unchanged = { categoryId: category.id, version: 1 }
-  const unchangedKey = randomUUID()
-  assert.deepEqual(await correctCategory(manager.user.id, post.id, unchanged, unchangedKey), {
+  assert.deepEqual(await correctCategory(manager.user.id, post.id, unchanged), {
     id: post.id,
     version: 1,
   })
-  await assert.rejects(correctCategory(manager.user.id, post.id, input, unchangedKey), status(409))
-  const key = randomUUID()
-  const result = await correctCategory(manager.user.id, post.id, input, key)
-  assert.deepEqual(await correctCategory(manager.user.id, post.id, input, key), result)
-  assert.deepEqual(await correctCategory(manager.user.id, post.id, unchanged, unchangedKey), {
-    id: post.id,
-    version: 1,
-  })
+  const result = await correctCategory(manager.user.id, post.id, input)
+  assert.equal(result.version, 2)
+  await assert.rejects(correctCategory(manager.user.id, post.id, input), status(409))
+  await assert.rejects(correctCategory(manager.user.id, post.id, unchanged), status(409))
   const audit = await getDatabase().select().from(feedbackCategoryChange)
   assert.equal(audit.length, 1)
   assert.equal(audit[0]!.previousCategoryId, category.id)
@@ -445,23 +435,13 @@ test('category corrections are conflict-safe, audited once, and independent of a
   assert.equal(audit[0]!.actorId, manager.user.id)
   assert.equal((await getDatabase().select().from(feedbackPost))[0]!.version, 1)
   await assert.rejects(
-    correctCategory(
-      manager.user.id,
-      post.id,
-      { categoryId: category.id, version: 1 },
-      randomUUID(),
-    ),
+    correctCategory(manager.user.id, post.id, { categoryId: category.id, version: 1 }),
     status(409),
   )
   assert.equal((await listCategoryHistory(post.id)).changes.length, 1)
   const inactive = await createCategory({ isActive: false })
   await assert.rejects(
-    correctCategory(
-      manager.user.id,
-      post.id,
-      { categoryId: inactive.id, version: 2 },
-      randomUUID(),
-    ),
+    correctCategory(manager.user.id, post.id, { categoryId: inactive.id, version: 2 }),
     status(400),
   )
   assert.equal((await getDatabase().select().from(feedbackNotification)).length, 0)

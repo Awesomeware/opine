@@ -6,11 +6,10 @@ export function getReactions(postId: string) {
   return $fetch<FeedbackReactions>(`/api/feedback/posts/${postId}/reactions`)
 }
 
-export function setReaction(postId: string, body: ReactionInput, headers: Record<string, string>) {
+export function setReaction(postId: string, body: ReactionInput) {
   return $fetch(`/api/feedback/posts/${postId}/reactions`, {
     method: 'PUT',
     body,
-    headers,
     retry: 0,
   })
 }

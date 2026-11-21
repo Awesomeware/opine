@@ -1,8 +1,7 @@
-import { and, count, desc, eq, isNull, lt, or } from 'drizzle-orm'
+import { and, count, desc, eq, isNull, lt, or, sql } from 'drizzle-orm'
 import { getDatabase } from '../../../../server/db/index.ts'
 import { cursorFor, type PostCursor } from '../list-input.ts'
 import { feedbackNotification, feedbackOfficialResponse, feedbackPost } from '../schema.ts'
-import { findWriteReceipt, lockActorWrites, saveWriteReceipt } from '../write-repository.ts'
 import { FeedbackWriteError } from '../writes.ts'
 
 type Pagination = { cursor?: PostCursor; limit?: number }
@@ -56,38 +55,16 @@ export async function listNotifications(
   )
 }
 
-export async function markNotificationRead(
-  actorId: string,
-  notificationId: string,
-  requestId: string,
-) {
+export async function markNotificationRead(actorId: string, notificationId: string) {
   const where = and(
     eq(feedbackNotification.id, notificationId),
     eq(feedbackNotification.userId, actorId),
   )
-  return getDatabase().transaction(async (transaction) => {
-    const request = {
-      actorId,
-      requestId,
-      operation: 'read-notification',
-      input: { notificationId },
-    }
-
-    await lockActorWrites(transaction, actorId)
-    const [notification] = await transaction
-      .select({ id: feedbackNotification.id })
-      .from(feedbackNotification)
-      .where(where)
-    if (!notification) throw new FeedbackWriteError(404, 'Notification not found.')
-
-    const receipt = await findWriteReceipt(transaction, request)
-    if (receipt) return receipt
-
-    await transaction
-      .update(feedbackNotification)
-      .set({ readAt: new Date() })
-      .where(and(where, isNull(feedbackNotification.readAt)))
-
-    return saveWriteReceipt(transaction, request, { id: notificationId })
-  })
+  const [notification] = await getDatabase()
+    .update(feedbackNotification)
+    .set({ readAt: sql`coalesce(${feedbackNotification.readAt}, now())` })
+    .where(where)
+    .returning({ id: feedbackNotification.id })
+  if (!notification) throw new FeedbackWriteError(404, 'Notification not found.')
+  return notification
 }

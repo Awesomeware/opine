@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test, type APIResponse } from '@playwright/test'
 import { closeDatabase } from '../../../server/db/index.ts'
 import { createMember } from '../../auth/tests/fixtures.ts'
@@ -15,10 +14,9 @@ test('prepare explicit persistence state before database and application restart
   const manager = await createMember({ roles: ['administrator', 'community-manager'] })
   const category = await createCategory()
 
-  const headers = (cookie = author.cookieHeader, key = randomUUID()) => ({
+  const headers = (cookie = author.cookieHeader) => ({
     origin: process.env.BETTER_AUTH_URL!,
     cookie,
-    'Idempotency-Key': key,
   })
 
   async function result(response: APIResponse, status = 200) {
@@ -27,7 +25,7 @@ test('prepare explicit persistence state before database and application restart
   }
 
   // This is the only scenario that deliberately survives the main test phase.
-  // Every persisted mutation goes through HTTP so receipts and notifications are real.
+  // Every persisted mutation goes through HTTP so notifications and saved content are real.
   const tag = await result(
     await request.post('/api/feedback/tags', {
       headers: headers(manager.cookieHeader),
@@ -63,10 +61,9 @@ test('prepare explicit persistence state before database and application restart
     }),
   )
 
-  const commentRequestKey = randomUUID()
   const comment = await result(
     await request.post(`${base}/comments`, {
-      headers: headers(author.cookieHeader, commentRequestKey),
+      headers: headers(author.cookieHeader),
       data: { body: content.comment, type: 'context' },
     }),
     201,
@@ -129,7 +126,6 @@ test('prepare explicit persistence state before database and application restart
     authorCookie: author.cookie,
     followerCookie: follower.cookie,
     commentId: comment.id,
-    commentRequestKey,
     statusResponseId: first.id,
     latestResponseId: second.id,
     notificationId,

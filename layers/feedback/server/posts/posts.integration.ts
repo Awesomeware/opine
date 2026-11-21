@@ -3,13 +3,14 @@ import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { after, afterEach, test } from 'node:test'
+import { Client } from 'pg'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
 import { createCategory, createFeedbackPost } from '../../tests/fixtures.ts'
-import { feedbackCategory, feedbackFollow, feedbackPost, feedbackWriteReceipt } from '../schema.ts'
+import { feedbackCategory, feedbackFollow, feedbackPost } from '../schema.ts'
 import { FeedbackWriteError } from '../writes.ts'
 import { listCategories } from './categories.ts'
 import { createPost } from './creation.ts'
@@ -115,6 +116,14 @@ test('a failed automatic follow rolls back the whole submission', async () => {
   } finally {
     await database.execute(sql`drop function reject_test_follow()`)
   }
+  assert.ok(
+    await createPost(member.user.id, {
+      categoryId: category.id,
+      title: 'Submission after rollback',
+      description: 'A failed write does not consume the cooldown.',
+      desiredImprovement: null,
+    }),
+  )
 })
 
 test('inactive categories cannot receive submissions and referenced authors and categories cannot be deleted', async () => {
@@ -218,7 +227,7 @@ test('newest pagination preserves ties and database timestamp precision without 
 test('concurrent submissions cannot exceed the per-member allowance', async () => {
   const member = await createMember()
   const category = await createCategory()
-  const maximum = Number(process.env.FEEDBACK_POST_MAX ?? 5)
+  const maximum = 1
   const results = await Promise.allSettled(
     Array.from({ length: maximum + 2 }, () =>
       createPost(member.user.id, {
@@ -236,6 +245,52 @@ test('concurrent submissions cannot exceed the per-member allowance', async () =
     assert.ok(failure.reason instanceof FeedbackWriteError && failure.reason.statusCode === 429)
   assert.equal((await getDatabase().select().from(feedbackPost)).length, maximum)
   assert.equal((await getDatabase().select().from(feedbackFollow)).length, maximum)
+})
+
+test('post cooldown timestamps begin after waiting for the creation lock', async () => {
+  const member = await createMember()
+  const category = await createCategory()
+  const blocker = new Client({ connectionString: process.env.OPINE_TEST_DATABASE_URL })
+  await blocker.connect()
+  let pending: ReturnType<typeof createPost> | undefined
+  try {
+    await blocker.query('begin')
+    const { rows } = await blocker.query('select pg_backend_pid() as pid')
+    await blocker.query('select id from auth_user where id = $1 for no key update', [
+      member.user.id,
+    ])
+    pending = createPost(member.user.id, {
+      categoryId: category.id,
+      title: 'Wait for the creation lock',
+      description: 'The cooldown starts when this post is written.',
+      desiredImprovement: null,
+    })
+    const deadline = Date.now() + 5000
+    let waiting = false
+    while (Date.now() < deadline) {
+      const blocked = await blocker.query(
+        'select 1 from pg_stat_activity where $1::integer = any(pg_blocking_pids(pid))',
+        [rows[0].pid],
+      )
+      if (blocked.rowCount) {
+        waiting = true
+        break
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    assert.ok(waiting, 'Creation must be waiting on the actor lock')
+    const releasedAt = new Date()
+    await blocker.query('commit')
+    const result = await pending
+    assert.ok(result)
+    const stored = await getPost(result.id)
+    assert.ok(stored && stored.createdAt >= releasedAt)
+    assert.deepEqual(stored.updatedAt, stored.createdAt)
+  } finally {
+    await blocker.query('rollback')
+    await pending?.catch(() => {})
+    await blocker.end()
+  }
 })
 
 test('operator category changes preserve references and disabling prevents new submissions', async () => {
@@ -273,7 +328,7 @@ function status(code: number) {
   return (error: unknown) => error instanceof FeedbackWriteError && error.statusCode === code
 }
 
-test('post retries create one post and follow, reject changed input, and bypass an exhausted allowance', async () => {
+test('post cooldown rejects repeat submissions and expires from the stored timestamp', async () => {
   const author = await createMember()
   const category = await createCategory()
   const input = {
@@ -282,22 +337,20 @@ test('post retries create one post and follow, reject changed input, and bypass 
     description: 'Make paths easier to read.',
     desiredImprovement: null,
   }
-  const requestId = randomUUID()
-  const replies = await Promise.all(
-    Array.from({ length: 4 }, () => createPost(author.user.id, input, requestId)),
-  )
-  assert.ok(replies[0])
-  for (const reply of replies) assert.deepEqual(reply, replies[0])
-  assert.equal((await getDatabase().select().from(feedbackPost)).length, 1)
-  assert.equal((await getDatabase().select().from(feedbackFollow)).length, 1)
-  assert.equal((await getDatabase().select().from(feedbackWriteReceipt)).length, 1)
-  await assert.rejects(
-    createPost(author.user.id, { ...input, title: 'Different request' }, requestId),
-    status(409),
-  )
-  const maximum = Number(process.env.FEEDBACK_POST_MAX ?? 5)
-  for (let i = 1; i < maximum; i++) await createPost(author.user.id, input, randomUUID())
-  assert.deepEqual(await createPost(author.user.id, input, requestId), replies[0])
+  const post = await createPost(author.user.id, input)
+  assert.ok(post)
+  await assert.rejects(createPost(author.user.id, input), (error: unknown) => {
+    assert.ok(error instanceof FeedbackWriteError)
+    assert.equal(error.statusCode, 429)
+    assert.ok(error.retryAfterSeconds! > 0 && error.retryAfterSeconds! <= 60)
+    return true
+  })
+  await getDatabase()
+    .update(feedbackPost)
+    .set({ createdAt: new Date(Date.now() - 61_000) })
+    .where(eq(feedbackPost.id, post.id))
+  assert.ok(await createPost(author.user.id, input))
+  assert.equal((await getDatabase().select().from(feedbackPost)).length, 2)
 })
 
 test('authors edit current post content only, unchanged saves do not mark edits, and stale writers conflict', async () => {
@@ -311,23 +364,17 @@ test('authors edit current post content only, unchanged saves do not mark edits,
     desiredImprovement: post.desiredImprovement,
     version: 1,
   }
-  await assert.rejects(editPost(commenter.user.id, post.id, original, randomUUID()), status(403))
-  const unchangedKey = randomUUID()
-  assert.deepEqual(await editPost(author.user.id, post.id, original, unchangedKey), {
+  await assert.rejects(editPost(commenter.user.id, post.id, original), status(403))
+  assert.deepEqual(await editPost(author.user.id, post.id, original), {
     id: post.id,
     version: 1,
   })
   assert.equal((await getPost(post.id))?.editedAt, null)
   const input = { ...original, title: 'A clearer combat indicator' }
-  await assert.rejects(editPost(author.user.id, post.id, input, unchangedKey), status(409))
-  const requestId = randomUUID()
-  const updated = await editPost(author.user.id, post.id, input, requestId)
+  const updated = await editPost(author.user.id, post.id, input)
   assert.equal(updated.version, 2)
-  assert.deepEqual(await editPost(author.user.id, post.id, original, unchangedKey), {
-    id: post.id,
-    version: 1,
-  })
-  assert.deepEqual(await editPost(author.user.id, post.id, input, requestId), updated)
+  await assert.rejects(editPost(author.user.id, post.id, original), status(409))
+  await assert.rejects(editPost(author.user.id, post.id, input), status(409))
   const current = await getPost(post.id, author.user.id)
   assert.ok(current?.editedAt)
   assert.equal(current.title, input.title)
@@ -337,16 +384,11 @@ test('authors edit current post content only, unchanged saves do not mark edits,
   assert.equal((await getPost(post.id, commenter.user.id))?.canEdit, false)
   const outcomes = await Promise.allSettled(
     ['First writer', 'Second writer'].map((title) =>
-      editPost(author.user.id, post.id, { ...input, title, version: 2 }, randomUUID()),
+      editPost(author.user.id, post.id, { ...input, title, version: 2 }),
     ),
   )
   assert.equal(outcomes.filter((result) => result.status === 'fulfilled').length, 1)
   const rejected = outcomes.find((result) => result.status === 'rejected')
   assert.ok(rejected && status(409)(rejected.reason))
   assert.equal((await getPost(post.id))?.version, 3)
-  const receipts = await getDatabase().select().from(feedbackWriteReceipt)
-  assert.ok(
-    !JSON.stringify(receipts).includes(post.description),
-    'Receipts must not archive content',
-  )
 })

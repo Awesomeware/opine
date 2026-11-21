@@ -1,7 +1,6 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { authClient } from '../../../../auth/app/auth-client'
 import { startDiscordSignIn } from '../../../../auth/app/api/session'
-import { useFeedbackWrite } from '../../composables/useFeedbackWrite'
 import { useRequestScope } from '../../composables/useRequestScope'
 import { getCategories, createPost } from '../api/posts'
 import { getTags } from '../api/tags'
@@ -44,7 +43,6 @@ export function useFeedbackSubmission() {
   const sessionScope = useRequestScope()
   const message = ref('')
   const formOwner = ref<string | null>(null)
-  const write = useFeedbackWrite()
 
   watch(
     () => session.value.data?.user.id,
@@ -53,7 +51,7 @@ export function useFeedbackSubmission() {
       signInScope.startRequest()
       sessionScope.startRequest()
       formOwner.value = id ?? null
-      write.complete()
+
       message.value = ''
       saving.value = false
       signingIn.value = false
@@ -120,12 +118,10 @@ export function useFeedbackSubmission() {
     saving.value = true
 
     try {
-      const post = await createPost(result.data, write.headers(result.data))
+      const post = await createPost(result.data)
       if (!isCurrent()) {
         return
       }
-
-      write.complete()
 
       return post.id
     } catch (error: unknown) {
@@ -170,7 +166,7 @@ export function useFeedbackSubmission() {
         message.value = 'You are posting too quickly. Please wait before trying again.'
       } else {
         message.value =
-          'Unable to confirm submission. Please try again. Your text remains in this form.'
+          'Unable to confirm submission. Check the feedback list before submitting again.'
       }
     } finally {
       if (isCurrent()) {

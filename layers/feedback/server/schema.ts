@@ -4,7 +4,6 @@ import {
   check,
   index,
   integer,
-  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -157,24 +156,6 @@ export const feedbackReaction = pgTable(
   (table) => [
     primaryKey({ columns: [table.postId, table.userId] }),
     index('feedback_reaction_user_idx').on(table.userId),
-  ],
-)
-
-export const feedbackWriteReceipt = pgTable(
-  'feedback_write_receipt',
-  {
-    actorId: text('actor_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    requestId: uuid('request_id').notNull(),
-    operation: text('operation').notNull(),
-    requestHash: text('request_hash').notNull(),
-    result: jsonb('result').$type<{ id: string; version?: number }>().notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.actorId, table.requestId] }),
-    index('feedback_write_receipt_rate_idx').on(table.actorId, table.operation, table.createdAt),
   ],
 )
 

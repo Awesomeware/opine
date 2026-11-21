@@ -5,6 +5,6 @@ import { validateCategoryCorrectionInput } from '../../../../../shared/review/in
 export default defineEventHandler(async (event) => {
   const id = feedbackParam(event, 'id')
   const input = validated(validateCategoryCorrectionInput(await readBody(event)))
-  const { actorId, requestId } = await feedbackActor(event, 'community-manager')
-  return feedbackResponse(event, correctCategory(actorId, id, input, requestId))
+  const actorId = await feedbackActor(event, 'community-manager')
+  return feedbackResponse(event, correctCategory(actorId, id, input))
 })

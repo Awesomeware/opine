@@ -6,11 +6,10 @@ export function getNotifications(unread: boolean, cursor?: string) {
   })
 }
 
-export function markNotificationRead(id: string, headers: Record<string, string>) {
+export function markNotificationRead(id: string) {
   return $fetch(`/api/feedback/notifications/${id}`, {
     method: 'PATCH',
     body: { read: true },
-    headers,
     retry: 0,
   })
 }

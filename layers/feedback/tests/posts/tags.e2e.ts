@@ -8,10 +8,9 @@ import { feedbackCategory, feedbackPost, feedbackTag } from '../../server/schema
 import { createCategory } from '../fixtures.ts'
 
 test.afterAll(closeDatabase)
-const headers = (cookie?: string, key = randomUUID()) => ({
+const headers = (cookie?: string) => ({
   origin: process.env.BETTER_AUTH_URL!,
   ...(cookie ? { cookie } : {}),
-  'Idempotency-Key': key,
 })
 
 test('only administrators manage the optional tag catalog, while post ownership still controls attachments', async ({
@@ -112,7 +111,7 @@ test('only administrators manage the optional tag catalog, while post ownership 
       expect.objectContaining({ id: tag!.id, name: names[1], isActive: false }),
     ])
     const disabled = await request.post('/api/feedback/posts', {
-      headers: headers(member.cookieHeader),
+      headers: headers(manager.cookieHeader),
       data: {
         categoryId: category.id,
         title: 'Cannot attach a disabled tag',
@@ -164,7 +163,7 @@ test('only administrators manage the optional tag catalog, while post ownership 
   }
 })
 
-test('optional tags survive a lost submission reply while the form stays open, then author tag-only edits can clear them', async ({
+test('optional tags persist after an uncertain submission and author tag-only edits can clear them', async ({
   page,
   request,
 }) => {
@@ -189,7 +188,7 @@ test('optional tags survive a lost submission reply while the form stays open, t
     const tags = await database.select().from(feedbackTag).where(inArray(feedbackTag.name, names))
     expect(tags).toHaveLength(2)
     const untagged = await request.post('/api/feedback/posts', {
-      headers: headers(author.cookieHeader),
+      headers: headers(admin.cookieHeader),
       data: {
         categoryId: category.id,
         title: 'Feedback without tags',
@@ -221,7 +220,10 @@ test('optional tags survive a lost submission reply while the form stays open, t
       'Unable to confirm submission',
     )
     await page.unroute('**/api/feedback/posts')
-    await page.getByRole('button', { name: 'Submit feedback', exact: true }).click()
+    await page.goto('/feedback')
+    await page
+      .getByRole('link', { name: 'Make navigation clearer with optional tags', exact: true })
+      .click()
     await page.waitForURL(/\/feedback\/[0-9a-f-]{36}$/)
     const postId = new URL(page.url()).pathname.split('/').at(-1)!
     expect(

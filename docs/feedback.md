@@ -23,7 +23,7 @@ For populated discussions immediately, run `pnpm db:seed`. It adds three example
 
 Visit <http://localhost:3000/feedback>. The migration creates a **General feedback** category so a fresh installation can accept submissions immediately. Sign in, select **Share feedback**, and choose **Submit feedback** when ready. Copy its link and open it in a private browser window to verify public access.
 
-Forms keep their input in memory only. Reloading, leaving the page, cancelling an edit, or switching accounts may discard unsaved changes. There is no browser draft storage, restoration, or offline queue. Validation and network failures keep the current form text while it remains mounted. Retrying unchanged content in that form reuses its in-memory request key; after reload, fetch the saved state to see whether an uncertain submission succeeded.
+Forms keep their input in memory only. Reloading, leaving the page, cancelling an edit, or switching accounts may discard unsaved changes. There is no browser draft storage, restoration, or offline queue. Validation and network failures keep the current form text while it remains mounted. After an uncertain response, check the saved state before submitting again. Mutations do not retry automatically.
 
 ## Official responses and following
 
@@ -80,11 +80,10 @@ Authentication remains in [the auth schema](../layers/auth/server/schema.ts). Fe
 
 Additional participation tables:
 
-| Table                    | Columns                                                                                                                     | Constraints                                                                                                                            |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `feedback_comment`       | UUID `id`, `post_id`; text `author_id`, `body`; nullable enum `type`; integer `version`; nullable `edited_at`; `created_at` | Author/post references restrict deletion; body required, at most 10,000 characters; positive version; type required on new submissions |
-| `feedback_reaction`      | UUID `post_id`; text `user_id`; enum `kind` (`agree`, `disagree`); `created_at`, `updated_at`                               | Composite primary key `(post_id, user_id)`; removable on post/user deletion                                                            |
-| `feedback_write_receipt` | text `actor_id`, `operation`, `request_hash`; UUID `request_id`; JSON `result`; `created_at`                                | Composite primary key `(actor_id, request_id)`; removed on user deletion; no content text in results                                   |
+| Table               | Columns                                                                                                                     | Constraints                                                                                                                            |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `feedback_comment`  | UUID `id`, `post_id`; text `author_id`, `body`; nullable enum `type`; integer `version`; nullable `edited_at`; `created_at` | Author/post references restrict deletion; body required, at most 10,000 characters; positive version; type required on new submissions |
+| `feedback_reaction` | UUID `post_id`; text `user_id`; enum `kind` (`agree`, `disagree`); `created_at`, `updated_at`                               | Composite primary key `(post_id, user_id)`; removable on post/user deletion                                                            |
 
 Official workflow tables:
 
@@ -94,7 +93,7 @@ Official workflow tables:
 | `feedback_notification`      | UUID `id`, `response_id`; text `user_id`; nullable `read_at`; `created_at`. Unique `(user_id, response_id)`; recipient deletion cascades.                                                        |
 | `feedback_category_change`   | UUID `id`, `post_id`, `previous_category_id`, `category_id`; text `actor_id`; `created_at`. Referenced posts, categories, and actors use restrictive deletion.                                   |
 
-Creating feedback inserts the post and the author's follow in one transaction. Publishing an official response, changing status, creating follower notifications, and saving its receipt also commit or roll back together. Follow changes and publication serialize on the post row so recipient membership has one defined ordering.
+Creating feedback inserts the post and the author's follow in one transaction. Publishing an official response, changing status and creating follower notifications also commit or roll back together. Follow changes and publication serialize on the post row so recipient membership has one defined ordering.
 
 Post statuses are `new`, `reviewing`, `planned`, `delivered`, `not_planned`, and `answered`. The submission endpoint always chooses `new`; changing status requires an explicit community-manager response. Titles are limited to 200 characters, descriptions to 10,000, and suggested improvements to 5,000. Empty optional improvement text becomes NULL. Content is rendered as plain text, without executing markup.
 
@@ -109,7 +108,7 @@ The tag tables extend this schema:
 
 ## Contribution retention
 
-Deleting a user must not delete their contributions. Author foreign keys currently block physical deletion when posts, comments, official responses, or category audit records exist. Posts with comments also cannot be physically deleted. Removable reactions, follows, and private write receipts are not retained if their account is eventually deleted. A future explicit anonymization/deletion workflow must decide how to retain attribution and handle personal data before the public pilot. There is no self-service deletion endpoint.
+Deleting a user must not delete their contributions. Author foreign keys currently block physical deletion when posts, comments, official responses, or category audit records exist. Posts with comments also cannot be physically deleted. Removable reactions and follows are not retained if their account is eventually deleted. A future explicit anonymization/deletion workflow must decide how to retain attribution and handle personal data before the public pilot. There is no self-service deletion endpoint.
 
 Public responses expose the author's current display name. They omit email, session data, provider identities, and privileged-role assignments. Administrator status does not make a contribution official.
 
@@ -119,25 +118,25 @@ Contributions are flat, public, chronological, and loaded in batches of 20 (maxi
 
 Each signed-in member may select Agree or Disagree, change their choice, or select it again to remove it. Authors may react to their own posts. Counts remain separate, with no score, ranking, visibility, or reputation effect. Neither choice implies following a post. An optional “Add a comment” action focuses the normal comment form; reactions and comments remain independent.
 
-## Editing and safe retries
+## Editing and failed requests
 
 Authors may edit their own post text, tag selections, and ordinary comments. Post category and status are excluded. A text, tag-selection, or contribution-type change increments `version` and sets `edited_at`; an unchanged save does neither. Authors may change their contribution type. Omitting type from a comment edit preserves the existing classification, including NULL on legacy comments; explicitly clearing it is rejected. There are no original-content copies or revision tables. Existing reactions and comments remain attached after edits.
 
 Edit requests include the loaded version. A mismatch returns 409 and preserves the text in the open form. The interface requires loading and reviewing the latest saved content before retrying an edit against its new version. Official-response and category forms also retain their mounted workflow version until a confirmed save or explicit review; changing the workflow in another form can therefore require review.
 
-Every feedback write requires a UUID `Idempotency-Key` header. The browser keeps the key in memory for the mounted operation. Successful changes and receipts commit atomically. Replaying the same actor/key and normalized operation/input returns the original result before checking quotas or edit versions; different input with the same key returns 409. Each HTTP request, including a retry, must pass current session and role authorization before entering the use case. Resource ownership is checked before receipt replay. Receipts contain only a fingerprint and IDs/version result, not old content, and currently have no expiry. The browser uses a new key when the intended input changes. Reactions and following refresh the actual server state after uncertain replies.
+Feedback writes have no idempotency keys or receipt table. The browser sends each mutation once and does not automatically retry it. If the response is lost, the form retains its text and asks the user to check the saved content before submitting again. A post retry during its cooldown returns 429; a later retry can create another post. A repeated comment creation can create another comment. Retrying a committed versioned edit or official publication returns 409 until the user reviews the current version. Reactions, follows and read markers simply set the requested state; repeating the same state is harmless, while a later request for a different state applies that change.
 
-Every comment create request must include a valid contribution type, including retries. The body-only pre-upgrade replay path is retired; historical comments and receipts remain stored. Type is part of the fingerprint for new submissions and explicit type edits. Omitted type on edit and omitted tag IDs retain their existing meanings and fingerprints.
+Every comment create request must include a valid contribution type. Historical unclassified comments remain stored. Omitting type on edit or omitting tag IDs preserves the existing value.
 
-Official updates and category corrections use `workflow_version`, independent of author text `version`. Conflicting changes return 409 before overwriting the current workflow. Community-manager authorization is checked once at the HTTP boundary after parsing. An authorized request may finish after revocation; a subsequent retry with that revoked role is rejected before receipt replay. Replaying an earlier follow receipt does not undo a later unfollow.
+Official updates and category corrections use `workflow_version`, independent of author text `version`. Conflicting changes return 409 before overwriting the current workflow. Community-manager authorization is checked once at the HTTP boundary after parsing. An authorized request may finish after revocation; subsequent requests must authorize again.
 
 ## Persistence and concurrency
 
 Use cases coordinate capability-owned persistence functions by passing one transaction explicitly. Post creation includes its author follow; official publication includes the post workflow update and follower notifications. See [capability ownership and transaction boundaries](architecture.md#operations-spanning-capabilities) for code locations.
 
-Creation inserts the post, tags, and author follow atomically. Category availability is checked under a shared row lock; selected tag rows are locked while validating assignments. An actor row lock serializes writes, including successful-post limits. Mutations and receipts commit together, with HTTP authorization and resource ownership checks before replay, and replay before quota/version checks. Receipt fingerprints include operation and target; results hold only resource IDs and versions. Keep receipts until an explicit retention decision.
+Creation inserts the post, tags, and author follow atomically. Category availability is checked under a shared row lock; selected tag rows are locked while validating assignments. An actor row lock serializes creation-limit checks and inserts. Failed writes roll back their content and do not consume an allowance. Migration `0006_remove_write_receipts.sql` drops only obsolete receipt records, preserving posts, comments and their timestamps.
 
-Official publication locks the post and atomically writes the immutable response, optional status delta, follower notifications, and receipt. An unchanged status stores no delta. Follow changes take the same post lock; replay returns the recorded result without applying it again. Category correction shares the workflow version and writes its own audit. Author edits use an independent version. The HTTP boundary requires community-manager access; administrator alone is insufficient. Actor locks use `FOR NO KEY UPDATE` to serialize writes and quotas while allowing notification foreign keys to reference other active members. Role revocation is not coordinated with these locks.
+Official publication locks the post and atomically writes the immutable response, optional status delta and follower notifications. An unchanged status stores no delta. Follow changes take the same post lock. Category correction shares the workflow version and writes its own audit. Author edits use an independent version. The HTTP boundary requires community-manager access; administrator alone is insufficient. Actor creation locks use `FOR NO KEY UPDATE`, allowing notification foreign keys to reference other active members. Role revocation is not coordinated with these locks.
 
 Outcome reads use one repeatable-read snapshot for status/version, featured response, and status explanation. Discussion reads use one snapshot for comments and official responses so a concurrent insert cannot be skipped between source reads. Each source is bounded before merging. Reaction totals and the viewer's selection come from one query. Inbox entries and the unread count share one repeatable-read snapshot. Public post reads also keep text and tags coherent. Responses explicitly select public fields.
 
@@ -145,9 +144,9 @@ Post lists sort by `(created_at DESC, id DESC)`; comments and discussion sort as
 
 ## Posting limits
 
-`FEEDBACK_POST_MAX` defaults to 5 successful submissions per member within `FEEDBACK_POST_WINDOW_SECONDS` (default 60). Both accept integers from 1 to 86400. Counts are derived from persisted posts, so the limit survives application restarts. Concurrent submissions by one author are serialized. Failed validation does not create a post or consume this successful-submission allowance.
+Each member can create one post per `FEEDBACK_POST_WINDOW_SECONDS` (default 60). The most recent stored post determines the cooldown, so it survives service restarts and works across application instances. Concurrent creations by one author are serialized. Failed validation or a rolled-back insert does not consume the cooldown.
 
-Participation uses `FEEDBACK_PARTICIPATION_WINDOW_SECONDS` (default 60): `FEEDBACK_COMMENT_MAX=10`, `FEEDBACK_REACTION_MAX=30`, `FEEDBACK_EDIT_MAX=20`, `FEEDBACK_RESPONSE_MAX=20`, and `FEEDBACK_FOLLOW_MAX=30`. Edit limits apply separately to post edits and comment edits. These limits count successful new requests, including unchanged saves; replaying a receipt does not consume another allowance. All settings accept integers from 1 to 86400.
+Comment and official-response limits count their existing rows within `FEEDBACK_PARTICIPATION_WINDOW_SECONDS` (default 60): `FEEDBACK_COMMENT_MAX=10` and `FEEDBACK_RESPONSE_MAX=20`. Edits, reactions and follows have no separate per-operation quota or request-history state. All settings accept integers from 1 to 86400.
 
 Limits return 429 with `Retry-After`. Authentication and origin checks apply before submission. Request validation returns 400 with field errors; unauthenticated writes return 401 and invalid-origin writes 403.
 

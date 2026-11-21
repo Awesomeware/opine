@@ -75,7 +75,7 @@ Community-maintained summaries, curated highlights, nested replies, and separate
 
 - [x] Add admin-defined tags and optional post assignments, with the five initial tags.
 - [x] Let administrators create, rename, disable, and re-enable tags.
-- [x] Let authors select tags on creation and edit, with same-page retry and conflict protection; form state is not persisted.
+- [x] Let authors select tags on creation and edit, with conflict protection and clear handling of uncertain responses; form state is not persisted.
 - [x] Display tags in feedback rows and detail views using the existing visual direction.
 - [x] Verify authorization, migrations, reset/seed behavior, isolated controls, and full journeys.
 

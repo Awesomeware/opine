@@ -9,7 +9,7 @@ import {
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
 import { createCategory, createFeedbackPost } from '../../tests/fixtures.ts'
-import { feedbackCategory, feedbackComment, feedbackPost, feedbackWriteReceipt } from '../schema.ts'
+import { feedbackCategory, feedbackComment, feedbackPost } from '../schema.ts'
 import { FeedbackWriteError } from '../writes.ts'
 import { createComment, editComment, getComment, listComments } from './comments.ts'
 
@@ -21,7 +21,6 @@ after(closeDatabase)
 afterEach(async () => {
   const database = getDatabase()
   await database.delete(feedbackComment)
-  await database.delete(feedbackWriteReceipt)
   await database.delete(feedbackPost)
   await database.delete(feedbackCategory)
   await database.delete(user)
@@ -92,46 +91,28 @@ test('typed filtering precedes pagination, keeps timestamp ties, and leaves lega
 
 test('type-only edits mark content edited while omission preserves typed and legacy contributions', async () => {
   const { member, post } = await discussion()
-  const created = await createComment(
-    member.user.id,
-    post.id,
-    { body: 'A useful alternative', type: 'context' },
-    randomUUID(),
-  )
+  const created = await createComment(member.user.id, post.id, {
+    body: 'A useful alternative',
+    type: 'context',
+  })
   const changed = { body: 'A useful alternative', type: 'suggestion' as const, version: 1 }
-  const requestId = randomUUID()
-  const result = await editComment(member.user.id, post.id, created.id, changed, requestId)
+  const result = await editComment(member.user.id, post.id, created.id, changed)
   assert.equal(result.version, 2)
   const edited = await getComment(post.id, created.id)
   assert.equal(edited?.type, 'suggestion')
   assert.ok(edited?.editedAt)
-  assert.deepEqual(
-    await editComment(member.user.id, post.id, created.id, changed, requestId),
-    result,
-  )
+  await assert.rejects(editComment(member.user.id, post.id, created.id, changed), conflict)
   await assert.rejects(
-    editComment(member.user.id, post.id, created.id, { ...changed, type: 'question' }, requestId),
+    editComment(member.user.id, post.id, created.id, { ...changed, type: 'question' }),
     conflict,
   )
   await assert.rejects(
-    editComment(
-      member.user.id,
-      post.id,
-      created.id,
-      { ...changed, type: 'question' },
-      randomUUID(),
-    ),
+    editComment(member.user.id, post.id, created.id, { ...changed, type: 'question' }),
     conflict,
   )
-  await editComment(member.user.id, post.id, created.id, { ...changed, version: 2 }, randomUUID())
+  await editComment(member.user.id, post.id, created.id, { ...changed, version: 2 })
   assert.deepEqual(await getComment(post.id, created.id), edited)
-  await editComment(
-    member.user.id,
-    post.id,
-    created.id,
-    { body: 'More detail', version: 2 },
-    randomUUID(),
-  )
+  await editComment(member.user.id, post.id, created.id, { body: 'More detail', version: 2 })
   assert.equal((await getComment(post.id, created.id))?.type, 'suggestion')
 
   const [legacy] = await getDatabase()
@@ -139,48 +120,29 @@ test('type-only edits mark content edited while omission preserves typed and leg
     .values({ postId: post.id, authorId: member.user.id, body: 'Before types' })
     .returning()
   assert.ok(legacy)
-  await editComment(
-    member.user.id,
-    post.id,
-    legacy.id,
-    { body: 'Before types', version: 1 },
-    randomUUID(),
-  )
+  await editComment(member.user.id, post.id, legacy.id, { body: 'Before types', version: 1 })
   assert.equal((await getComment(post.id, legacy.id))?.editedAt, null)
-  await editComment(
-    member.user.id,
-    post.id,
-    legacy.id,
-    { body: 'Updated legacy text', version: 1 },
-    randomUUID(),
-  )
+  await editComment(member.user.id, post.id, legacy.id, { body: 'Updated legacy text', version: 1 })
   assert.equal((await getComment(post.id, legacy.id))?.type, null)
-  await editComment(
-    member.user.id,
-    post.id,
-    legacy.id,
-    { body: 'Updated legacy text', version: 2, type: 'question' },
-    randomUUID(),
-  )
+  await editComment(member.user.id, post.id, legacy.id, {
+    body: 'Updated legacy text',
+    version: 2,
+    type: 'question',
+  })
   assert.equal((await getComment(post.id, legacy.id))?.type, 'question')
   assert.equal((await getComment(post.id, legacy.id))?.version, 3)
 })
 
-test('typed creates deduplicate and cannot reuse a request key with another contribution type', async () => {
+test('new contributions preserve each requested type', async () => {
   const { member, post } = await discussion()
-  const input = { body: 'Consider an alternative', type: 'suggestion' as const }
-  const requestId = randomUUID()
-  const replies = await Promise.all(
-    Array.from({ length: 3 }, () => createComment(member.user.id, post.id, input, requestId)),
-  )
-  assert.deepEqual(replies[1], replies[0])
-  assert.deepEqual(replies[2], replies[0])
-  assert.equal((await getDatabase().select().from(feedbackComment)).length, 1)
-  await assert.rejects(
-    createComment(member.user.id, post.id, { ...input, type: 'different_view' }, requestId),
-    conflict,
-  )
-  assert.equal((await getComment(post.id, replies[0]!.id))?.type, 'suggestion')
+  for (const type of ['context', 'suggestion', 'question', 'different_view'] as const) {
+    const result = await createComment(member.user.id, post.id, {
+      body: 'Consider an alternative',
+      type,
+    })
+    assert.equal((await getComment(post.id, result.id))?.type, type)
+  }
+  assert.equal((await getDatabase().select().from(feedbackComment)).length, 4)
 })
 
 test('the contribution migration preserves existing comments and successful untyped write receipts', async () => {

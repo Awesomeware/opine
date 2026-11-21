@@ -1,8 +1,7 @@
 import { computed, reactive, ref } from 'vue'
 import type { FeedbackPost } from '../../../shared/posts/contracts'
-import { useFeedbackWrite, feedbackWriteError } from '../../composables/useFeedbackWrite'
 import { useRequestScope } from '../../composables/useRequestScope'
-import { feedbackFailure } from '../../api/errors'
+import { feedbackFailure, feedbackWriteError } from '../../api/errors'
 import { startDiscordSignIn } from '../../../../auth/app/api/session'
 import { postEditInput, type PostForm } from '../utils/post-editor-input'
 import { getPost, editPost } from '../api/posts'
@@ -11,7 +10,6 @@ import { getTags } from '../api/tags'
 /** Owns one mounted account/resource edit. Remount on identity changes; closing the form discards unsaved input. */
 export function usePostEditor(owner: string, post: FeedbackPost) {
   const endpoint = `/api/feedback/posts/${post.id}`
-  const write = useFeedbackWrite()
   const scope = useRequestScope()
   const latestScope = useRequestScope()
   const route = useRoute()
@@ -80,12 +78,10 @@ export function usePostEditor(owner: string, post: FeedbackPost) {
     saving.value = true
 
     try {
-      // Keep the receipt key until confirmation: a lost reply may conceal a committed edit.
-      await editPost(post.id, parsed.data, write.headers(parsed.data))
+      await editPost(post.id, parsed.data)
       if (!scope.isActive()) {
         return false
       }
-      write.complete()
 
       return true
     } catch (error) {

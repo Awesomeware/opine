@@ -1,9 +1,8 @@
 import { getNotifications, markNotificationRead } from '../api/notifications'
 import type { FeedbackNotification } from '../../../shared/subscriptions/contracts'
-import { useFeedbackWrite, feedbackWriteError } from '../../composables/useFeedbackWrite'
 import { ref, watch, onMounted } from 'vue'
 import { useRequestScope } from '../../composables/useRequestScope'
-import { feedbackFailure } from '../../api/errors'
+import { feedbackFailure, feedbackWriteError } from '../../api/errors'
 
 /**
  * Keep pagination and mark-read errors independent. Mount per account to isolate private results.
@@ -21,7 +20,6 @@ export function useFeedbackInbox() {
 
   const marking = ref(false)
   const markError = ref('')
-  const write = useFeedbackWrite()
 
   async function load(more = false) {
     if (more && loading.value) {
@@ -81,15 +79,12 @@ export function useFeedbackInbox() {
     marking.value = true
     markError.value = ''
 
-    const payload = { id, read: true }
-
     try {
-      await markNotificationRead(id, write.headers(payload))
+      await markNotificationRead(id)
       if (!scope.isActive()) {
         return
       }
 
-      write.complete()
       await load()
     } catch (failure) {
       if (scope.isActive()) {

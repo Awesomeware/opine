@@ -6,8 +6,8 @@ export default defineEventHandler(async (event) => {
   const id = feedbackParam(event, 'id')
   const body: unknown = await readBody(event)
   const input = validated(validateCommentInput(body))
-  const { actorId, requestId } = await feedbackActor(event)
-  const comment = await feedbackResponse(event, createComment(actorId, id, input, requestId))
+  const actorId = await feedbackActor(event)
+  const comment = await feedbackResponse(event, createComment(actorId, id, input))
   setResponseStatus(event, 201)
   return comment
 })

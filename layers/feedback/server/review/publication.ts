@@ -3,35 +3,21 @@ import { getDatabase } from '../../../../server/db/index.ts'
 import type { OfficialResponseInput } from '../../shared/review/input.ts'
 import { lockPost, updatePostWorkflow } from '../posts/workflow.ts'
 import { feedbackComment, feedbackOfficialResponse } from '../schema.ts'
+import { lockActorCreations, enforceContributionLimit } from '../write-repository.ts'
 import { notifyFollowers } from '../subscriptions/notifications.ts'
-import {
-  enforceWriteRate,
-  findWriteReceipt,
-  lockActorWrites,
-  saveWriteReceipt,
-} from '../write-repository.ts'
 import { checkWorkflowVersion } from './guards.ts'
 
 export async function publishResponse(
   actorId: string,
   postId: string,
   input: OfficialResponseInput,
-  requestId: string,
 ) {
   return getDatabase().transaction(async (transaction) => {
-    const request = {
-      actorId,
-      requestId,
-      operation: 'publish-response',
-      input: { postId, ...input },
-    }
-
-    await lockActorWrites(transaction, actorId)
-
-    const receipt = await findWriteReceipt<{ id: string; version: number }>(transaction, request)
-    if (receipt) return receipt
-
-    await enforceWriteRate(transaction, request, { env: 'FEEDBACK_RESPONSE_MAX', fallback: 20 })
+    await lockActorCreations(transaction, actorId)
+    await enforceContributionLimit(transaction, actorId, feedbackOfficialResponse, {
+      env: 'FEEDBACK_RESPONSE_MAX',
+      fallback: 20,
+    })
 
     const post = await lockPost(transaction, postId)
     checkWorkflowVersion(post.workflowVersion, input.version)
@@ -73,6 +59,6 @@ export async function publishResponse(
     })
     await notifyFollowers(transaction, postId, response!.id, createdAt)
 
-    return saveWriteReceipt(transaction, request, { id: response!.id, version })
+    return { id: response!.id, version }
   })
 }

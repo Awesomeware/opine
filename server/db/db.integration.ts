@@ -5,6 +5,7 @@ import { sql } from 'drizzle-orm'
 import { readMigrationFiles } from 'drizzle-orm/migrator'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { closeDatabase, getDatabase } from './index.ts'
+import { applyMigrations, withMigrationDatabase } from '../../tests/helpers/migration-database.ts'
 
 const databaseUrl = process.env.OPINE_TEST_DATABASE_URL
 assert.ok(databaseUrl, 'Run integration tests with pnpm test:integration.')
@@ -12,6 +13,45 @@ assert.equal(process.env.DATABASE_URL, databaseUrl)
 const databaseName = new URL(databaseUrl).pathname.slice(1)
 
 afterEach(closeDatabase)
+
+test('removing write receipts preserves existing feedback and its cooldown timestamp', async () => {
+  await withMigrationDatabase(async (database) => {
+    await applyMigrations(database, 0, 6)
+    await database.query(
+      "insert into auth_user (id, name, email) values ('receipt-upgrade', 'Author', 'upgrade@example.test')",
+    )
+    const {
+      rows: [post],
+    } = await database.query(
+      "insert into feedback_post (author_id, category_id, title, description) select 'receipt-upgrade', id, 'Existing post', 'Keep this content' from feedback_category limit 1 returning *",
+    )
+    await database.query(
+      "insert into feedback_comment (post_id, author_id, body, type) values ($1, 'receipt-upgrade', 'Keep this comment', 'question')",
+      [post.id],
+    )
+    await database.query(
+      "insert into feedback_follow (post_id, user_id) values ($1, 'receipt-upgrade')",
+      [post.id],
+    )
+    await database.query(
+      "insert into feedback_write_receipt (actor_id, request_id, operation, request_hash, result) values ('receipt-upgrade', gen_random_uuid(), 'create-post', 'obsolete', $1)",
+      [{ id: post.id }],
+    )
+    const comments = (await database.query('select * from feedback_comment')).rows
+    const follows = (await database.query('select * from feedback_follow')).rows
+
+    await applyMigrations(database, 6)
+
+    assert.equal(
+      (await database.query("select to_regclass('public.feedback_write_receipt') as receipt_table"))
+        .rows[0].receipt_table,
+      null,
+    )
+    assert.deepEqual((await database.query('select * from feedback_post')).rows, [post])
+    assert.deepEqual((await database.query('select * from feedback_comment')).rows, comments)
+    assert.deepEqual((await database.query('select * from feedback_follow')).rows, follows)
+  })
+})
 
 test('queries PostgreSQL and reconnects after closing the pool', async () => {
   const first = getDatabase()

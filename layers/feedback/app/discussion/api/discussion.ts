@@ -15,11 +15,10 @@ export function getLinkedResponse(postId: string, id: string) {
   )
 }
 
-export function createComment(postId: string, body: CommentInput, headers: Record<string, string>) {
+export function createComment(postId: string, body: CommentInput) {
   return $fetch<{ id: string }>(`/api/feedback/posts/${postId}/comments`, {
     method: 'POST',
     body,
-    headers,
     retry: 0,
   })
 }

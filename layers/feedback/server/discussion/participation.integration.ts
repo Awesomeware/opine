@@ -8,13 +8,7 @@ import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
 import { createCategory, createFeedbackPost } from '../../tests/fixtures.ts'
-import {
-  feedbackCategory,
-  feedbackComment,
-  feedbackPost,
-  feedbackReaction,
-  feedbackWriteReceipt,
-} from '../schema.ts'
+import { feedbackCategory, feedbackComment, feedbackPost, feedbackReaction } from '../schema.ts'
 import { FeedbackWriteError } from '../writes.ts'
 import { createComment, editComment, getComment, listComments } from './comments.ts'
 import { getReactions, setReaction } from './reactions.ts'
@@ -27,7 +21,6 @@ afterEach(async () => {
   const database = getDatabase()
   await database.delete(feedbackComment)
   await database.delete(feedbackReaction)
-  await database.delete(feedbackWriteReceipt)
   await database.delete(feedbackPost)
   await database.delete(feedbackCategory)
   await database.delete(user)
@@ -75,10 +68,9 @@ test('comment ownership keeps contributions when an account is deleted and proje
   assert.equal(await getComment(post.id, randomUUID()), undefined)
 })
 
-test('a failed comment write leaves no mutation or receipt and can be retried with the same key', async () => {
+test('a failed comment write leaves no mutation and can be submitted again', async () => {
   const { commenter, post } = await discussion()
   const database = getDatabase()
-  const requestId = randomUUID()
   await database.execute(
     sql`create function reject_test_comment() returns trigger language plpgsql as $$ begin raise exception 'Simulated comment failure'; end $$`,
   )
@@ -88,108 +80,59 @@ test('a failed comment write leaves no mutation or receipt and can be retried wi
     )
     try {
       await assert.rejects(
-        createComment(
-          commenter.user.id,
-          post.id,
-          { body: 'Please clarify the map.', type: 'question' as const },
-          requestId,
-        ),
+        createComment(commenter.user.id, post.id, {
+          body: 'Please clarify the map.',
+          type: 'question' as const,
+        }),
       )
       assert.equal((await database.select().from(feedbackComment)).length, 0)
-      assert.equal((await database.select().from(feedbackWriteReceipt)).length, 0)
     } finally {
       await database.execute(sql`drop trigger reject_test_comment on feedback_comment`)
     }
   } finally {
     await database.execute(sql`drop function reject_test_comment()`)
   }
-  const result = await createComment(
-    commenter.user.id,
-    post.id,
-    { body: 'Please clarify the map.', type: 'question' as const },
-    requestId,
-  )
+  const result = await createComment(commenter.user.id, post.id, {
+    body: 'Please clarify the map.',
+    type: 'question' as const,
+  })
   assert.ok(await getComment(post.id, result.id))
-  assert.equal((await database.select().from(feedbackWriteReceipt)).length, 1)
 })
 
-test('comments deduplicate concurrent retries, reject reused keys, and enforce a shared concurrent allowance', async () => {
+test('comments count actual rows and enforce a shared concurrent allowance', async () => {
   const { commenter, post } = await discussion()
-  const requestId = randomUUID()
   const input = { body: 'Please clarify the map.', type: 'question' as const }
-  const replies = await Promise.all(
-    Array.from({ length: 4 }, () => createComment(commenter.user.id, post.id, input, requestId)),
-  )
-  for (const reply of replies) assert.deepEqual(reply, replies[0])
-  assert.equal((await getDatabase().select().from(feedbackComment)).length, 1)
-  await assert.rejects(
-    createComment(
-      commenter.user.id,
-      post.id,
-      { body: 'Different comment', type: 'question' },
-      requestId,
-    ),
-    status(409),
-  )
+  await getDatabase()
+    .insert(feedbackComment)
+    .values({ postId: post.id, authorId: commenter.user.id, ...input })
   const maximum = Number(process.env.FEEDBACK_COMMENT_MAX ?? 10)
   const outcomes = await Promise.allSettled(
-    Array.from({ length: maximum + 1 }, () =>
-      createComment(commenter.user.id, post.id, input, randomUUID()),
-    ),
+    Array.from({ length: maximum + 1 }, () => createComment(commenter.user.id, post.id, input)),
   )
   assert.equal(outcomes.filter((result) => result.status === 'fulfilled').length, maximum - 1)
   const failures = outcomes.filter((result) => result.status === 'rejected')
   assert.equal(failures.length, 2)
   for (const failure of failures) assert.ok(status(429)(failure.reason))
-  assert.deepEqual(await createComment(commenter.user.id, post.id, input, requestId), replies[0])
   assert.equal((await getDatabase().select().from(feedbackComment)).length, maximum)
 })
 
 test('comment edits enforce ownership and versions without retaining original text', async () => {
   const { author, commenter, post } = await discussion()
-  const created = await createComment(
-    commenter.user.id,
-    post.id,
-    { body: 'Original comment', type: 'context' },
-    randomUUID(),
-  )
+  const created = await createComment(commenter.user.id, post.id, {
+    body: 'Original comment',
+    type: 'context',
+  })
   const unchanged = { body: 'Original comment', version: 1 }
-  await assert.rejects(
-    editComment(author.user.id, post.id, created.id, unchanged, randomUUID()),
-    status(403),
-  )
-  const unchangedKey = randomUUID()
-  await editComment(commenter.user.id, post.id, created.id, unchanged, unchangedKey)
+  await assert.rejects(editComment(author.user.id, post.id, created.id, unchanged), status(403))
+  await editComment(commenter.user.id, post.id, created.id, unchanged)
   assert.equal((await getComment(post.id, created.id))?.editedAt, null)
-  const requestId = randomUUID()
   const input = { body: 'Updated comment', version: 1 }
-  await assert.rejects(
-    editComment(commenter.user.id, post.id, created.id, input, unchangedKey),
-    status(409),
-  )
-  const saved = await editComment(commenter.user.id, post.id, created.id, input, requestId)
-  assert.deepEqual(
-    await editComment(commenter.user.id, post.id, created.id, unchanged, unchangedKey),
-    { id: created.id, version: 1 },
-  )
+  const saved = await editComment(commenter.user.id, post.id, created.id, input)
   assert.equal(saved.version, 2)
-  assert.deepEqual(
-    await editComment(commenter.user.id, post.id, created.id, input, requestId),
-    saved,
-  )
-  await assert.rejects(
-    editComment(
-      commenter.user.id,
-      post.id,
-      created.id,
-      { ...input, body: 'Changed payload' },
-      requestId,
-    ),
-    status(409),
-  )
+  await assert.rejects(editComment(commenter.user.id, post.id, created.id, input), status(409))
   const outcomes = await Promise.allSettled(
     ['First edit', 'Second edit'].map((body) =>
-      editComment(commenter.user.id, post.id, created.id, { body, version: 2 }, randomUUID()),
+      editComment(commenter.user.id, post.id, created.id, { body, version: 2 }),
     ),
   )
   assert.equal(outcomes.filter((result) => result.status === 'fulfilled').length, 1)
@@ -199,39 +142,35 @@ test('comment edits enforce ownership and versions without retaining original te
   assert.ok(current?.editedAt)
   assert.equal(current.version, 3)
   const stored = await getDatabase().select().from(feedbackComment)
-  const receipts = await getDatabase().select().from(feedbackWriteReceipt)
-  assert.ok(!JSON.stringify({ stored, receipts }).includes('Original comment'))
+  assert.ok(!JSON.stringify(stored).includes('Original comment'))
 })
 
-test('reactions have separate tallies, switch a single row, and old retries cannot resurrect removed reactions', async () => {
+test('reactions have separate tallies, switch a single row, and repeated state assignments are harmless', async () => {
   const { author, commenter, post } = await discussion()
-  const requestId = randomUUID()
-  await Promise.all(
-    Array.from({ length: 3 }, () => setReaction(author.user.id, post.id, 'agree', requestId)),
-  )
-  await setReaction(commenter.user.id, post.id, 'disagree', randomUUID())
+  await Promise.all(Array.from({ length: 3 }, () => setReaction(author.user.id, post.id, 'agree')))
+  await setReaction(commenter.user.id, post.id, 'disagree')
   assert.deepEqual(await getReactions(post.id, author.user.id), {
     agree: 1,
     disagree: 1,
     mine: 'agree',
   })
   assert.deepEqual(await getReactions(post.id), { agree: 1, disagree: 1, mine: null })
-  await setReaction(author.user.id, post.id, 'disagree', randomUUID())
+  await setReaction(author.user.id, post.id, 'disagree')
   assert.deepEqual(await getReactions(post.id, author.user.id), {
     agree: 0,
     disagree: 2,
     mine: 'disagree',
   })
   assert.equal((await getDatabase().select().from(feedbackReaction)).length, 2)
-  await assert.rejects(setReaction(author.user.id, post.id, 'disagree', requestId), status(409))
-  await setReaction(author.user.id, post.id, null, randomUUID())
-  await setReaction(author.user.id, post.id, 'agree', requestId)
+  await setReaction(author.user.id, post.id, 'disagree')
+  await setReaction(author.user.id, post.id, null)
+  await setReaction(author.user.id, post.id, null)
   assert.deepEqual(await getReactions(post.id, author.user.id), {
     agree: 0,
     disagree: 1,
     mine: null,
   })
-  await setReaction(author.user.id, post.id, null, randomUUID())
+  await setReaction(author.user.id, post.id, null)
   assert.equal((await getDatabase().select().from(feedbackReaction)).length, 1)
 })
 

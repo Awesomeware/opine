@@ -29,7 +29,6 @@ export interface PersistenceFixture {
   authorCookie: { name: string; value: string; url: string }
   followerCookie: { name: string; value: string; url: string }
   commentId: string
-  commentRequestKey: string
   statusResponseId: string
   latestResponseId: string
   notificationId: string

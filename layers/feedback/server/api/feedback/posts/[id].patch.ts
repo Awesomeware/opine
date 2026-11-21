@@ -5,6 +5,6 @@ import { validatePostEditInput } from '../../../../shared/posts/input.ts'
 export default defineEventHandler(async (event) => {
   const id = feedbackParam(event, 'id')
   const input = validated(validatePostEditInput(await readBody(event)))
-  const { actorId, requestId } = await feedbackActor(event)
-  return feedbackResponse(event, editPost(actorId, id, input, requestId))
+  const actorId = await feedbackActor(event)
+  return feedbackResponse(event, editPost(actorId, id, input))
 })

@@ -23,10 +23,7 @@ export async function feedbackActor(event: H3Event, requiredRole?: PrivilegedRol
   if (!access) throw createError({ statusCode: 401, statusMessage: 'Sign in to participate.' })
   if (getHeader(event, 'origin') !== process.env.BETTER_AUTH_URL?.trim())
     throw createError({ statusCode: 403, statusMessage: 'Invalid request origin.' })
-  const requestId = getHeader(event, 'idempotency-key')
-  if (!isUuid(requestId))
-    throw createError({ statusCode: 400, statusMessage: 'A UUID Idempotency-Key is required.' })
-  return { actorId: access.user.id, requestId }
+  return access.user.id
 }
 
 export function feedbackParam(event: H3Event, name: string) {

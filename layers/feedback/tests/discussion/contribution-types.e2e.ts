@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
@@ -88,7 +87,6 @@ test('contributions require a type and filter the full discussion while preservi
         headers: {
           origin: process.env.BETTER_AUTH_URL!,
           cookie: member.cookieHeader,
-          'Idempotency-Key': randomUUID(),
         },
         data,
       })
@@ -195,7 +193,6 @@ test('reviewing a type conflict saves the choice shown in the editor', async ({
       headers: {
         origin: process.env.BETTER_AUTH_URL!,
         cookie: member.cookieHeader,
-        'Idempotency-Key': randomUUID(),
       },
       data: { body: comment!.body, type: 'question', version: 1 },
     })

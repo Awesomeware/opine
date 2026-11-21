@@ -5,6 +5,6 @@ import { validateReadInput } from '../../../../shared/subscriptions/input.ts'
 export default defineEventHandler(async (event) => {
   const notificationId = feedbackParam(event, 'notificationId')
   validated(validateReadInput(await readBody(event)))
-  const { actorId, requestId } = await feedbackActor(event)
-  return feedbackResponse(event, markNotificationRead(actorId, notificationId, requestId))
+  const actorId = await feedbackActor(event)
+  return feedbackResponse(event, markNotificationRead(actorId, notificationId))
 })

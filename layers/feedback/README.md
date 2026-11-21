@@ -13,7 +13,7 @@ Create request scopes during setup. Mount account/resource workflows with stable
 - `GET /api/feedback/categories` lists categories in configured order, including inactive categories needed for browsing older feedback.
 - `GET /api/feedback/posts` lists public posts newest first. It accepts `q`, category slug, status, `limit` (1–50, default 20), and an opaque cursor. Search is a case-insensitive literal substring of the title or description, including literal `%` and `_` characters. Results contain an excerpt and public author name, without private account fields.
 - `GET /api/feedback/posts/:id` returns the public post, its category, and the author's current display name. Invalid or missing IDs return 404.
-- `POST /api/feedback/posts` requires a member session and the configured same-origin `Origin` header, plus a UUID `Idempotency-Key`. It accepts only title, description, optional suggested improvement, category ID, and optional tag IDs. The server supplies author, status, identity, and timestamps. Success returns 201 with `{ id }`.
+- `POST /api/feedback/posts` requires a member session and the configured same-origin `Origin` header. It accepts only title, description, optional suggested improvement, category ID, and optional tag IDs. The server supplies author, status, identity, and timestamps. Success returns 201 with `{ id }`.
 
 The `server/posts/` functions own post use cases. In particular, `createPost` expects an already-authenticated internal user ID and validated input; it must not be exposed directly to arbitrary client-supplied authors. Future features must preserve this boundary.
 
@@ -33,7 +33,7 @@ Tag endpoints (implemented in `server/posts/tags.ts`):
 
 - `GET /api/feedback/tags` returns `{ tags }`, including inactive entries for existing assignments. Tags have `id`, `name`, `isActive`, and `version`.
 - `POST /api/feedback/tags` requires current administrator access and `{ name }`.
-- `PATCH /api/feedback/tags/:id` requires current administrator access and `{ name, isActive, version }`. Tag writes use the same origin, idempotency, and authorization-before-replay rules as other feedback writes.
+- `PATCH /api/feedback/tags/:id` requires current administrator access and `{ name, isActive, version }`. Tag writes require the configured origin and request-time authorization. Names remain unique and edits require the current version.
 
 Post list/detail results include `tags`. See [tag rules and administration](../../docs/feedback.md#tags) for assignment, disabled-tag, version, and omitted-field semantics.
 
@@ -50,7 +50,7 @@ Cross-capability endpoints are implemented in `server/review/`, `server/discussi
 
 `shared/review/input.ts` validates official response and category commands; `shared/subscriptions/input.ts` validates follow and read commands. All new lists default to 20 and cap HTTP page sizes at 50. Direct official links use `?response=<id>#response-<id>` and resolve independently of discussion filters.
 
-All writes require a member session, the configured origin, and a UUID idempotency key. Viewer-aware reads are `no-store`; public projections expose `canEdit` rather than user IDs. Input validators live in `shared/discussion/input.ts`; `shared/discussion/contribution-types.ts` owns type values, labels, and prompts. The page uses `?contribution=<type>` for its filter and a separate `comment` query parameter for a direct link. A linked contribution outside the selected filter is resolved independently and labelled accordingly. HTTP entrypoints use `server/http.ts`; post/comment editing use cases enforce ownership in their respective capability. `server/write-repository.ts` owns common write serialization, receipt and rate-limit operations; each use case owns its transaction explicitly.
+All writes require a member session and the configured origin. Viewer-aware reads are `no-store`; public projections expose `canEdit` rather than user IDs. Input validators live in `shared/discussion/input.ts`; `shared/discussion/contribution-types.ts` owns type values, labels, and prompts. The page uses `?contribution=<type>` for its filter and a separate `comment` query parameter for a direct link. A linked contribution outside the selected filter is resolved independently and labelled accordingly. HTTP entrypoints use `server/http.ts`; post/comment editing use cases enforce ownership in their respective capability. `server/write-repository.ts` owns creation serialization and limits derived from existing rows; each use case owns its transaction explicitly.
 
 ## Cross-capability operations
 
@@ -66,7 +66,7 @@ These helpers are internal persistence contracts, not alternative HTTP commands.
 
 - [Retention and public attribution](../../docs/feedback.md#contribution-retention).
 - [Discussion and reactions](../../docs/feedback.md#discussion-and-reactions).
-- [Editing, versions, receipts, and compatibility](../../docs/feedback.md#editing-and-safe-retries).
+- [Editing, versions, and failed requests](../../docs/feedback.md#editing-and-failed-requests).
 - [Transactions, locks, snapshots, and ordering](../../docs/feedback.md#persistence-and-concurrency).
 - [Posting limits](../../docs/feedback.md#posting-limits).
 

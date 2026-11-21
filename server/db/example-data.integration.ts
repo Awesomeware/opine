@@ -187,13 +187,6 @@ test('reset requires the exact database name, clears all app data, and preserves
   await database
     .insert(schema.rateLimit)
     .values({ id: randomUUID(), key: 'test', count: 4, lastRequest: Date.now() })
-  await database.insert(schema.feedbackWriteReceipt).values({
-    actorId: member.user.id,
-    requestId: randomUUID(),
-    operation: 'test',
-    requestHash: 'test',
-    result: { id: examplePostIds[0]! },
-  })
   const original = await contents()
   const migrations = await history()
   for (const args of [

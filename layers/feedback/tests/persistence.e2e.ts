@@ -10,7 +10,7 @@ import {
 
 test.afterAll(closeDatabase)
 
-test('content, sessions, receipts, official outcomes, tags, and inbox state survive restart', async ({
+test('content, sessions, post cooldown, official outcomes, tags, and inbox state survive restart', async ({
   page,
   request,
 }) => {
@@ -41,16 +41,16 @@ test('content, sessions, receipts, official outcomes, tags, and inbox state surv
     expect(post.editedAt).toBeTruthy()
     expect(post.tags.map((tag: { id: string }) => tag.id)).toEqual([saved.tagId])
 
-    const retry = await request.post(`${base}/comments`, {
-      headers: {
-        ...headers(saved.authorCookie),
-        origin: process.env.BETTER_AUTH_URL!,
-        'Idempotency-Key': saved.commentRequestKey,
+    const limited = await request.post('/api/feedback/posts', {
+      headers: { ...headers(saved.authorCookie), origin: process.env.BETTER_AUTH_URL! },
+      data: {
+        title: 'Another proposal too soon',
+        description: content.description,
+        categoryId: saved.categoryId,
       },
-      data: { body: content.comment, type: 'context' },
     })
-    expect(retry.status()).toBe(201)
-    expect((await retry.json()).id).toBe(saved.commentId)
+    expect(limited.status()).toBe(429)
+    expect(Number(limited.headers()['retry-after'])).toBeGreaterThan(0)
 
     const comments = await getDatabase()
       .select()

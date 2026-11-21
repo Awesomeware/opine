@@ -1,6 +1,5 @@
 import { NodePgPreparedQuery } from 'drizzle-orm/node-postgres/session'
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
 import { after, afterEach, test } from 'node:test'
 import { Client } from 'pg'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
@@ -17,7 +16,6 @@ import {
   feedbackNotification,
   feedbackOfficialResponse,
   feedbackPost,
-  feedbackWriteReceipt,
 } from '../schema.ts'
 import { setFollowing } from '../subscriptions/following.ts'
 import { listNotifications, markNotificationRead } from '../subscriptions/inbox.ts'
@@ -33,7 +31,6 @@ afterEach(async () => {
   await database.delete(feedbackOfficialResponse)
   await database.delete(feedbackCategoryChange)
   await database.delete(feedbackComment)
-  await database.delete(feedbackWriteReceipt)
   await database.delete(feedbackPost)
   await database.delete(feedbackCategory)
   await database.delete(user)
@@ -55,27 +52,17 @@ async function discussion() {
   return { author, manager, category, post }
 }
 
-test('following is explicit and retry-safe, inboxes stay private, and unfollowing preserves received notifications', async () => {
+test('following accepts repeated assignments, inboxes stay private, and unfollowing preserves received notifications', async () => {
   const { author, manager, post } = await discussion()
   const outsider = await createMember()
-  const key = randomUUID()
-  await Promise.all(
-    Array.from({ length: 3 }, () => setFollowing(author.user.id, post.id, true, key)),
-  )
+  await Promise.all(Array.from({ length: 3 }, () => setFollowing(author.user.id, post.id, true)))
   assert.equal((await getDatabase().select().from(feedbackFollow)).length, 1)
-  await setFollowing(author.user.id, post.id, true, randomUUID())
-  const response = await publishResponse(
-    manager.user.id,
-    post.id,
-    { body: 'First response', version: 1 },
-    randomUUID(),
-  )
-  await publishResponse(
-    manager.user.id,
-    post.id,
-    { body: 'Second response', version: 2 },
-    randomUUID(),
-  )
+  await setFollowing(author.user.id, post.id, true)
+  const response = await publishResponse(manager.user.id, post.id, {
+    body: 'First response',
+    version: 1,
+  })
+  await publishResponse(manager.user.id, post.id, { body: 'Second response', version: 2 })
   const first = await listNotifications(author.user.id, { limit: 1 })
   assert.equal(first.notifications.length, 1)
   assert.equal(first.unreadCount, 2)
@@ -92,35 +79,24 @@ test('following is explicit and retry-safe, inboxes stay private, and unfollowin
   )
   assert.equal((await listNotifications(outsider.user.id)).notifications.length, 0)
   const notificationId = first.notifications[0]!.id
-  await assert.rejects(
-    markNotificationRead(outsider.user.id, notificationId, randomUUID()),
-    status(404),
-  )
-  const readKey = randomUUID()
-  await markNotificationRead(author.user.id, notificationId, readKey)
-  await markNotificationRead(author.user.id, notificationId, readKey)
+  await assert.rejects(markNotificationRead(outsider.user.id, notificationId), status(404))
+  await markNotificationRead(author.user.id, notificationId)
+  await markNotificationRead(author.user.id, notificationId)
   const unread = await listNotifications(author.user.id, { unread: true })
   assert.equal(unread.unreadCount, 1)
   assert.equal(unread.notifications.length, 1)
-  await setFollowing(author.user.id, post.id, false, randomUUID())
-  await publishResponse(
-    manager.user.id,
-    post.id,
-    { body: 'Third response after unfollow', version: 3 },
-    randomUUID(),
-  )
+  await setFollowing(author.user.id, post.id, false)
+  await publishResponse(manager.user.id, post.id, {
+    body: 'Third response after unfollow',
+    version: 3,
+  })
   assert.equal((await listNotifications(author.user.id)).notifications.length, 2)
   assert.equal((await getOutcome(post.id, author.user.id))?.following, false)
 })
 
 test('inbox rows and unread count share one snapshot during notification delivery', async (t) => {
   const { author, manager, post } = await discussion()
-  const response = await publishResponse(
-    manager.user.id,
-    post.id,
-    { body: 'Reviewed', version: 1 },
-    randomUUID(),
-  )
+  const response = await publishResponse(manager.user.id, post.id, { body: 'Reviewed', version: 1 })
   const writer = new Client({ connectionString: databaseUrl })
   await writer.connect()
   let inserted = false

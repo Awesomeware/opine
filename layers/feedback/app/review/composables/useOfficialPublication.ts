@@ -1,11 +1,10 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRequestScope } from '../../composables/useRequestScope'
-import { feedbackFailure } from '../../api/errors'
+import { feedbackFailure, feedbackWriteError } from '../../api/errors'
 import { getOutcome, publishResponse } from '../api/outcomes'
 import type { FeedbackOutcome } from '../../../shared/review/contracts'
 import { type PostStatus } from '../../../shared/status'
 import { validateOfficialResponseInput } from '../../../shared/review/input'
-import { useFeedbackWrite, feedbackWriteError } from '../../composables/useFeedbackWrite'
 
 /** Keeps publication fields and conflict review scoped to one mounted account/post. */
 export function useOfficialPublication(
@@ -28,7 +27,6 @@ export function useOfficialPublication(
     version: 0,
   })
 
-  const write = useFeedbackWrite()
   const scope = useRequestScope()
 
   const outcomeScope = useRequestScope()
@@ -78,12 +76,11 @@ export function useOfficialPublication(
     message.value = ''
 
     try {
-      const result = await publishResponse(props.postId, parsed.data, write.headers(parsed.data))
+      const result = await publishResponse(props.postId, parsed.data)
       if (!scope.isActive()) {
         return
       }
 
-      write.complete()
       form.body = ''
       form.status = ''
       form.version = result.version
@@ -106,9 +103,6 @@ export function useOfficialPublication(
         message.value =
           'The team workflow changed. Your text remains in the form. Review the latest outcome before publishing.'
       } else {
-        if (feedbackFailure(failure).status === 400) {
-          write.complete()
-        }
         message.value = feedbackWriteError(failure)
       }
     } finally {
@@ -148,7 +142,7 @@ export function useOfficialPublication(
     form.version = latest.value.version
     latest.value = null
     conflict.value = false
-    write.complete()
+
     message.value = 'Latest outcome reviewed. Review your text before publishing.'
   }
 

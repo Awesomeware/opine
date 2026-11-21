@@ -5,15 +5,14 @@ export function getTags() {
   return $fetch<{ tags: FeedbackTag[] }>('/api/feedback/tags')
 }
 
-export function createTag(body: TagInput, headers: Record<string, string>) {
-  return $fetch('/api/feedback/tags', { method: 'POST', body, headers, retry: 0 })
+export function createTag(body: TagInput) {
+  return $fetch('/api/feedback/tags', { method: 'POST', body, retry: 0 })
 }
 
-export function updateTag(id: string, body: TagEditInput, headers: Record<string, string>) {
+export function updateTag(id: string, body: TagEditInput) {
   return $fetch<{ id: string; version: number }>(`/api/feedback/tags/${id}`, {
     method: 'PATCH',
     body,
-    headers,
     retry: 0,
   })
 }

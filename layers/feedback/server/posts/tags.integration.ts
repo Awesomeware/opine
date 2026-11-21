@@ -1,17 +1,16 @@
 import { eq } from 'drizzle-orm'
 import assert from 'node:assert/strict'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { after, afterEach, test } from 'node:test'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import {
   applyMigrations,
   withMigrationDatabase,
 } from '../../../../tests/helpers/migration-database.ts'
-import { setUserRole } from '../../../auth/server/roles.ts'
 import { user, userRole } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
 import { createCategory } from '../../tests/fixtures.ts'
-import { feedbackCategory, feedbackPost, feedbackTag, feedbackWriteReceipt } from '../schema.ts'
+import { feedbackCategory, feedbackPost, feedbackTag } from '../schema.ts'
 import { FeedbackWriteError } from '../writes.ts'
 import { createPost } from './creation.ts'
 import { editPost } from './editing.ts'
@@ -42,37 +41,18 @@ async function setup() {
   }
   return { member, admin, input }
 }
-test('migration seeds optional defaults and tag administration enforces names, versions and replay', async () => {
-  const { admin } = await setup()
+test('migration seeds optional defaults and tag administration enforces names and versions', async () => {
   const tags = await listTags()
   for (const tag of defaultFeedbackTags)
     assert.ok(tags.some((row) => row.id === tag.id && row.name === tag.name))
-  const key = randomUUID()
-  const created = await createTag(admin.user.id, { name: 'New' }, key)
-  assert.deepEqual(await createTag(admin.user.id, { name: 'New' }, key), created)
-  await assert.rejects(createTag(admin.user.id, { name: 'new' }, randomUUID()), status(409))
-  await assert.rejects(createTag(admin.user.id, { name: 'Other' }, key), status(409))
+  const created = await createTag({ name: 'New' })
+  await assert.rejects(createTag({ name: 'New' }), status(409))
+  await assert.rejects(createTag({ name: 'new' }), status(409))
   const unchanged = { name: 'New', isActive: true, version: 1 }
-  const unchangedKey = randomUUID()
-  assert.deepEqual(await updateTag(admin.user.id, created.id, unchanged, unchangedKey), created)
-  await assert.rejects(
-    updateTag(admin.user.id, created.id, { ...unchanged, name: 'Different' }, unchangedKey),
-    status(409),
-  )
-  await updateTag(
-    admin.user.id,
-    created.id,
-    { name: 'Renamed', isActive: false, version: 1 },
-    randomUUID(),
-  )
-  await assert.rejects(
-    updateTag(admin.user.id, created.id, { name: 'Old', isActive: true, version: 1 }, randomUUID()),
-    status(409),
-  )
-  assert.deepEqual(await updateTag(admin.user.id, created.id, unchanged, unchangedKey), created)
-  await setUserRole(admin.user.id, 'administrator', false)
-  // Role authorization belongs to the request boundary, including replay requests.
-  assert.deepEqual(await createTag(admin.user.id, { name: 'New' }, key), created)
+  assert.deepEqual(await updateTag(created.id, unchanged), created)
+  const updated = await updateTag(created.id, { name: 'Renamed', isActive: false, version: 1 })
+  assert.equal(updated.version, 2)
+  await assert.rejects(updateTag(created.id, unchanged), status(409))
 })
 test('optional tag sets save atomically with text, retain disabled assignments, clear explicitly and preserve omission', async () => {
   const { member, admin, input } = await setup()
@@ -82,100 +62,64 @@ test('optional tag sets save atomically with text, retain disabled assignments, 
     .sort()
   const empty = await createPost(member.user.id, input)
   assert.deepEqual((await getPost(empty!.id))!.tags, [])
-  const key = randomUUID()
-  const post = await createPost(member.user.id, { ...input, tagIds: ids }, key)
+  await getDatabase()
+    .update(feedbackPost)
+    .set({ createdAt: new Date(Date.now() - 61_000) })
+    .where(eq(feedbackPost.id, empty!.id))
+  const post = await createPost(member.user.id, { ...input, tagIds: ids })
   assert.ok(post)
   assert.equal((await getPost(post.id))!.tags.length, 2)
   assert.equal((await listPosts()).posts.find((row) => row.id === post.id)!.tags.length, 2)
-  await updateTag(
-    admin.user.id,
-    ids[0]!,
-    { name: 'Renamed', isActive: false, version: 1 },
-    randomUUID(),
-  )
-  assert.deepEqual(await createPost(member.user.id, { ...input, tagIds: ids }, key), post)
-  await assert.rejects(createPost(member.user.id, { ...input, tagIds: [ids[0]!] }), status(400))
+  await updateTag(ids[0]!, { name: 'Renamed', isActive: false, version: 1 })
+  const other = await createMember()
+  await assert.rejects(createPost(other.user.id, { ...input, tagIds: [ids[0]!] }), status(400))
   const edit = {
     title: input.title,
     description: input.description,
     desiredImprovement: null,
     version: 1,
   }
-  assert.equal(
-    (await editPost(member.user.id, post.id, { ...edit, tagIds: ids }, randomUUID())).version,
-    1,
-  )
-  await editPost(member.user.id, post.id, { ...edit, title: 'Updated' }, randomUUID())
+  assert.equal((await editPost(member.user.id, post.id, { ...edit, tagIds: ids })).version, 1)
+  await editPost(member.user.id, post.id, { ...edit, title: 'Updated' })
   assert.equal((await getPost(post.id))!.tags.length, 2)
   await assert.rejects(
-    editPost(admin.user.id, post.id, { ...edit, version: 2, tagIds: [] }, randomUUID()),
+    editPost(admin.user.id, post.id, { ...edit, version: 2, tagIds: [] }),
     status(403),
   )
-  await assert.rejects(
-    editPost(member.user.id, post.id, { ...edit, tagIds: [] }, randomUUID()),
-    status(409),
-  )
-  const cleared = await editPost(
-    member.user.id,
-    post.id,
-    { ...edit, title: 'Updated', version: 2, tagIds: [] },
-    randomUUID(),
-  )
+  await assert.rejects(editPost(member.user.id, post.id, { ...edit, tagIds: [] }), status(409))
+  const cleared = await editPost(member.user.id, post.id, {
+    ...edit,
+    title: 'Updated',
+    version: 2,
+    tagIds: [],
+  })
   assert.equal(cleared.version, 3)
   const stored = await getPost(post.id)
   assert.deepEqual(stored!.tags, [])
   assert.ok(stored!.editedAt)
   await assert.rejects(
-    editPost(
-      member.user.id,
-      post.id,
-      { ...edit, title: 'Must roll back', version: 3, tagIds: [ids[0]!] },
-      randomUUID(),
-    ),
+    editPost(member.user.id, post.id, {
+      ...edit,
+      title: 'Must roll back',
+      version: 3,
+      tagIds: [ids[0]!],
+    }),
     status(400),
   )
   assert.equal((await getPost(post.id))!.title, 'Updated')
 })
-test('pre-tag create and edit receipts replay without changing assigned tags', async () => {
-  const { member, input } = await setup()
-  const post = await createPost(member.user.id, { ...input, tagIds: [defaultFeedbackTags[0]!.id] })
-  assert.ok(post)
-  const edit = {
-    title: input.title,
-    description: input.description,
-    desiredImprovement: null,
-    version: 1,
-  }
-  for (const [operation, receiptInput, result] of [
-    ['create-post', input, { id: post.id }],
-    ['edit-post', { postId: post.id, ...edit }, { id: post.id, version: 1 }],
-  ] as const) {
-    const requestId = randomUUID()
-    const requestHash = createHash('sha256')
-      .update(JSON.stringify({ operation, input: receiptInput }))
-      .digest('hex')
-    await getDatabase()
-      .insert(feedbackWriteReceipt)
-      .values({ actorId: member.user.id, requestId, operation, requestHash, result })
-    const replay: { id: string; version?: number } | null =
-      operation === 'create-post'
-        ? await createPost(member.user.id, input, requestId)
-        : await editPost(member.user.id, post.id, edit, requestId)
-    assert.deepEqual(replay, result)
-  }
-  assert.equal((await getPost(post.id))!.tags.length, 1)
-})
 test('tag disabling and assignment serialize without attaching an already disabled tag', async () => {
-  const { member, admin, input } = await setup()
+  const { member, input } = await setup()
   const tag = defaultFeedbackTags[0]!
   const [publication, disabling] = await Promise.allSettled([
     createPost(member.user.id, { ...input, tagIds: [tag.id] }),
-    updateTag(admin.user.id, tag.id, { name: tag.name, isActive: false, version: 1 }, randomUUID()),
+    updateTag(tag.id, { name: tag.name, isActive: false, version: 1 }),
   ])
   assert.equal(disabling.status, 'fulfilled')
   if (publication.status === 'rejected') assert.ok(status(400)(publication.reason))
   else assert.equal((await getPost(publication.value!.id))!.tags[0]!.isActive, false)
-  await assert.rejects(createPost(member.user.id, { ...input, tagIds: [tag.id] }), status(400))
+  const other = await createMember()
+  await assert.rejects(createPost(other.user.id, { ...input, tagIds: [tag.id] }), status(400))
   const [disabled] = await getDatabase()
     .select()
     .from(feedbackTag)

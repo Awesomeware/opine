@@ -22,28 +22,18 @@ export function getCategoryHistory(postId: string, cursor?: string) {
   })
 }
 
-export function correctCategory(
-  postId: string,
-  body: CategoryCorrectionInput,
-  headers: Record<string, string>,
-) {
+export function correctCategory(postId: string, body: CategoryCorrectionInput) {
   return $fetch<{ id: string; version: number }>(`/api/feedback/posts/${postId}/category`, {
     method: 'PATCH',
     body,
-    headers,
     retry: 0,
   })
 }
 
-export function publishResponse(
-  postId: string,
-  body: OfficialResponseInput,
-  headers: Record<string, string>,
-) {
+export function publishResponse(postId: string, body: OfficialResponseInput) {
   return $fetch<{ id: string; version: number }>(`/api/feedback/posts/${postId}/responses`, {
     method: 'POST',
     body,
-    headers,
     retry: 0,
   })
 }

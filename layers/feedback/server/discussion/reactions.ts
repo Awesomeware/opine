@@ -3,30 +3,11 @@ import { getDatabase } from '../../../../server/db/index.ts'
 import type { ReactionKind } from '../../shared/discussion/contracts.ts'
 import { requirePost } from '../posts/workflow.ts'
 import { feedbackPost, feedbackReaction } from '../schema.ts'
-import {
-  enforceWriteRate,
-  findWriteReceipt,
-  lockActorWrites,
-  saveWriteReceipt,
-} from '../write-repository.ts'
 import { FeedbackWriteError } from '../writes.ts'
 
-export async function setReaction(
-  actorId: string,
-  postId: string,
-  kind: ReactionKind | null,
-  requestId: string,
-) {
+export async function setReaction(actorId: string, postId: string, kind: ReactionKind | null) {
   return getDatabase().transaction(async (transaction) => {
-    const request = { actorId, requestId, operation: 'set-reaction', input: { postId, kind } }
-
-    await lockActorWrites(transaction, actorId)
     await requirePost(transaction, postId)
-
-    const receipt = await findWriteReceipt(transaction, request)
-    if (receipt) return receipt
-
-    await enforceWriteRate(transaction, request, { env: 'FEEDBACK_REACTION_MAX', fallback: 30 })
 
     if (kind === null) {
       await transaction
@@ -42,7 +23,7 @@ export async function setReaction(
         })
     }
 
-    return saveWriteReceipt(transaction, request, { id: postId })
+    return { id: postId }
   })
 }
 

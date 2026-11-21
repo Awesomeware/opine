@@ -7,16 +7,10 @@ export function getComment(postId: string, id: string) {
   )
 }
 
-export function editComment(
-  postId: string,
-  id: string,
-  body: CommentEditInput,
-  headers: Record<string, string>,
-) {
+export function editComment(postId: string, id: string, body: CommentEditInput) {
   return $fetch(`/api/feedback/posts/${postId}/comments/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body,
-    headers,
     retry: 0,
   })
 }

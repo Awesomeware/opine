@@ -107,7 +107,7 @@ Both commands read `.env`; an exported `DATABASE_URL` takes precedence. Check it
 
 ## Database migrations
 
-Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The committed migrations create authentication, session, rate-limit, role, category, tag, post-tag, post, follow, comment, reaction, write-receipt, official-response, notification, and category-audit tables. A fresh installation starts with a General feedback category and Gameplay, UI, Class-specific, Combat, and $$$ tags. Existing posts gain no tags automatically. The contribution-type migration preserves older comments as Unspecified instead of guessing their classification. Later features extend this history.
+Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The committed migrations create authentication, session, rate-limit, role, category, tag, post-tag, post, follow, comment, reaction, official-response, notification, and category-audit tables. A fresh installation starts with a General feedback category and Gameplay, UI, Class-specific, Combat, and $$$ tags. Existing posts gain no tags automatically. The contribution-type migration preserves older comments as Unspecified instead of guessing their classification. Migration `0006_remove_write_receipts.sql` removes obsolete retry bookkeeping while retaining feedback content. Later features extend this history.
 
 For each schema change:
 
