@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { authClient } from '../auth-client'
 import { startDiscordSignIn } from '../api/session'
 
@@ -7,6 +7,7 @@ const session = authClient.useSession()
 const route = useRoute()
 const busy = ref(false)
 const errorMessage = ref('')
+const accountControls = ref<HTMLElement | null>(null)
 
 async function signIn() {
   if (busy.value) {
@@ -39,6 +40,12 @@ async function signOut() {
   } finally {
     busy.value = false
   }
+
+  if (!errorMessage.value) {
+    // The sign-out button disappears; keep focus in the account controls.
+    await nextTick()
+    accountControls.value?.focus()
+  }
 }
 
 async function retrySession() {
@@ -56,7 +63,13 @@ async function retrySession() {
 </script>
 
 <template>
-  <div class="account-controls" aria-label="Account">
+  <div
+    ref="accountControls"
+    class="account-controls"
+    role="group"
+    aria-label="Account"
+    tabindex="-1"
+  >
     <p v-if="session.isPending" role="status">Checking your session…</p>
     <template v-else-if="session.error">
       <p role="alert">Unable to check your session.</p>

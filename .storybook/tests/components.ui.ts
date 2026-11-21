@@ -29,11 +29,14 @@ test('disabled contribution choices cannot be changed', async ({ page }) => {
 test('contribution errors are associated with the group and choices', async ({ page }) => {
   await page.goto(story('feedback-contributiontype--error'))
   const group = page.getByRole('group', { name: 'Contribution type' })
-  const errorId = await group.getAttribute('aria-describedby')
-  expect(errorId).toBeTruthy()
-  await expect(page.locator(`[id="${errorId}"]`)).toBeVisible()
+  await expect(group).toHaveAccessibleDescription(
+    /Choose how you want to contribute.*Choose a contribution type/,
+  )
   for (const choice of await page.getByRole('radio').all()) {
     await expect(choice).toHaveAttribute('aria-invalid', 'true')
+    await expect(choice).toHaveAccessibleDescription(
+      /Choose how you want to contribute.*Choose a contribution type/,
+    )
   }
 })
 

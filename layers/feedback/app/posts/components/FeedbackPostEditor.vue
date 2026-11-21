@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { nextTick, onMounted, ref } from 'vue'
+import UiNotice from '../../../../ui/app/components/UiNotice.vue'
 import UiButton from '../../../../ui/app/components/UiButton.vue'
 import FeedbackText from '../../components/FeedbackText.vue'
 import FeedbackTags from './FeedbackTags.vue'
@@ -33,19 +35,34 @@ const {
   clearTags,
 } = editor
 
+const titleInput = ref<HTMLInputElement | null>(null)
+const errorSummary = ref<InstanceType<typeof UiNotice> | null>(null)
+
+onMounted(() => titleInput.value?.focus())
+
+async function reviewLatest() {
+  acceptLatest()
+  await nextTick()
+  titleInput.value?.focus()
+}
+
 async function save() {
   if (await editor.save()) {
     emit('saved')
+  } else if (message.value) {
+    await nextTick()
+    errorSummary.value?.focus()
   }
 }
 </script>
 <template>
   <form class="panel feedback-form" novalidate @submit.prevent="save">
     <UiButton v-if="expired" type="button" @click="signIn">Sign in again</UiButton>
-    <p v-if="message" role="alert">{{ message }}</p>
+    <UiNotice v-if="message" ref="errorSummary" role="alert" tabindex="-1">{{ message }}</UiNotice>
     <div class="field">
       <label :for="`${endpoint}-title`">Title</label>
       <input
+        ref="titleInput"
         :readonly="busy"
         :id="`${endpoint}-title`"
         v-model="form.title"
@@ -126,7 +143,7 @@ async function save() {
         <p>Latest tags</p>
         <FeedbackTags :tags="latest.tags ?? []" />
         <p v-if="!latest.tags?.length">No tags</p>
-        <UiButton type="button" @click="acceptLatest">I’ve reviewed the latest version</UiButton>
+        <UiButton type="button" @click="reviewLatest">I’ve reviewed the latest version</UiButton>
       </div>
     </div>
     <div class="form-actions">

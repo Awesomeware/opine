@@ -30,6 +30,7 @@ export const suites: Record<'integration' | 'e2e', TestSuite[]> = {
       name: 'application-smoke',
       files: [
         'tests/e2e/smoke.e2e.ts',
+        'tests/e2e/accessibility.e2e.ts',
         'layers/auth/tests/auth.e2e.ts',
         'layers/feedback/tests/posts/feedback.e2e.ts',
         'layers/feedback/tests/discussion/participation.e2e.ts',

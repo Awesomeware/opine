@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick, ref } from 'vue'
 import { useFeedbackTagEditor } from '../composables/useFeedbackTagEditor'
 import type { FeedbackTag } from '../../../shared/posts/contracts'
 
@@ -17,6 +18,14 @@ const {
   loadLatest,
   reviewed,
 } = useFeedbackTagEditor(props, () => emit('saved'))
+
+const nameInput = ref<HTMLInputElement | null>(null)
+
+async function acceptConflict() {
+  reviewed()
+  await nextTick()
+  nameInput.value?.focus()
+}
 </script>
 <template>
   <section :aria-label="`${tag.name} tag`" class="tag-row">
@@ -25,6 +34,8 @@ const {
         <label :for="`tag-${tag.id}`">Tag name</label>
         <input
           :id="`tag-${tag.id}`"
+          ref="nameInput"
+          :aria-describedby="message ? `tag-${tag.id}-message` : undefined"
           v-model="form.name"
           maxlength="40"
           required
@@ -43,7 +54,7 @@ const {
         Save tag
       </UiButton>
     </form>
-    <p v-if="message" role="status">{{ message }}</p>
+    <p v-if="message" :id="`tag-${tag.id}-message`" role="status">{{ message }}</p>
     <p v-if="refreshError" role="alert">
       {{ refreshError }}
       <UiButton :busy="refreshing" @click="loadLatest">Retry latest tag</UiButton>
@@ -52,7 +63,7 @@ const {
       <UiButton type="button" :busy="refreshing" @click="loadLatest">Load latest tag</UiButton>
       <div v-if="latest">
         <p>Latest: {{ latest.name }} — {{ latest.isActive ? 'Available' : 'Inactive' }}</p>
-        <UiButton type="button" :disabled="refreshing" @click="reviewed">
+        <UiButton type="button" :disabled="refreshing" @click="acceptConflict">
           I’ve reviewed the latest tag
         </UiButton>
       </div>

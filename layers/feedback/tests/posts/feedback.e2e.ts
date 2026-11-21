@@ -59,7 +59,9 @@ test('a member publishes feedback and shares a public link', async ({
     expect(await page.evaluate(() => Object.hasOwn(window, 'injected'))).toBe(false)
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
     await page.getByRole('button', { name: 'Copy link' }).click()
-    await expect(page.getByRole('main').getByRole('status')).toContainText('Link copied.')
+    await expect(
+      page.getByRole('main').getByRole('status').filter({ hasText: 'Link copied.' }),
+    ).toBeVisible()
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url())
     await page.screenshot({
       path: testInfo.outputPath('feedback-detail-desktop.png'),
@@ -101,7 +103,7 @@ test('public browsing combines filters, loads more, and handles empty and missin
   const member = await createMember()
   const category = await createCategory({ name: 'Combat' })
   try {
-    for (let index = 0; index < 23; index++) {
+    for (let index = 0; index < 43; index++) {
       await createFeedbackPost({
         authorId: member.user.id,
         categoryId: category.id,
@@ -111,8 +113,17 @@ test('public browsing combines filters, loads more, and handles empty and missin
     }
     await page.goto(`/feedback?category=${category.slug}`)
     await expect(page.locator('article.post-row')).toHaveCount(20)
-    await page.getByRole('button', { name: 'Load more feedback' }).click()
-    await expect(page.locator('article.post-row')).toHaveCount(23)
+    const more = page.getByRole('button', { name: 'Load more feedback' })
+    await more.focus()
+    await more.press('Enter')
+    await expect(page.locator('article.post-row')).toHaveCount(40)
+    await expect(page.locator('ol.feedback-list > li').nth(20)).toBeFocused()
+    await expect(more).toBeVisible()
+    await more.focus()
+    await more.press('Enter')
+    await expect(page.locator('article.post-row')).toHaveCount(43)
+    await expect(page.locator('ol.feedback-list > li').nth(40)).toBeFocused()
+    await expect(more).toHaveCount(0)
     await page.getByLabel('Status', { exact: true }).selectOption('planned')
     await page.getByLabel('Search feedback').fill('Combat clarity')
     await page.getByRole('button', { name: 'Apply filters' }).click()

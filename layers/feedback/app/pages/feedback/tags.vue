@@ -9,7 +9,7 @@ useHead({ title: 'Manage tags · Opine' })
 </script>
 
 <template>
-  <main id="main-content" class="content-column">
+  <main id="main-content" tabindex="-1" class="content-column">
     <h1>Manage tags</h1>
     <p v-if="session.isPending" role="status">Checking your session…</p>
     <FeedbackTagManagement v-else-if="owner" :key="owner" :owner="owner" />

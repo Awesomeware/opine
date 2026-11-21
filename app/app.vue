@@ -4,6 +4,17 @@ import AuthControls from '../layers/auth/app/components/AuthControls.vue'
 import { useCommunity } from './composables/useCommunity'
 
 const { data: community, error: communityError, refresh: refreshCommunity } = useCommunity()
+const route = useRoute()
+
+// Page navigation starts at the new content; query filters keep their current focus.
+watch(
+  () => route.path,
+  async () => {
+    await nextTick()
+    document.getElementById('main-content')?.focus({ preventScroll: true })
+  },
+  { flush: 'post' },
+)
 </script>
 
 <template>

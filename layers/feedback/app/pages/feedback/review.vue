@@ -9,7 +9,7 @@ useHead({ title: 'Review queue · Opine' })
 </script>
 
 <template>
-  <main id="main-content" class="content-column">
+  <main id="main-content" tabindex="-1" class="content-column">
     <h1>Review queue</h1>
     <p v-if="session.isPending">Checking your session…</p>
     <FeedbackReviewQueue v-else-if="owner" :key="owner" />

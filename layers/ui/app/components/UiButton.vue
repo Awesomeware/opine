@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 withDefaults(
   defineProps<{
     variant?: 'default' | 'primary' | 'quiet' | 'tab'
@@ -8,10 +10,16 @@ withDefaults(
   }>(),
   { variant: 'default', type: 'button', disabled: false, busy: false },
 )
+
+const element = ref<HTMLButtonElement | null>(null)
+
+// Restore focus when an inline form closes or replaces its action button.
+defineExpose({ focus: () => element.value?.focus() })
 </script>
 
 <template>
   <button
+    ref="element"
     class="ui-button"
     :class="`ui-button-${variant}`"
     :type="type"

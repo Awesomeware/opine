@@ -28,6 +28,8 @@ const {
   selectFilter,
 } = useFeedbackDiscussion(props.postId)
 const composer = ref<InstanceType<typeof FeedbackCommentComposer> | null>(null)
+const heading = ref<HTMLHeadingElement | null>(null)
+const items = ref<HTMLDivElement | null>(null)
 
 watch([target, targetResponse], async () => {
   await nextTick()
@@ -41,6 +43,36 @@ watch([target, targetResponse], async () => {
   }
 })
 
+async function loadMore() {
+  const previousCount = entries.value.length
+  const focusedElement = document.activeElement
+  await loadComments(true)
+  await nextTick()
+  if (
+    !error.value &&
+    (document.activeElement === focusedElement || document.activeElement === document.body)
+  ) {
+    // A linked entry can sit outside the page, so resolve the appended entry's visible position.
+    const nextEntry = entries.value[previousCount]
+    const index = nextEntry ? visibleEntries.value.indexOf(nextEntry) : -1
+    const firstNewItem = items.value?.children.item(index)
+    if (firstNewItem instanceof HTMLElement) {
+      firstNewItem.focus()
+    }
+  }
+}
+
+async function refreshEditedComment() {
+  // Let the editor return focus before refreshing; its row may leave this filter/page.
+  await nextTick()
+  const focusedElement = document.activeElement
+  await retryComments()
+  await nextTick()
+  if (focusedElement && !focusedElement.isConnected && document.activeElement === document.body) {
+    heading.value?.focus()
+  }
+}
+
 function focusComposer() {
   composer.value?.focus()
 }
@@ -49,7 +81,7 @@ defineExpose({ refresh: retryComments, focusComposer })
 </script>
 <template>
   <section class="participation" aria-labelledby="comments-heading">
-    <h2 id="comments-heading">Community contributions</h2>
+    <h2 id="comments-heading" ref="heading" tabindex="-1">Community contributions</h2>
     <nav class="discussion-filters" aria-label="Filter contributions">
       <UiButton variant="tab" type="button" :aria-pressed="!filter" @click="selectFilter()">
         All
@@ -78,46 +110,44 @@ defineExpose({ refresh: retryComments, focusComposer })
       {{ error || targetError }}
       <UiButton type="button" @click="retryComments">Retry comments</UiButton>
     </p>
-    <p v-if="loading">Loading comments…</p>
-    <p v-else-if="loaded && !entries.length">
+    <p v-if="loading" role="status">Loading comments…</p>
+    <p v-else-if="loaded && !entries.length" role="status">
       {{ filter ? 'No contributions of this type yet.' : 'No contributions yet.' }}
     </p>
-    <template
-      v-for="entry in visibleEntries"
-      :key="entry.kind === 'comment' ? entry.comment.id : entry.response.id"
-    >
-      <FeedbackOfficialResponse
-        v-if="entry.kind === 'response'"
-        :response="entry.response"
-        :linked="route.query.response === entry.response.id"
-        :outside="
-          !entries.some(
-            (item) => item.kind === 'response' && item.response.id === entry.response.id,
-          )
-        "
+    <div ref="items">
+      <template
+        v-for="entry in visibleEntries"
+        :key="entry.kind === 'comment' ? entry.comment.id : entry.response.id"
       >
-        <template #link="{ href }"><NuxtLink :to="href">Response link</NuxtLink></template>
-      </FeedbackOfficialResponse>
-      <FeedbackContributionItem
-        v-else
-        :comment="entry.comment"
-        :owner="owner"
-        :linked="route.query.comment === entry.comment.id"
-        :outside="
-          target?.id === entry.comment.id &&
-          !comments.some((comment) => comment.id === entry.comment.id)
-        "
-        :outside-filter="!!filter && entry.comment.type !== filter"
-        @saved="retryComments"
-      />
-    </template>
-    <UiButton
-      v-if="nextCursor"
-      type="button"
-      :busy="loading"
-      :disabled="loading"
-      @click="loadComments(true)"
-    >
+        <FeedbackOfficialResponse
+          tabindex="-1"
+          v-if="entry.kind === 'response'"
+          :response="entry.response"
+          :linked="route.query.response === entry.response.id"
+          :outside="
+            !entries.some(
+              (item) => item.kind === 'response' && item.response.id === entry.response.id,
+            )
+          "
+        >
+          <template #link="{ href }"><NuxtLink :to="href">Response link</NuxtLink></template>
+        </FeedbackOfficialResponse>
+        <FeedbackContributionItem
+          tabindex="-1"
+          v-else
+          :comment="entry.comment"
+          :owner="owner"
+          :linked="route.query.comment === entry.comment.id"
+          :outside="
+            target?.id === entry.comment.id &&
+            !comments.some((comment) => comment.id === entry.comment.id)
+          "
+          :outside-filter="!!filter && entry.comment.type !== filter"
+          @saved="refreshEditedComment"
+        />
+      </template>
+    </div>
+    <UiButton v-if="nextCursor" type="button" :busy="loading" :disabled="loading" @click="loadMore">
       Load more comments
     </UiButton>
     <FeedbackCommentComposer

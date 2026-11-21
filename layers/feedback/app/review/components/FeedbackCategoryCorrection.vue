@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick, ref } from 'vue'
 import { useCategoryCorrection } from '../composables/useCategoryCorrection'
 
 const props = defineProps<{ owner: string; postId: string; categoryId: string; version: number }>()
@@ -27,6 +28,32 @@ const {
   loadHistory,
   name,
 } = useCategoryCorrection(props, () => emit('saved'))
+
+const categorySelect = ref<HTMLSelectElement | null>(null)
+
+async function acceptConflict() {
+  accept()
+  await nextTick()
+  categorySelect.value?.focus()
+}
+
+const items = ref<HTMLOListElement | null>(null)
+
+async function loadMore() {
+  const previousCount = changes.value.length
+  const focusedElement = document.activeElement
+  await loadHistory(true)
+  await nextTick()
+  if (
+    !historyError.value &&
+    (document.activeElement === focusedElement || document.activeElement === document.body)
+  ) {
+    const firstNewItem = items.value?.children.item(previousCount)
+    if (firstNewItem instanceof HTMLElement) {
+      firstNewItem.focus()
+    }
+  }
+}
 </script>
 <template>
   <details class="category-correction">
@@ -38,7 +65,7 @@ const {
       </p>
       <div class="field">
         <label for="correct-category">Corrected category</label>
-        <select id="correct-category" v-model="categoryId" :disabled="busy">
+        <select ref="categorySelect" id="correct-category" v-model="categoryId" :disabled="busy">
           <option
             v-for="category in categories"
             :key="category.id"
@@ -64,7 +91,9 @@ const {
           >
             <template #link="{ href }"><NuxtLink :to="href">Response link</NuxtLink></template>
           </FeedbackOfficialResponse>
-          <UiButton type="button" @click="accept">I’ve reviewed the category conflict</UiButton>
+          <UiButton type="button" @click="acceptConflict">
+            I’ve reviewed the category conflict
+          </UiButton>
         </div>
       </div>
       <UiButton type="submit" :busy="busy" :disabled="busy || conflict">
@@ -77,8 +106,8 @@ const {
       <UiButton @click="loadHistory()">Retry category history</UiButton>
     </p>
     <p v-if="!changes.length">No category corrections.</p>
-    <ol>
-      <li v-for="change in changes" :key="change.id">
+    <ol ref="items">
+      <li tabindex="-1" v-for="change in changes" :key="change.id">
         {{ name(change.previousCategoryId) }} → {{ name(change.categoryId) }} ·
         {{ change.actor.name }} · {{ new Date(change.createdAt).toLocaleString() }}
       </li>
@@ -88,7 +117,7 @@ const {
       type="button"
       :busy="loadingHistory"
       :disabled="loadingHistory"
-      @click="loadHistory(true)"
+      @click="loadMore"
     >
       Load more category history
     </UiButton>

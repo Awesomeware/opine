@@ -3,5 +3,5 @@ await navigateTo('/feedback', { replace: true })
 </script>
 
 <template>
-  <main id="main-content"><NuxtLink to="/feedback">Explore feedback</NuxtLink></main>
+  <main id="main-content" tabindex="-1"><NuxtLink to="/feedback">Explore feedback</NuxtLink></main>
 </template>

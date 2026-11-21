@@ -11,7 +11,7 @@ useHead(() => ({
 </script>
 
 <template>
-  <main id="main-content" class="content-column rules-column">
+  <main id="main-content" class="content-column rules-column" tabindex="-1">
     <NuxtLink class="back-link" to="/feedback">← All feedback</NuxtLink>
     <p v-if="community" class="eyebrow">{{ community.name }}</p>
     <h1>Community rules</h1>

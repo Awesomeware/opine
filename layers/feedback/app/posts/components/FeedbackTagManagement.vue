@@ -11,7 +11,7 @@ const { tags, ready, allowed, loading, error, createError, name, busy, load, cre
     {{ error }}
     <UiButton type="button" :busy="loading" @click="load">Reload tags</UiButton>
   </p>
-  <p v-if="createError" role="alert">{{ createError }}</p>
+  <p v-if="createError" id="new-tag-error" role="alert">{{ createError }}</p>
   <p v-if="loading" role="status">Loading tags…</p>
   <p v-if="ready && !allowed">Only administrators can manage tags.</p>
   <template v-if="allowed">
@@ -22,7 +22,14 @@ const { tags, ready, allowed, loading, error, createError, name, busy, load, cre
     <form class="create-tag" @submit.prevent="create">
       <div class="field">
         <label for="new-tag-name">New tag name</label>
-        <input id="new-tag-name" v-model="name" maxlength="40" required :readonly="busy" />
+        <input
+          id="new-tag-name"
+          v-model="name"
+          maxlength="40"
+          required
+          :readonly="busy"
+          :aria-describedby="createError ? 'new-tag-error' : undefined"
+        />
       </div>
       <UiButton type="submit" :busy="busy" variant="primary">Create tag</UiButton>
     </form>

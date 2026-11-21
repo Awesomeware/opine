@@ -393,8 +393,11 @@ test('members page through discussion and change or remove their reaction', asyn
     await page.context().addCookies([member.cookie])
     await page.goto(`/feedback/${post.id}`)
     await expect(page.locator('article.comment')).toHaveCount(20)
-    await page.getByRole('button', { name: 'Load more comments' }).click()
+    const moreComments = page.getByRole('button', { name: 'Load more comments' })
+    await moreComments.focus()
+    await moreComments.press('Enter')
     await expect(page.locator('article.comment')).toHaveCount(22)
+    await expect(page.locator('article.comment').nth(20)).toBeFocused()
     await page.getByRole('button', { name: /^Agree 0$/ }).click()
     await expect(page.getByRole('button', { name: /^Agree 1$/ })).toHaveAttribute(
       'aria-pressed',

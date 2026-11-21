@@ -37,8 +37,11 @@ test('review queue pagination uses applied filters and browser history restores 
     await expect(cards).toHaveCount(20)
     await expect(cards.first()).toContainText('Combat queue item 1')
     await page.getByLabel('Category', { exact: true }).selectOption(categoryB.slug)
-    await page.getByRole('button', { name: 'Load more review items', exact: true }).click()
+    const moreItems = page.getByRole('button', { name: 'Load more review items', exact: true })
+    await moreItems.focus()
+    await moreItems.press('Enter')
     await expect(cards).toHaveCount(21)
+    await expect(cards.nth(20)).toBeFocused()
     await expect(cards.last()).toContainText('Combat queue item 21')
     await expect(page.getByRole('link', { name: 'Movement queue item', exact: true })).toHaveCount(
       0,
@@ -122,11 +125,25 @@ test('a disabled category rejection preserves the correction form and permits a 
     })
     const [saved] = await database.select().from(feedbackPost).where(eq(feedbackPost.id, post.id))
     expect(saved).toMatchObject({ categoryId: valid.id, version: 1, workflowVersion: 2 })
+    // Populate the next history page without issuing twenty unrelated category writes.
+    await database.insert(feedbackCategoryChange).values(
+      Array.from({ length: 20 }, () => ({
+        postId: post.id,
+        actorId: manager.user.id,
+        previousCategoryId: original.id,
+        categoryId: valid.id,
+      })),
+    )
     await page.reload()
     await page.getByText('Correct category', { exact: true }).click()
-    await expect(page.locator('details.category-correction ol')).toContainText(
-      'Original category → Corrected category',
-    )
+    const history = page.locator('details.category-correction ol > li')
+    await expect(history).toHaveCount(20)
+    await expect(history.first()).toContainText('Original category → Corrected category')
+    const moreHistory = page.getByRole('button', { name: 'Load more category history' })
+    await moreHistory.focus()
+    await moreHistory.press('Enter')
+    await expect(history).toHaveCount(21)
+    await expect(history.nth(20)).toBeFocused()
   } finally {
     await database.delete(feedbackCategoryChange).where(eq(feedbackCategoryChange.postId, post.id))
     await database.delete(feedbackPost).where(eq(feedbackPost.id, post.id))

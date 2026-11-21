@@ -41,7 +41,7 @@ async function publish() {
 </script>
 
 <template>
-  <main id="main-content" class="content-column form-column">
+  <main id="main-content" tabindex="-1" class="content-column form-column">
     <NuxtLink class="back-link" to="/feedback">← All feedback</NuxtLink>
     <h1>Share feedback</h1>
     <p class="intro">

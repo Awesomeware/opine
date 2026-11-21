@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { nextTick, onMounted, ref } from 'vue'
+import UiNotice from '../../../../ui/app/components/UiNotice.vue'
 import UiButton from '../../../../ui/app/components/UiButton.vue'
 import FeedbackText from '../../components/FeedbackText.vue'
 import FeedbackContributionType from './FeedbackContributionType.vue'
@@ -26,16 +28,30 @@ const {
   acceptLatest,
 } = editor
 
+const bodyInput = ref<HTMLTextAreaElement | null>(null)
+const errorSummary = ref<InstanceType<typeof UiNotice> | null>(null)
+
+onMounted(() => bodyInput.value?.focus())
+
+async function reviewLatest() {
+  acceptLatest()
+  await nextTick()
+  bodyInput.value?.focus()
+}
+
 async function save() {
   if (await editor.save()) {
     emit('saved')
+  } else if (message.value) {
+    await nextTick()
+    errorSummary.value?.focus()
   }
 }
 </script>
 <template>
   <form class="panel feedback-form" novalidate @submit.prevent="save">
     <UiButton v-if="expired" type="button" @click="signIn">Sign in again</UiButton>
-    <p v-if="message" role="alert">{{ message }}</p>
+    <UiNotice v-if="message" ref="errorSummary" role="alert" tabindex="-1">{{ message }}</UiNotice>
     <FeedbackContributionType
       v-model="form.type"
       :name="`${endpoint}-type`"
@@ -46,6 +62,7 @@ async function save() {
     <div class="field">
       <label :for="`${endpoint}-body`">Edit comment</label>
       <textarea
+        ref="bodyInput"
         :readonly="busy"
         :id="`${endpoint}-body`"
         v-model="form.body"
@@ -69,7 +86,7 @@ async function save() {
         <h3>Latest saved content</h3>
         <p>{{ latest.type ? contributionLabels[latest.type] : 'Unspecified' }}</p>
         <FeedbackText :text="latest.body" />
-        <UiButton type="button" @click="acceptLatest">I’ve reviewed the latest version</UiButton>
+        <UiButton type="button" @click="reviewLatest">I’ve reviewed the latest version</UiButton>
       </div>
     </div>
     <div class="form-actions">

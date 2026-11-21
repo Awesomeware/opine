@@ -7,6 +7,7 @@ import {
   feedbackCategory,
   feedbackComment,
   feedbackOfficialResponse,
+  feedbackNotification,
   feedbackPost,
 } from '../../server/schema.ts'
 import { createCategory, createFeedbackPost } from '../fixtures.ts'
@@ -584,5 +585,49 @@ test('unlocking restores author editing without requiring another post read', as
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
     await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await manager.cleanup()
+  }
+})
+
+test('loading the final notification page focuses its first new result', async ({ page }) => {
+  const member = await createMember()
+  const category = await createCategory()
+  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const database = getDatabase()
+  try {
+    const responses = await database
+      .insert(feedbackOfficialResponse)
+      .values(
+        Array.from({ length: 21 }, (_, index) => ({
+          postId: post.id,
+          authorId: member.user.id,
+          body: `Official update ${index + 1}`,
+          createdAt: new Date(Date.UTC(2026, 0, 1, 12, index)),
+        })),
+      )
+      .returning()
+    await database.insert(feedbackNotification).values(
+      responses.map((response) => ({
+        userId: member.user.id,
+        responseId: response.id,
+        createdAt: response.createdAt,
+      })),
+    )
+    await page.context().addCookies([member.cookie])
+    await page.goto('/feedback/notifications')
+    const items = page.locator('ol.feedback-list > li')
+    await expect(items).toHaveCount(20)
+    const more = page.getByRole('button', { name: 'Load more notifications' })
+    await more.focus()
+    await more.press('Enter')
+    await expect(items).toHaveCount(21)
+    await expect(items.nth(20)).toBeFocused()
+    await expect(more).toHaveCount(0)
+  } finally {
+    await database
+      .delete(feedbackOfficialResponse)
+      .where(eq(feedbackOfficialResponse.postId, post.id))
+    await database.delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+    await database.delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await member.cleanup()
   }
 })

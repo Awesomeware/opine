@@ -5,7 +5,7 @@ useHead({ title: 'Sign in · Opine' })
 </script>
 
 <template>
-  <main id="main-content" class="content-column">
+  <main id="main-content" class="content-column" tabindex="-1">
     <h1>Sign in</h1>
     <p v-if="route.query.error" role="alert">
       Sign-in was cancelled or could not be completed. Please try again.

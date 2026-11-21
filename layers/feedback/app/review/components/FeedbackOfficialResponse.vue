@@ -28,7 +28,7 @@ const responseHref = computed(
       Linked official response · outside the selected filter or current page
     </p>
     <header>
-      <h3>Official response</h3>
+      <component :is="featured ? 'h2' : 'h3'">Official response</component>
       <FeedbackStatusBadge v-if="response.status" :status="response.status" />
     </header>
     <p class="response-byline">
@@ -64,6 +64,7 @@ header {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+h2,
 h3 {
   margin: 0;
   font-size: 1.05rem;

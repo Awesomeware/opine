@@ -41,8 +41,11 @@ test('a database session survives reload and sign-out invalidates its cookie', a
     await expect(page.getByText('Signed in as Test Member')).toBeVisible()
     await page.reload()
     await expect(page.getByText('Signed in as Test Member')).toBeVisible()
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+    const signOut = page.getByRole('button', { name: 'Sign out', exact: true })
+    await signOut.focus()
+    await signOut.press('Enter')
     await expect(page.getByRole('button', { name: 'Sign in with Discord' })).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Account', exact: true })).toBeFocused()
     const response = await request.get('/api/access', { headers: { cookie: member.cookieHeader } })
     expect(await response.json()).toEqual({ user: null, roles: [] })
   } finally {

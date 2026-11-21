@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick, ref } from 'vue'
 import { useFeedbackReviewQueue } from '../composables/useFeedbackReviewQueue'
 import { postStatuses, statusLabels } from '../../../shared/status'
 
@@ -16,6 +17,24 @@ const {
   load,
   apply,
 } = useFeedbackReviewQueue()
+
+const items = ref<HTMLOListElement | null>(null)
+
+async function loadMore() {
+  const previousCount = posts.value.length
+  const focusedElement = document.activeElement
+  await load(true)
+  await nextTick()
+  if (
+    !error.value &&
+    (document.activeElement === focusedElement || document.activeElement === document.body)
+  ) {
+    const firstNewItem = items.value?.children.item(previousCount)
+    if (firstNewItem instanceof HTMLElement) {
+      firstNewItem.focus()
+    }
+  }
+}
 </script>
 <template>
   <p>Oldest feedback first. The initial queue shows New posts awaiting review.</p>
@@ -43,7 +62,7 @@ const {
       </select>
     </div>
     <label>
-      <input v-model="filters.followUp" type="checkbox" />
+      <input v-model="filters.followUp" type="checkbox" aria-describedby="follow-up-help" />
       Needs follow-up
     </label>
     <UiButton type="submit">Apply queue filters</UiButton>
@@ -52,7 +71,7 @@ const {
     {{ categoryError }}
     <UiButton :busy="categoriesLoading" @click="loadCategories">Retry categories</UiButton>
   </p>
-  <p class="field-help">
+  <p id="follow-up-help" class="field-help">
     Needs follow-up shows member comments since the latest official response. Select All statuses to
     check follow-up across the workflow.
   </p>
@@ -61,9 +80,11 @@ const {
     <UiButton type="button" @click="load()">Retry queue</UiButton>
   </p>
   <p v-if="loading" role="status">Loading queue…</p>
-  <p v-else-if="loaded && !posts.length">No feedback needs review with these filters.</p>
-  <ol class="feedback-list">
-    <li v-for="post in posts" :key="post.id" class="panel feedback-card">
+  <p v-else-if="loaded && !posts.length" role="status">
+    No feedback needs review with these filters.
+  </p>
+  <ol ref="items" class="feedback-list">
+    <li tabindex="-1" v-for="post in posts" :key="post.id" class="panel feedback-card">
       <p>
         {{ post.category.name }} · {{ statusLabels[post.status] }}
         <span v-if="post.lockedAt">· Locked</span>
@@ -72,7 +93,7 @@ const {
       <p>{{ post.excerpt }}</p>
     </li>
   </ol>
-  <UiButton v-if="cursor" type="button" :busy="loading" @click="load(true)">
+  <UiButton v-if="cursor" type="button" :busy="loading" @click="loadMore">
     Load more review items
   </UiButton>
 </template>

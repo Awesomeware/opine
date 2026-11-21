@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick, ref } from 'vue'
 import type { PostLockResult } from '../../../shared/review/contracts'
 import FeedbackModeration from './FeedbackModeration.vue'
 import { statusLabels, postStatuses } from '../../../shared/status'
@@ -11,8 +12,14 @@ const props = defineProps<{
   categoryId: string
   categoryName: string
   lockedAt: string | null
+  focusModeration?: boolean
 }>()
-const emit = defineEmits<{ published: []; locked: [result: PostLockResult]; archived: [] }>()
+const emit = defineEmits<{
+  published: []
+  locked: [result: PostLockResult]
+  archived: []
+  moderationFocused: []
+}>()
 
 const {
   outcome,
@@ -31,6 +38,21 @@ const {
   acceptLatest,
 } = useOfficialPublication(props, () => emit('published'))
 const { busy: followBusy, message: followMessage, follow } = useFeedbackFollowing(props, load)
+
+const responseInput = ref<HTMLTextAreaElement | null>(null)
+
+async function reviewLatest() {
+  acceptLatest()
+  await nextTick()
+  responseInput.value?.focus()
+}
+
+async function publishResponse() {
+  await publish()
+  if (bodyError.value) {
+    responseInput.value?.focus()
+  }
+}
 
 function categorySaved() {
   void load()
@@ -102,6 +124,8 @@ function categorySaved() {
         v-if="owner && outcome.canModerate"
         :post-id="postId"
         :locked-at="lockedAt"
+        :autofocus="focusModeration"
+        @focused="emit('moderationFocused')"
         @locked="emit('locked', $event)"
         @archived="emit('archived')"
       />
@@ -114,13 +138,14 @@ function categorySaved() {
             class="response-form"
             aria-label="Publish official response"
             novalidate
-            @submit.prevent="publish()"
+            @submit.prevent="publishResponse"
           >
             <p>This is a public official response. Corrections require a new response.</p>
             <div class="field">
               <label for="official-response-body">Official response</label>
               <textarea
                 id="official-response-body"
+                ref="responseInput"
                 :aria-invalid="!!bodyError"
                 :aria-describedby="bodyError ? 'official-response-error' : undefined"
                 v-model="form.body"
@@ -158,7 +183,7 @@ function categorySaved() {
                     <NuxtLink :to="href">Response link</NuxtLink>
                   </template>
                 </FeedbackOfficialResponse>
-                <UiButton type="button" @click="acceptLatest">
+                <UiButton type="button" @click="reviewLatest">
                   I’ve reviewed the latest outcome
                 </UiButton>
               </div>

@@ -1,11 +1,22 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
+import UiNotice from '../../../../ui/app/components/UiNotice.vue'
 import { useCommentComposer } from '../composables/useCommentComposer'
 
 const props = defineProps<{ postId: string; owner: string | null; refresh: () => Promise<void> }>()
 const { body, type, busy, message, fieldErrors, expired, signIn, submitComment } =
   useCommentComposer(props, props.refresh)
 const commentInput = ref<HTMLTextAreaElement | null>(null)
+
+const errorSummary = ref<InstanceType<typeof UiNotice> | null>(null)
+
+async function submit() {
+  await submitComment()
+  if (message.value) {
+    await nextTick()
+    errorSummary.value?.focus()
+  }
+}
 
 function focus() {
   commentInput.value?.focus()
@@ -15,8 +26,8 @@ defineExpose({ focus })
 </script>
 <template>
   <UiButton v-if="expired" type="button" @click="signIn">Sign in again</UiButton>
-  <p v-if="message" role="alert">{{ message }}</p>
-  <form v-if="owner" class="comment-form" novalidate @submit.prevent="submitComment">
+  <UiNotice v-if="message" ref="errorSummary" role="alert" tabindex="-1">{{ message }}</UiNotice>
+  <form v-if="owner" class="comment-form" novalidate @submit.prevent="submit">
     <h3>Add a contribution</h3>
     <FeedbackContributionType
       v-model="type"

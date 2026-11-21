@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick } from 'vue'
 import FeedbackPostRow from '../../posts/components/FeedbackPostRow.vue'
 import { useRequestScope } from '../../composables/useRequestScope'
 import { statusLabels, postStatuses } from '../../../shared/status'
@@ -36,6 +37,7 @@ const pagination = useRequestScope()
 const extraPosts = ref<FeedbackPostSummary[]>([])
 const nextCursor = ref<string | null>(null)
 const loadingMore = ref(false)
+const items = ref<HTMLOListElement | null>(null)
 const moreError = ref('')
 
 watch(
@@ -74,6 +76,8 @@ async function loadMore() {
     return
   }
 
+  const previousCount = posts.value.length
+  const focusedElement = document.activeElement
   const isCurrent = pagination.startRequest()
   loadingMore.value = true
   moreError.value = ''
@@ -88,6 +92,13 @@ async function loadMore() {
 
     extraPosts.value.push(...page.posts)
     nextCursor.value = page.nextCursor
+    await nextTick()
+    if (document.activeElement === focusedElement || document.activeElement === document.body) {
+      const firstNewItem = items.value?.children.item(previousCount)
+      if (firstNewItem instanceof HTMLElement) {
+        firstNewItem.focus()
+      }
+    }
   } catch {
     if (isCurrent()) {
       moreError.value = 'Unable to load more feedback. Please try again.'
@@ -101,7 +112,7 @@ async function loadMore() {
 </script>
 
 <template>
-  <main id="main-content" class="content-column">
+  <main id="main-content" tabindex="-1" class="content-column">
     <div class="page-heading">
       <div>
         <h1>Community feedback</h1>
@@ -152,8 +163,8 @@ async function loadMore() {
         <p>Try another search or share your own feedback.</p>
         <NuxtLink to="/feedback/new">Share feedback</NuxtLink>
       </div>
-      <ol v-else class="feedback-list">
-        <li v-for="post in posts" :key="post.id">
+      <ol v-else ref="items" class="feedback-list">
+        <li v-for="post in posts" :key="post.id" tabindex="-1">
           <FeedbackPostRow :post="post">
             <template #title>
               <NuxtLink :to="`/feedback/${post.id}`">{{ post.title }}</NuxtLink>

@@ -4,7 +4,8 @@ import FeedbackOutcome from '../../review/components/FeedbackOutcome.vue'
 import FeedbackReactions from '../../discussion/components/FeedbackReactions.vue'
 import FeedbackTags from '../../posts/components/FeedbackTags.vue'
 import FeedbackText from '../../components/FeedbackText.vue'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import UiButton from '../../../../ui/app/components/UiButton.vue'
 import FeedbackPostEditor from '../../posts/components/FeedbackPostEditor.vue'
 import { authClient } from '../../../../auth/app/auth-client'
 import type { PostLockResult } from '../../../shared/review/contracts'
@@ -15,6 +16,9 @@ const session = authClient.useSession()
 const owner = computed(() => session.value.data?.user.id ?? null)
 
 const editing = ref(false)
+const editButton = ref<InstanceType<typeof UiButton> | null>(null)
+// Lock changes remount the overview to clear forms; return to the replacement control.
+const focusModeration = ref(false)
 const discussion = ref<{ refresh: () => Promise<void>; focusComposer: () => void } | null>(null)
 
 watch(owner, () => {
@@ -37,14 +41,21 @@ function refreshPublished() {
 }
 
 function updateLock(result: PostLockResult) {
+  focusModeration.value = true
   if (data.value) {
     data.value = { post: { ...data.value.post, ...result } }
   }
   editing.value = false
 }
 
-function finishEditing() {
+async function closeEditor() {
   editing.value = false
+  await nextTick()
+  editButton.value?.focus()
+}
+
+function finishEditing() {
+  void closeEditor()
   refresh()
 }
 
@@ -61,7 +72,7 @@ async function copyLink() {
 </script>
 
 <template>
-  <main id="main-content" class="content-column detail-column">
+  <main id="main-content" tabindex="-1" class="content-column detail-column">
     <NuxtLink class="back-link" to="/feedback">← All feedback</NuxtLink>
     <p v-if="pending && !post" role="status">Loading feedback…</p>
     <div v-else-if="error && !post" class="panel empty-state" role="alert">
@@ -79,6 +90,8 @@ async function copyLink() {
       v-if="post"
       :key="`outcome.${post.id}.${owner}.${post.lockedAt}`"
       :locked-at="post.lockedAt"
+      :focus-moderation="focusModeration"
+      @moderation-focused="focusModeration = false"
       :category-id="post.category.id"
       :category-name="post.category.name"
       :post-id="post.id"
@@ -109,7 +122,7 @@ async function copyLink() {
             :owner="owner"
             :post="post"
             @saved="finishEditing"
-            @cancel="editing = false"
+            @cancel="closeEditor"
           />
           <div v-else class="prose">
             <FeedbackText :text="post.description" />
@@ -129,6 +142,7 @@ async function copyLink() {
               Copy link
             </UiButton>
             <UiButton
+              ref="editButton"
               v-if="post.canEdit && owner && !editing"
               variant="quiet"
               @click="editing = true"

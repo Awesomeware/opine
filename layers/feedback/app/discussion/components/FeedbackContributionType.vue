@@ -13,20 +13,30 @@ const model = defineModel<ContributionType | ''>({ required: true })
 </script>
 
 <template>
-  <fieldset :disabled="disabled" :aria-describedby="error ? `${name}-error` : undefined">
+  <fieldset :disabled="disabled" :aria-describedby="`${name}-help${error ? ` ${name}-error` : ''}`">
     <legend>Contribution type</legend>
     <p v-if="legacy" class="field-help">
       This older comment is unspecified. Choose a type to classify it, or leave it unchanged.
     </p>
     <div class="type-options">
       <label v-for="type in contributionTypes" :key="type" :class="{ selected: model === type }">
-        <input v-model="model" type="radio" :name="name" :value="type" :aria-invalid="!!error" />
+        <input
+          v-model="model"
+          type="radio"
+          :name="name"
+          :value="type"
+          :required="!legacy"
+          :aria-invalid="!!error"
+          :aria-describedby="`${name}-help${error ? ` ${name}-error` : ''}`"
+        />
         <FeedbackContributionIcon :type="type" />
         {{ contributionLabels[type] }}
       </label>
     </div>
-    <p v-if="model" class="field-help">{{ contributionPrompts[model] }}</p>
-    <p v-else class="field-help">Choose how you want to contribute to this feedback.</p>
+    <p v-if="model" :id="`${name}-help`" class="field-help">{{ contributionPrompts[model] }}</p>
+    <p v-else :id="`${name}-help`" class="field-help">
+      Choose how you want to contribute to this feedback.
+    </p>
     <p v-if="error" :id="`${name}-error`" class="field-error">{{ error }}</p>
   </fieldset>
 </template>
