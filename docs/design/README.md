@@ -5,6 +5,7 @@ The approved [mockup](feedback-direction.png) is the visual reference for the fe
 ## Design rules
 
 - Use an O-shaped gold ring surrounding a pine tree, followed by lowercase **pine**. The complete mark reads **Opine**. Implement the mark as SVG, with an accessible name, rather than embedding the raster mockup.
+- The browser favicon in `public/favicon.svg` uses the O-and-tree mark on charcoal, without the wordmark. Keep its geometry and colors aligned with `UiBrand.vue` and the UI tokens; Nuxt's root config declares the icon.
 - Use matte charcoal surfaces, warm ivory text, restrained gold participation actions, and a teal accent for official communication. Avoid repeated gradient cards, oversized introductory headings, and decoration that makes unrelated content look equivalent.
 - Give the list a compact heading and search/filter toolbar. Feedback entries are rows with separators, a readable title and excerpt, quiet author/category/date metadata, and a consistent status position. Preserve newest-first ordering, explicit filter application, pagination, and loading/error/empty states.
 - Present the author's proposal as open reading text. Place status and follow controls in a supporting desktop column. Show the latest official response above the discussion, using a labelled teal surface and accent rule. Filters must never hide the featured response or current status.
