@@ -70,7 +70,8 @@ layers/feedback/app/
 
 Native checkbox/radio controls have their own restrained defaults; full-width text-field rules must not apply to them. Contribution selectors may keep their intentional overlay styling local.
 
-Use `<UiButton hover-highlight>` for an optional gold-tinted hover treatment.
+Use `<UiButton hover-highlight>` for the same subtle background hover treatment
+used by quiet actions and discussion filters; it does not add gold text or borders.
 Native radio labels can reuse its `ui-hover-highlight` class, as contribution types
 do, without replacing radio semantics with buttons. The treatment uses shared theme
 tokens, applies only on hover-capable devices, and leaves checked or disabled radio
