@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { createServer } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PostgreSqlContainer } from '@testcontainers/postgresql'
@@ -107,11 +107,15 @@ async function runSuite(suite: TestSuite) {
     } else {
       const baseURL = `http://127.0.0.1:${await availablePort()}`
       artifacts = await mkdtemp(join(tmpdir(), 'opine-e2e-'))
+      const configDirectory = join(artifacts, 'config')
+      await mkdir(configDirectory)
+      await writeFile(
+        join(configDirectory, 'community.json'),
+        JSON.stringify({ name: testCommunity.name, url: testCommunity.url }),
+      )
+      await writeFile(join(configDirectory, 'rules.md'), testCommunity.rules)
       const browserEnv = {
         ...env,
-        NUXT_PUBLIC_COMMUNITY_NAME: testCommunity.name,
-        NUXT_PUBLIC_COMMUNITY_URL: testCommunity.url,
-        NUXT_PUBLIC_COMMUNITY_RULES: testCommunity.rules,
         OPINE_TEST_BASE_URL: baseURL,
         BETTER_AUTH_URL: baseURL,
         OPINE_TEST_ARTIFACT_DIR: artifacts,

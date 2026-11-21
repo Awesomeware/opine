@@ -98,9 +98,9 @@ Reports, individual comment/response hiding, account suspension, moderation reas
 
 ## 7. Complete community configuration
 
-Completes V1-F28. [Community configuration](community.md) documents the public runtime settings alongside existing category, privileged-role and tag management.
+Completes V1-F28. [Community configuration](community.md) documents installation files for public settings alongside existing category, privileged-role and tag management.
 
-- [x] Provide documented configuration for the public name, community rules and community link.
+- [x] Provide documented JSON configuration for the public name and community link, and a Markdown file for community rules.
 - [x] Surface that configuration in the relevant public views. Moderation-review contact and appeals UI are deferred.
 - [x] Document the complete installation configuration alongside the existing category, role and tag commands/UI. A full settings or branding editor is not required.
 

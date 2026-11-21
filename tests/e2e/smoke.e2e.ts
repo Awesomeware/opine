@@ -11,8 +11,9 @@ test('renders the application with a ready database', async ({ page, request }) 
   expect(await response.json()).toEqual({ status: 'ok' })
 })
 
-test('public community settings come from the server environment and rules render as plain text', async ({
+test('installation files configure the community and rules render Markdown safely', async ({
   page,
+  request,
 }) => {
   await page.goto('/feedback')
   await expect(page.getByRole('banner')).toContainText(testCommunity.name)
@@ -26,12 +27,22 @@ test('public community settings come from the server environment and rules rende
   await expect(page).toHaveTitle(`Community rules · ${testCommunity.name} · Opine`)
   await expect(page.getByRole('heading', { name: 'Community rules', exact: true })).toBeVisible()
   const rules = page.locator('.rules-text')
-  await expect(rules).toHaveText(testCommunity.rules)
-  await expect(rules).toHaveCSS('white-space', 'pre-wrap')
+  await expect(rules.getByRole('heading', { name: 'Discussion', level: 2 })).toBeVisible()
+  await expect(rules.locator('strong')).toHaveText('Criticism and disagreement')
+  await expect(rules.getByRole('listitem')).toHaveCount(2)
+  await expect(rules.getByRole('link', { name: 'Community website' })).toHaveAttribute(
+    'href',
+    testCommunity.url,
+  )
+  await expect(rules).toContainText('<img src=x onerror="window.rulesExecuted=true">')
   await expect(rules.locator('img')).toHaveCount(0)
+  await expect(rules.getByRole('link', { name: 'Unsafe link' })).toHaveCount(0)
+  const response = await request.get('/api/community')
+  expect(response.status()).toBe(200)
+  expect(Object.keys(await response.json()).sort()).toEqual(['name', 'rulesHtml', 'url'])
 
   await page.reload()
-  await expect(rules).toHaveText(testCommunity.rules)
+  await expect(rules.getByRole('heading', { name: 'Discussion', level: 2 })).toBeVisible()
   await page.goto('/feedback/new')
   const rulesLink = page.getByRole('main').getByRole('link', { name: /community rules/i })
   const popup = page.waitForEvent('popup')

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import FeedbackNavigation from '../layers/feedback/app/components/FeedbackNavigation.vue'
 import AuthControls from '../layers/auth/app/components/AuthControls.vue'
-import { communitySettings } from '../shared/community'
+import { useCommunity } from './composables/useCommunity'
 
-const community = communitySettings(useRuntimeConfig().public.community)
+const { data: community, error: communityError, refresh: refreshCommunity } = useCommunity()
 </script>
 
 <template>
@@ -15,7 +15,7 @@ const community = communitySettings(useRuntimeConfig().public.community)
         <NuxtLink class="brand" to="/feedback" aria-label="Opine home">
           <UiBrand />
         </NuxtLink>
-        <span class="community-name">{{ community.name }}</span>
+        <span v-if="community" class="community-name">{{ community.name }}</span>
       </div>
       <FeedbackNavigation />
       <AuthControls />
@@ -25,8 +25,12 @@ const community = communitySettings(useRuntimeConfig().public.community)
       <span>Help shape the game with your feedback.</span>
       <nav aria-label="Community">
         <NuxtLink to="/rules">Community rules</NuxtLink>
-        <a v-if="community.url" :href="community.url">Visit {{ community.name }}</a>
+        <a v-if="community?.url" :href="community.url">Visit {{ community.name }}</a>
       </nav>
+      <p v-if="communityError" role="alert">
+        Unable to load community settings.
+        <UiButton variant="quiet" @click="refreshCommunity()">Retry community settings</UiButton>
+      </p>
     </footer>
   </div>
 </template>

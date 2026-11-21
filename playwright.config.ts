@@ -1,12 +1,21 @@
 import { defineConfig } from '@playwright/test'
+import { fileURLToPath } from 'node:url'
 
 const databaseUrl = process.env.OPINE_TEST_DATABASE_URL
 const baseURL = process.env.OPINE_TEST_BASE_URL
 const suiteName = process.env.OPINE_TEST_SUITE_NAME
-if (!databaseUrl || process.env.DATABASE_URL !== databaseUrl || !baseURL || !suiteName) {
+const artifacts = process.env.OPINE_TEST_ARTIFACT_DIR
+if (
+  !databaseUrl ||
+  process.env.DATABASE_URL !== databaseUrl ||
+  !baseURL ||
+  !suiteName ||
+  !artifacts
+) {
   throw new Error('Run browser tests with pnpm test:e2e to start an isolated database and server.')
 }
 const server = new URL(baseURL)
+const application = fileURLToPath(new URL('./.output/server/index.mjs', import.meta.url))
 
 export default defineConfig({
   testDir: '.',
@@ -22,7 +31,8 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'node .output/server/index.mjs',
+    command: `node '${application.replaceAll("'", "'\\''")}'`,
+    cwd: artifacts,
     env: {
       DATABASE_URL: databaseUrl,
       HOST: server.hostname,

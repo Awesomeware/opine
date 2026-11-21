@@ -37,7 +37,7 @@ Install Docker Engine (or Docker Desktop) with Docker Compose before starting Po
 
 Configure the Discord application and authentication secrets using [Authentication and access](docs/authentication.md), then open <http://localhost:3000>. The homepage opens the public feedback feed. Sign in to submit feedback, contribute context, a different view, a suggestion, or a question, react with Agree / Disagree, and edit your own text and optional tags. Filter the discussion by contribution type or official responses. Follow posts and read official-update notifications; community managers can publish responses, change status, correct categories, and use the review queue. Administrator alone does not grant community-manager permission. Share public post and comment links. Administrators can manage the available tags from **Tags** in the navigation. See [Feedback](docs/feedback.md) for tag/category configuration and the current schema. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
 
-Configure the public game/community name, rules and optional community link using [Community configuration](docs/community.md). The header identifies the community, the footer links to its website and public `/rules` page, and contribution forms link to those rules. These runtime settings require a server restart, not a rebuild.
+Edit `config/community.json` for the public game/community name and optional community link, and `config/rules.md` for Markdown rules; see [Community configuration](docs/community.md). The header identifies the community, the footer links to its website and public `/rules` page, and contribution forms link to those rules. These files are loaded from the working directory at startup; changes require a server restart, not a rebuild.
 
 The server creates a shared database connection pool on first use and closes it during Nitro shutdown. It reads `DATABASE_URL` only on the server. The page and liveness endpoint can still run without a database; readiness and database-backed features require one. Authentication requires the configured Discord credentials and Better Auth secret. Local `.env` files are ignored by Git.
 
@@ -121,7 +121,7 @@ For each schema change:
 
 Run `pnpm db:migrate` again to verify that applied migrations are not rerun. Test migrations on a fresh database as well as existing data. `db:check` checks migration files, not database connectivity or schema drift. Do not edit already-applied migrations or use `drizzle-kit push` for shared databases; generate a new reviewed migration instead. Migrations are an explicit command and never run automatically on server startup.
 
-Production runs with `node .output/server/index.mjs` after `pnpm build`. Keep the Nitro server in the deployment: the SPA will use it for authentication and database access. Supply production environment variables through the deployment environment; the built server does not load `.env` automatically. Apply committed migrations as a deployment step before starting the new server. For a local production smoke test, use `node --env-file=.env .output/server/index.mjs`, then request `/api/ready`.
+Production runs with `node .output/server/index.mjs` after `pnpm build`. Deploy `config/community.json` and `config/rules.md` separately alongside the build, under `config/` in the server's working directory; `.output/` alone is insufficient. See [Community configuration](docs/community.md#apply-settings) for the production layout. Keep the Nitro server in the deployment: the SPA will use it for authentication and database access. Supply production environment variables through the deployment environment; the built server does not load `.env` automatically. Apply committed migrations as a deployment step before starting the new server. For a local production smoke test, use `node --env-file=.env .output/server/index.mjs`, then request `/api/ready`.
 
 ## Folder structure
 
@@ -135,7 +135,7 @@ app/
   composables/               Client-side Vue helpers
   spa-loading-template.html  Initial SPA loading state
 server/
-  api/                       Operational endpoints (health and readiness)
+  api/                       Operational endpoints and public community configuration
   db/                        Database client, colocated tests, schema aggregation
   plugins/                   Server lifecycle hooks
 layers/<feature>/            Feature modules, introduced with their implementation
@@ -145,6 +145,7 @@ layers/<feature>/            Feature modules, introduced with their implementati
   shared/                    Browser-safe feature contracts and validation
 layers/ui/                   Shared controls, scoped styles, tokens, and stories
 .storybook/                  Isolated Vue previews and component browser checks
+config/                      Public community JSON configuration and Markdown rules
 shared/                      Contracts genuinely shared across features and runtimes
 drizzle/                     Committed SQL migrations
 tests/                       Shared test harness, suite catalog, browser smoke tests
@@ -167,6 +168,6 @@ The tree includes planned feature locations; no empty feature layers are require
 
 The core feedback loop is implemented: proposals, typed contributions and filters, official responses and statuses, review queues, follows, notifications, and admin-defined author-selected tags. Agree / Disagree reactions remain secondary.
 
-CM lock/unlock and archive actions are implemented, with an internal application event log. Archived content disappears from application queries and notifications; no unarchive UI is included. Community configuration is also implemented through public runtime settings. Remaining release work covers production operation and backup restoration, the operator account-retention process, accessibility and release verification, and an open-source license before repository publication. Follow [steps 8–9 and the publication checklist](docs/TODO.md#8-complete-operational-readiness-and-retention) for the implementation sequence.
+CM lock/unlock and archive actions are implemented, with an internal application event log. Archived content disappears from application queries and notifications; no unarchive UI is included. Community configuration is also implemented through installation files with Markdown rules. Remaining release work covers production operation and backup restoration, the operator account-retention process, accessibility and release verification, and an open-source license before repository publication. Follow [steps 8–9 and the publication checklist](docs/TODO.md#8-complete-operational-readiness-and-retention) for the implementation sequence.
 
 The [deferred features](requirements.md#explicitly-deferred) are outside this release, including reports, suspensions, moderation-history UI/appeals, individual contribution hiding, summaries/highlights, nested replies, tag filtering, duplicate handling, Discord bots and external notifications. CI remains deferred; local validation and release-readiness checks still apply.

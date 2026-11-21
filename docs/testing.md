@@ -42,7 +42,7 @@ For the event log, verify mutation/event atomicity, typed metadata without text 
 
 ## Community configuration coverage
 
-Lightweight tests cover public setting defaults, empty/non-string values and rejection of unsafe or credential-bearing community URLs. Browser checks use runtime environment overrides on the built application to verify the configured name and link, public rules navigation, links from contribution forms, and escaped rules text with preserved line breaks. Keep these checks in the existing application browser suite; configuration does not need another database suite or container.
+Lightweight tests cover configuration files, missing or invalid settings, unsafe or credential-bearing community URLs, and Markdown rendering with raw HTML disabled. Browser checks use isolated configuration files with the built application to verify the configured name and link, public rules navigation, links from contribution forms, and rendered Markdown. Keep these checks in the existing application browser suite; configuration does not need another database suite or container.
 
 ## Current coverage
 

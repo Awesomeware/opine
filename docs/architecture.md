@@ -95,7 +95,7 @@ Storybook uses Vue/Vite to render the same components with deterministic props, 
 
 ## Installation configuration
 
-Community identity and rules are application-shell concerns, kept at the root rather than in a new feature layer. `runtimeConfig.public.community` supplies the public name, optional community URL and plain-text rules. The root shell and public `/rules` page consume these settings; feedback contribution forms link to that page. Keep normalization browser-safe, render rules as text, and keep credentials outside public runtime configuration. This requires no database table, settings API or administration editor. [Community configuration](community.md) owns the operator setup and environment semantics.
+Community identity and rules are application-shell concerns, kept at the root rather than in a new feature layer. The server loads `config/community.json` and `config/rules.md` once at startup, validates their settings and renders Markdown with markdown-it's raw HTML support disabled. `GET /api/community` exposes only the public name, optional URL and rendered rules HTML. The root shell and public `/rules` page consume this contract; feedback contribution forms link to that page. Rendering stays on the server, and only the rendered rules use HTML insertion in Vue. Feedback content remains plain text. This requires no database table or administration editor. [Community configuration](community.md) owns file validation and deployment semantics.
 
 ## A vertical slice: create feedback
 

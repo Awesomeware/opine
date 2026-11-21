@@ -1,48 +1,50 @@
 # Community configuration
 
-Each Opine installation serves one community. Configure its public name, rules and community link through the server environment; no settings editor or configuration table is needed. Opine keeps its own wordmark beside the community name.
+Each Opine installation serves one community. Configure its public name and link in `config/community.json`, and its rules in `config/rules.md`. Both files ship with usable defaults. Opine keeps its own wordmark beside the community name; no settings editor or configuration table is needed.
 
-## Public settings
+## Configuration files
 
-These values are exposed to every browser through Nuxt's `runtimeConfig.public.community`. Never put credentials, private contact details or other secrets in them.
+Edit `config/community.json`:
 
-| Environment variable          | Meaning                                                                        | Default                     |
-| ----------------------------- | ------------------------------------------------------------------------------ | --------------------------- |
-| `NUXT_PUBLIC_COMMUNITY_NAME`  | Public game or community name, shown in the application header and rules page. | `Community`                 |
-| `NUXT_PUBLIC_COMMUNITY_URL`   | Optional community website, forum or Discord invite, linked from the footer.   | No link                     |
-| `NUXT_PUBLIC_COMMUNITY_RULES` | Plain-text rules displayed at `/rules`.                                        | General participation rules |
-
-For local development, set these in `.env` alongside the existing installation variables:
-
-```dotenv
-NUXT_PUBLIC_COMMUNITY_NAME="Pine Valley"
-NUXT_PUBLIC_COMMUNITY_URL="https://example.com/community"
-NUXT_PUBLIC_COMMUNITY_RULES="Criticism, disagreement and negative feedback are welcome.
-Discuss the game and ideas respectfully. Do not harass or threaten people.
-Do not post hate speech, personal information or spam."
+```json
+{
+  "name": "Pine Valley",
+  "url": "https://example.com/community"
+}
 ```
 
-Quoted `.env` values can span multiple lines. Rules preserve line breaks and are rendered as escaped text: HTML and Markdown are not interpreted. The default rules welcome criticism, disagreement and negative feedback while prohibiting harassment, threats, hate speech, sharing personal information and spam. Empty or non-string names and rules fall back to the defaults.
+`name` must be a nonempty string. `url` is optional: omit it or use an empty string to hide the community link. When supplied, it must be an absolute HTTP or HTTPS address without embedded credentials. This navigation link is separate from the application's origin, configured through `BETTER_AUTH_URL`.
 
-The community URL must be an absolute HTTP or HTTPS address without embedded credentials. Empty, invalid and unsupported URLs produce no community link. This setting is a navigation link, not the application's origin; configure `BETTER_AUTH_URL` separately.
+Write the community rules as Markdown in `config/rules.md`, for example:
 
-Nuxt parses environment values, so a name consisting solely of a number or a boolean-like word needs an explicit JSON string to remain text, for example `NUXT_PUBLIC_COMMUNITY_NAME='"1984"'` in `.env`.
+```markdown
+## Give constructive feedback
+
+Criticism, disagreement and negative feedback are welcome.
+
+- Discuss the **game and ideas** respectfully.
+- Do not harass or threaten people.
+- Do not post hate speech, personal information or spam.
+
+For general discussion, visit [our community](https://example.com/community).
+```
+
+The rules file must contain nonempty text. The server uses [markdown-it](https://github.com/markdown-it/markdown-it) to render headings, lists, emphasis, links, code blocks and images. Raw HTML is disabled and the renderer's default URL filtering remains enabled. This Markdown support applies to installation rules; feedback posts and comments remain plain text.
+
+The public `GET /api/community` endpoint returns only the name, URL and rendered rules HTML. Extra JSON keys and raw configuration files are not exposed. Missing files, malformed JSON or invalid settings fail server startup with a configuration error; there is no environment-variable fallback.
 
 ## Apply settings
 
-Nuxt loads `.env` for local development. Restart the development server after changing these settings. For production, provide the same environment variables through the deployment environment before starting the built server:
+The server reads both files once at startup from `config/` relative to its working directory. For local development, run `pnpm dev` from the repository root. Restart the server after editing either file and reload open browser pages. No rebuild is needed.
+
+For production, place or mount your `config/` directory in the installation's working directory and start the built server from there. For example, with configuration under `/srv/opine/config/` and the build under `/srv/opine/app/.output/`:
 
 ```sh
-node .output/server/index.mjs
+cd /srv/opine
+node /srv/opine/app/.output/server/index.mjs
 ```
 
-The built server does not load `.env` automatically. To test a production build locally with the file, use:
-
-```sh
-node --env-file=.env .output/server/index.mjs
-```
-
-Changing public configuration requires restarting the running server and reloading open browser pages, but does not require rebuilding the application. These settings use Nuxt's matching `NUXT_PUBLIC_*` runtime overrides, rather than reading a differently named build-time variable. See the official [runtime configuration](https://nuxt.com/docs/4.x/guide/going-further/runtime-config) and [environment file](https://nuxt.com/docs/4.x/directory-structure/env) documentation.
+Deploy the configuration files alongside the application; copying `.output/` alone is insufficient. Keep deployment-specific versions of these files in your installation configuration and backup process. Authentication and database credentials remain environment settings. The built server does not load `.env` automatically; use the deployment environment or Node's `--env-file` option for those settings.
 
 The public `/rules` page is accessible without signing in. The footer links to it on every page, and post and comment forms link to it where people contribute. There is no mandatory acceptance checkbox or moderation-review contact workflow in this release.
 
