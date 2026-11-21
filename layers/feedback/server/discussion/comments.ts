@@ -1,4 +1,5 @@
-import { and, asc, eq, gt, or, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, isNull, or, sql } from 'drizzle-orm'
+import { appendEvent } from '../../../../server/events/repository.ts'
 import { getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import type { ContributionType } from '../../shared/discussion/contribution-types.ts'
@@ -12,12 +13,12 @@ import { FeedbackWriteError, type FeedbackTransaction } from '../writes.ts'
 export async function createComment(actorId: string, postId: string, input: CommentInput) {
   return getDatabase().transaction(async (transaction) => {
     await lockActorCreations(transaction, actorId)
+    await requirePost(transaction, postId)
+
     await enforceContributionLimit(transaction, actorId, feedbackComment, {
       env: 'FEEDBACK_COMMENT_MAX',
       fallback: 10,
     })
-
-    await requirePost(transaction, postId)
 
     const [comment] = await transaction
       .insert(feedbackComment)
@@ -31,6 +32,11 @@ export async function createComment(actorId: string, postId: string, input: Comm
       })
       .returning({ id: feedbackComment.id, version: feedbackComment.version })
 
+    await appendEvent(transaction, {
+      type: 'comment.created',
+      actorId,
+      details: { postId, commentId: comment!.id, version: comment!.version },
+    })
     return comment!
   })
 }
@@ -43,6 +49,8 @@ export async function editComment(
 ) {
   const where = and(eq(feedbackComment.postId, postId), eq(feedbackComment.id, commentId))
   return getDatabase().transaction(async (transaction) => {
+    await requirePost(transaction, postId)
+
     const [comment] = await transaction.select().from(feedbackComment).where(where).for('update')
     if (!comment) throw new FeedbackWriteError(404, 'Comment not found.')
     if (comment.authorId !== actorId) {
@@ -70,6 +78,15 @@ export async function editComment(
       .returning({ id: feedbackComment.id, version: feedbackComment.version })
     if (!updated) throw new FeedbackWriteError(409, 'This comment has changed.')
 
+    const changedFields = [
+      ...(comment.body !== input.body ? ['body'] : []),
+      ...(comment.type !== type ? ['type'] : []),
+    ]
+    await appendEvent(transaction, {
+      type: 'comment.edited',
+      actorId,
+      details: { postId, commentId, version: updated.version, changedFields },
+    })
     return updated
   })
 }
@@ -85,7 +102,7 @@ function commentFields(viewerId?: string) {
     version: feedbackComment.version,
     author: { name: user.name },
     canEdit: viewerId
-      ? sql<boolean>`${feedbackComment.authorId} = ${viewerId}`
+      ? sql<boolean>`${feedbackComment.authorId} = ${viewerId} and ${feedbackPost.lockedAt} is null`
       : sql<boolean>`false`,
   }
 }
@@ -95,7 +112,14 @@ export async function getComment(postId: string, commentId: string, viewerId?: s
     .select(commentFields(viewerId))
     .from(feedbackComment)
     .innerJoin(user, eq(user.id, feedbackComment.authorId))
-    .where(and(eq(feedbackComment.postId, postId), eq(feedbackComment.id, commentId)))
+    .innerJoin(feedbackPost, eq(feedbackPost.id, feedbackComment.postId))
+    .where(
+      and(
+        eq(feedbackComment.postId, postId),
+        eq(feedbackComment.id, commentId),
+        isNull(feedbackPost.archivedAt),
+      ),
+    )
     .limit(1)
   return comment
 }
@@ -113,15 +137,17 @@ export async function listComments(
   const posts = await database
     .select({ id: feedbackPost.id })
     .from(feedbackPost)
-    .where(eq(feedbackPost.id, postId))
+    .where(and(eq(feedbackPost.id, postId), isNull(feedbackPost.archivedAt)))
   if (!posts.length) throw new FeedbackWriteError(404, 'Feedback not found.')
   const comments = await database
     .select(commentFields(viewerId))
     .from(feedbackComment)
     .innerJoin(user, eq(user.id, feedbackComment.authorId))
+    .innerJoin(feedbackPost, eq(feedbackPost.id, feedbackComment.postId))
     .where(
       and(
         eq(feedbackComment.postId, postId),
+        isNull(feedbackPost.archivedAt),
         type ? eq(feedbackComment.type, type) : undefined,
         cursor
           ? or(

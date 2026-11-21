@@ -1,5 +1,8 @@
 import { expect, test, type APIResponse } from '@playwright/test'
-import { closeDatabase } from '../../../server/db/index.ts'
+import { eq } from 'drizzle-orm'
+import { eventLog } from '../../../server/events/schema.ts'
+import { feedbackPost } from '../server/schema.ts'
+import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
 import { createMember } from '../../auth/tests/fixtures.ts'
 import { createCategory } from './fixtures.ts'
 import { persistenceContent as content, savePersistenceFixture } from './persistence-fixture.ts'
@@ -118,8 +121,61 @@ test('prepare explicit persistence state before database and application restart
     201,
   )
 
+  const lockedPost = await result(
+    await request.post('/api/feedback/posts', {
+      headers: headers(follower.cookieHeader),
+      data: {
+        title: 'Persistent locked feedback',
+        description: content.description,
+        categoryId: category.id,
+      },
+    }),
+    201,
+  )
+  const locked = await result(
+    await request.put(`/api/feedback/posts/${lockedPost.id}/lock`, {
+      headers: headers(manager.cookieHeader),
+      data: { locked: true },
+    }),
+  )
+  const archivedPost = await result(
+    await request.post('/api/feedback/posts', {
+      headers: headers(manager.cookieHeader),
+      data: {
+        title: 'Persistent archived feedback',
+        description: content.description,
+        categoryId: category.id,
+      },
+    }),
+    201,
+  )
+  await result(
+    await request.post(`/api/feedback/posts/${archivedPost.id}/archive`, {
+      headers: headers(manager.cookieHeader),
+      data: {},
+    }),
+  )
+  const [archived] = await getDatabase()
+    .select({ archivedAt: feedbackPost.archivedAt })
+    .from(feedbackPost)
+    .where(eq(feedbackPost.id, archivedPost.id))
+  expect(archived?.archivedAt).toBeTruthy()
+  const moderationEvents = await getDatabase()
+    .select({ id: eventLog.id, eventType: eventLog.eventType, details: eventLog.details })
+    .from(eventLog)
+    .where(eq(eventLog.actorId, manager.user.id))
+  const savedEvents = moderationEvents.filter(
+    (event) => event.eventType === 'post.locked' || event.eventType === 'post.archived',
+  )
+  expect(savedEvents).toHaveLength(2)
+
   await savePersistenceFixture({
     postId: post.id,
+    lockedPostId: lockedPost.id,
+    lockedAt: locked.lockedAt,
+    archivedPostId: archivedPost.id,
+    archivedAt: archived!.archivedAt!.toISOString(),
+    moderationEvents: savedEvents,
     categoryId: category.id,
     tagId: tag.id,
     userIds: [author.user.id, follower.user.id, manager.user.id],

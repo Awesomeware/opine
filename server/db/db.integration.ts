@@ -40,7 +40,7 @@ test('removing write receipts preserves existing feedback and its cooldown times
     const comments = (await database.query('select * from feedback_comment')).rows
     const follows = (await database.query('select * from feedback_follow')).rows
 
-    await applyMigrations(database, 6)
+    await applyMigrations(database, 6, 7)
 
     assert.equal(
       (await database.query("select to_regclass('public.feedback_write_receipt') as receipt_table"))
@@ -63,6 +63,27 @@ test('queries PostgreSQL and reconnects after closing the pool', async () => {
   const second = getDatabase()
   assert.notEqual(first, second)
   assert.equal((await second.execute(sql`select 2 as value`)).rows[0]?.value, 2)
+})
+
+test('moderation migration preserves existing content and starts with an empty event log', async () => {
+  await withMigrationDatabase(async (database) => {
+    await applyMigrations(database, 0, 7)
+    await database.query(
+      "insert into auth_user (id, name, email) values ('moderation-upgrade', 'Author', 'moderation@example.test')",
+    )
+    const {
+      rows: [post],
+    } = await database.query(
+      "insert into feedback_post (author_id, category_id, title, description) select 'moderation-upgrade', id, 'Existing post', 'Keep this content' from feedback_category limit 1 returning *",
+    )
+
+    await applyMigrations(database, 7)
+
+    assert.deepEqual((await database.query('select * from feedback_post')).rows, [
+      { ...post, locked_at: null, archived_at: null },
+    ])
+    assert.deepEqual((await database.query('select * from event_log')).rows, [])
+  })
 })
 
 test('committed migrations can be reapplied without changing history or stored data', async () => {

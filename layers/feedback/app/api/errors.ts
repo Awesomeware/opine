@@ -37,6 +37,10 @@ export function feedbackWriteError(error: unknown) {
     return 'This feedback is no longer available.'
   }
 
+  if (status === 423) {
+    return 'This feedback is locked. Contributions and changes are paused.'
+  }
+
   if (status === 429) {
     return 'You are posting too quickly. Please wait before trying again.'
   }

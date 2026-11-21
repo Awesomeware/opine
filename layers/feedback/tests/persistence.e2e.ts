@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
-import { feedbackComment } from '../server/schema.ts'
+import { eventLog } from '../../../server/events/schema.ts'
+import { feedbackComment, feedbackPost } from '../server/schema.ts'
 import {
   persistenceContent as content,
   readPersistenceFixture,
@@ -10,7 +11,7 @@ import {
 
 test.afterAll(closeDatabase)
 
-test('content, sessions, post cooldown, official outcomes, tags, and inbox state survive restart', async ({
+test('content, sessions, cooldown, outcomes, tags, inbox, and moderation survive restart', async ({
   page,
   request,
 }) => {
@@ -103,6 +104,43 @@ test('content, sessions, post cooldown, official outcomes, tags, and inbox state
     expect(followerInbox.notifications).toHaveLength(1)
     expect(followerInbox.notifications[0].id).toBe(saved.notificationId)
     expect(followerInbox.notifications[0].readAt).toBeTruthy()
+
+    const lockedBase = `/api/feedback/posts/${saved.lockedPostId}`
+    const lockedResponse = await request.get(lockedBase)
+    expect(lockedResponse.status()).toBe(200)
+    expect((await lockedResponse.json()).post.lockedAt).toBe(saved.lockedAt)
+    const lockedWrite = await request.post(`${lockedBase}/comments`, {
+      headers: { ...headers(saved.followerCookie), origin: process.env.BETTER_AUTH_URL! },
+      data: { body: 'Must remain blocked after restart.', type: 'context' },
+    })
+    expect(lockedWrite.status()).toBe(423)
+    await page.goto(`/feedback/${saved.lockedPostId}`)
+    await expect(
+      page.getByText('Locked · Contributions and changes are paused.', { exact: true }),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Edit feedback', exact: true })).toHaveCount(0)
+
+    expect((await request.get(`/api/feedback/posts/${saved.archivedPostId}`)).status()).toBe(404)
+    await page.goto(`/feedback/${saved.archivedPostId}`)
+    await expect(page.getByRole('heading', { name: 'Feedback not found' })).toBeVisible()
+    const [archived] = await getDatabase()
+      .select()
+      .from(feedbackPost)
+      .where(eq(feedbackPost.id, saved.archivedPostId))
+    expect(archived?.archivedAt?.toISOString()).toBe(saved.archivedAt)
+    expect(archived?.description).toBe(content.description)
+
+    const events = await getDatabase()
+      .select({ id: eventLog.id, eventType: eventLog.eventType, details: eventLog.details })
+      .from(eventLog)
+      .where(
+        inArray(
+          eventLog.id,
+          saved.moderationEvents.map((event) => event.id),
+        ),
+      )
+    expect(events).toHaveLength(2)
+    expect(events).toEqual(expect.arrayContaining(saved.moderationEvents))
   } finally {
     await cleanPersistenceFixture(saved)
   }

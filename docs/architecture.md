@@ -119,9 +119,13 @@ Read projections belong to the capability presenting the view. The discussion fe
 
 The shared schema, focused write repository and HTTP boundary remain inside this collaborating layer. Reuse recurring resource queries in capability-owned repository functions; keep one-off SQL with its use case when extraction would add no clarity. These modules are ordinary functions, with no generic repository base class or application-wide persistence facade. Capability operation imports are acyclic; queries may use the shared schema without importing another capability's mutation coordinator.
 
+The review capability also owns whole-post lock/unlock and archive operations. Content writers check moderation state while holding the post lock; projections filter archived posts and their children, including notifications and unread counts. This does not require a separate moderation layer.
+
+The application event log is shared server infrastructure because both authentication and feedback write events. Its append operation receives the caller's transaction and typed event data; it neither opens a transaction nor injects behavior through callbacks. Keep event construction visible beside the mutation. See [event schema and semantics](events.md).
+
 ## Dependencies and runtime boundaries
 
-- Root `app/` owns the application shell; `layers/ui/` owns reusable presentation. Root `server/` owns database infrastructure, lifecycle hooks, and operational endpoints.
+- Root `app/` owns the application shell; `layers/ui/` owns reusable presentation. Root `server/` owns database infrastructure, the shared application event log, lifecycle hooks, and operational endpoints.
 - Features may consume shared infrastructure and another feature's intentional public functions or contracts. Use explicit imports and keep cross-feature dependencies acyclic. Document the public entrypoints and dependencies in a feature README when it exposes behavior to other features; no mandatory barrel or interface layer is required.
 - Keep cross-feature writes behind the owning feature's operations. A cross-feature read or foreign key may reference an explicitly exported schema definition when needed. Schema access must not bypass the owning feature's authorization rules.
 - Keep business logic out of globally auto-imported utility folders. Use relative imports within a feature and explicit, verified paths between modules. Verify generated aliases against the installed Nuxt version before using them for cross-feature imports.
@@ -136,11 +140,11 @@ Authorization is request-scoped. Read and validate the complete request, then re
 
 Resource ownership remains part of the operation: author editing checks the resource owner, and private inbox operations restrict the recipient. Persistence helpers assume their caller has passed the HTTP authorization boundary or is a trusted operator. They do not parse sessions or decide role policy.
 
-Transactions commit dependent database changes together. There are no write receipts or request keys. Actor creation locks serialize cooldown and contribution-limit checks with insertion, while resource locks protect edits, publication ordering, categories and tags. Retain these data guarantees independently of the request-time authorization policy. See [authentication](authentication.md#administrator-role-management) and [feedback concurrency](feedback.md#persistence-and-concurrency).
+Transactions commit dependent database changes and their event records together. There are no write receipts or request keys. Actor creation locks serialize cooldown and contribution-limit checks with insertion, while resource locks protect edits, publication ordering, categories, tags and post lock/archive decisions. Retain these data guarantees independently of the request-time authorization policy. See [authentication](authentication.md#administrator-role-management) and [feedback concurrency](feedback.md#persistence-and-concurrency).
 
 ## Database ownership and migrations
 
-Each feature defines its tables and relations in `layers/<feature>/server/schema.ts`. Root `server/db/schema.ts` re-exports them for both the shared Drizzle client and Drizzle Kit. It contains no table definitions or feature behavior. It currently re-exports authentication and feedback tables.
+Each feature defines its tables and relations in `layers/<feature>/server/schema.ts`. Root `server/db/schema.ts` re-exports them for both the shared Drizzle client and Drizzle Kit. It contains no table definitions or feature behavior. It re-exports authentication and feedback tables and the shared event-log schema.
 
 Schema modules describe the database without opening connections. They must not import the database client, the aggregate schema, or use-case code. For cross-feature foreign keys, import the owning feature's exported schema definition directly, keeping schema dependencies acyclic. This avoids a cycle between schema assembly and the shared client.
 

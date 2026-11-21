@@ -64,7 +64,10 @@ const {
   <p v-else-if="loaded && !posts.length">No feedback needs review with these filters.</p>
   <ol class="feedback-list">
     <li v-for="post in posts" :key="post.id" class="panel feedback-card">
-      <p>{{ post.category.name }} · {{ statusLabels[post.status] }}</p>
+      <p>
+        {{ post.category.name }} · {{ statusLabels[post.status] }}
+        <span v-if="post.lockedAt">· Locked</span>
+      </p>
       <h2><NuxtLink :to="`/feedback/${post.id}`">{{ post.title }}</NuxtLink></h2>
       <p>{{ post.excerpt }}</p>
     </li>

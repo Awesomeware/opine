@@ -34,6 +34,12 @@ Each E2E suite also starts its own built Nitro application on a dynamically assi
 
 An E2E suite can declare `restartFiles` for a second phase. After its ordinary tests finish and Playwright stops the app, the runner restarts the same PostgreSQL container, refreshes its potentially changed mapped port, and launches a fresh app process at the same public origin. A dedicated persistence scenario creates the posts, sessions, follows, comments, reactions, official responses, and notifications for this phase, then records a small private handoff manifest in a temporary directory removed in the runner's `finally` block. Ordinary journeys clean up their own data; restart assertions do not depend on their interaction counts or incidental versions. The verification phase deletes the retained scenario rows. The E2E server uses a one-hour post cooldown so restart assertions are independent of suite speed; integration tests exercise the default 60-second cooldown and expiry. No extra database container is started for this check.
 
+## Moderation and event-log regression coverage
+
+Keep moderation tests in the existing feedback integration and application browser suites. Cover CM-only lock/unlock/archive actions and administrator-only denial; readable locked content with rejected edits, comments, reactions and official workflow changes; unlocking; and following while locked. Check archive visibility for public/CM queries, direct child links, inbox rows and unread counts, with no lock/archive alerts or archived-post publication/fanout. Verify persistence while retaining stored content.
+
+For the event log, verify mutation/event atomicity, typed metadata without text snapshots, human and system actors, restrictive actor deletion, and no duplicate events for unchanged operations. Test cleanup removes its event fixtures before deleting referenced users. Reset checks include log removal; migration checks preserve existing content. These tests use existing suite containers, never the development database.
+
 ## Current coverage
 
 - Tags are covered within the existing feedback integration and application browser suites: catalog authorization, case-insensitive names, migration of existing posts, disabled assignments, atomic edits, ephemeral forms, catalog outages, lost replies, and persistence after restart. Reset/seed checks cover default tags and preservation of removed example assignments.
@@ -50,9 +56,8 @@ Migration checks share a small test-only helper for temporary database lifecycle
 
 ## Remaining release verification
 
-The checks below are planned release work, not completed coverage. Track them in [steps 6–9](TODO.md#6-add-basic-moderation--next):
+The checks below are planned release work, not completed coverage. Track them in [steps 7–9](TODO.md#7-complete-community-configuration):
 
-- Moderation: CM-only lock/unlock/archive actions, locked content remaining readable while writes are rejected, and archived posts and related content excluded from public/CM queries, direct links, notifications and unread counts. Verify no archive/lock alerts, no archived-post publication/fanout, and persistence without deleting content.
 - Community configuration: public name, rules and community link appear in the intended views.
 - Accessibility: keyboard navigation, accessible names, focus, contrast, form errors and status identification across the release journeys, plus basic narrow-screen readability.
 - Deployment: a real Discord consent/sign-in, session reload and sign-out on the configured HTTPS origin, and operational errors that do not disclose private data.

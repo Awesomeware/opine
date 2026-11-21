@@ -2,7 +2,8 @@ import { sql } from 'drizzle-orm'
 import { feedbackFollow, feedbackNotification } from '../schema.ts'
 import type { FeedbackTransaction } from '../writes.ts'
 
-// Keep delivery inside publication's transaction without loading the follower list.
+// Publication holds the visible, unlocked post through delivery and commit.
+// Keep delivery inside its transaction without loading the follower list.
 export async function notifyFollowers(
   transaction: FeedbackTransaction,
   postId: string,

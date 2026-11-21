@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, or, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, isNull, or, sql } from 'drizzle-orm'
 import { getDatabase } from '../../../../server/db/index.ts'
 import { user, userRole } from '../../../auth/server/schema.ts'
 import type { PostStatus } from '../../shared/status.ts'
@@ -31,6 +31,7 @@ export async function listReviewQueue({
     .innerJoin(feedbackCategory, eq(feedbackCategory.id, t.categoryId))
     .where(
       and(
+        isNull(t.archivedAt),
         status !== 'all' ? eq(t.status, status) : undefined,
         category ? eq(feedbackCategory.slug, category) : undefined,
         cursor

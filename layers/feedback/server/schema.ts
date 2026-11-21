@@ -53,6 +53,8 @@ export const feedbackPost = pgTable(
     workflowVersion: integer('workflow_version').notNull().default(1),
     version: integer('version').notNull().default(1),
     editedAt: timestamp('edited_at', { withTimezone: true, precision: 3 }),
+    lockedAt: timestamp('locked_at', { withTimezone: true, precision: 3 }),
+    archivedAt: timestamp('archived_at', { withTimezone: true, precision: 3 }),
     status: feedbackStatus('status').notNull().default('new'),
     // Match the precision of JS Date so pagination cursors preserve ordering exactly.
     createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),

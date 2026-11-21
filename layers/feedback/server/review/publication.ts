@@ -1,4 +1,5 @@
 import { desc, eq } from 'drizzle-orm'
+import { appendEvent } from '../../../../server/events/repository.ts'
 import { getDatabase } from '../../../../server/db/index.ts'
 import type { OfficialResponseInput } from '../../shared/review/input.ts'
 import { lockPost, updatePostWorkflow } from '../posts/workflow.ts'
@@ -14,12 +15,13 @@ export async function publishResponse(
 ) {
   return getDatabase().transaction(async (transaction) => {
     await lockActorCreations(transaction, actorId)
+    const post = await lockPost(transaction, postId)
+
     await enforceContributionLimit(transaction, actorId, feedbackOfficialResponse, {
       env: 'FEEDBACK_RESPONSE_MAX',
       fallback: 20,
     })
 
-    const post = await lockPost(transaction, postId)
     checkWorkflowVersion(post.workflowVersion, input.version)
     const [latest] = await transaction
       .select({ createdAt: feedbackOfficialResponse.createdAt })
@@ -56,6 +58,11 @@ export async function publishResponse(
     const version = post.workflowVersion + 1
     await updatePostWorkflow(transaction, postId, version, {
       status: input.status ?? post.status,
+    })
+    await appendEvent(transaction, {
+      type: 'official_response.published',
+      actorId,
+      details: { postId, responseId: response!.id },
     })
     await notifyFollowers(transaction, postId, response!.id, createdAt)
 

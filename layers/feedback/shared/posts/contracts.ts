@@ -7,6 +7,7 @@ export type FeedbackPostSummary = {
   id: string
   title: string
   excerpt: string
+  lockedAt: string | null
   status: PostStatus
   createdAt: string
   author: { name: string }

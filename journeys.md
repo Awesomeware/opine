@@ -2,7 +2,7 @@
 
 These journeys cover only the reduced first version in [requirements.md](requirements.md). `V1-` identifiers replace the broader draft's journey identifiers.
 
-These describe release acceptance, not a claim that every journey is already implemented. The [implementation checklist](docs/TODO.md) tracks completion; moderation, remaining community configuration and operational readiness are the next work.
+These describe release acceptance, not a claim that every journey is already implemented. The [implementation checklist](docs/TODO.md) tracks completion; remaining community configuration and operational readiness are the next work.
 
 ## Discover feedback
 

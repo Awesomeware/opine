@@ -4,7 +4,7 @@ First milestone complete: **a player signs in with Discord, submits feedback, an
 
 Work through these steps individually. Each step should include its schema changes, UI, endpoints, and relevant tests. The [requirements](../requirements.md) define the release scope.
 
-The core feedback loop and steps 1–5b are implemented. The next work is **#6: basic moderation**, beginning with a schema and visibility-rule proposal for review before implementation. Steps 6–9 are prerequisites for a public pilot; the license is required before publishing the repository. CI is explicitly deferred.
+The core feedback loop and steps 1–6 are implemented. The next work is **#7: community configuration**. Steps 7–9 are prerequisites for a public pilot; the license is required before publishing the repository. CI is explicitly deferred.
 
 ## 1. Make local development reproducible
 
@@ -82,18 +82,19 @@ Discussion filters organize one flat discussion. See [deferred work](#deferred-a
 - [x] Display tags in feedback rows and detail views using the existing visual direction.
 - [x] Verify authorization, migrations, reset/seed behavior, isolated controls, and full journeys.
 
-## 6. Add basic moderation — next
+## 6. Add basic moderation
 
-Initial moderation is limited to CM lock/unlock and archive actions on whole feedback posts. The proposed schema is two nullable timestamps on `feedback_post`: `locked_at` and `archived_at`. Review these semantics before implementation; no report, suspension or moderation-history tables are planned.
+Initial moderation is limited to CM lock/unlock and archive actions on whole feedback posts. The schema adds two nullable timestamps on `feedback_post`: `locked_at` and `archived_at`, plus an internal [event log](events.md) shared by business operations.
 
-- [ ] Add CM lock/unlock controls and a visible Locked indicator. Locked posts remain readable; block post/comment edits, new comments, reaction changes, official publication/status changes and category corrections until unlocked. Following/unfollowing and reading notifications remain available for locked posts.
-- [ ] Add a CM archive action that sets `archived_at`, retaining the stored post and its related records. Archiving also makes all related content inaccessible through the application.
-- [ ] Exclude archived posts from public lists/search, direct links, discussion/comment/response reads, outcome/reaction reads, CM review queues, notifications and unread counts. Direct links return the usual unavailable/not-found result, including for CMs. Do not add an archive browser or unarchive UI.
-- [ ] Reject application writes to archived posts and their content, and prevent official-response notification fanout for archived posts. Lock/unlock/archive actions themselves do not notify followers.
-- [ ] Keep these actions in the existing feedback review capability. Reuse post locking and ordinary transaction-taking operations to serialize content writes with lock/archive decisions; retain request-time CM authorization.
-- [ ] Test CM-only actions, administrator-only denial, locked write rejection and unlocking, archive visibility across all affected reads, notification suppression, persistence and preservation of stored content.
+- [x] Add CM lock/unlock controls and a visible Locked indicator. Locked posts remain readable; block post/comment edits, new comments, reaction changes, official publication/status changes and category corrections until unlocked. Following/unfollowing and reading notifications remain available for locked posts.
+- [x] Add a CM archive action that sets `archived_at`, retaining the stored post and its related records. Archiving also makes all related content inaccessible through the application.
+- [x] Exclude archived posts from public lists/search, direct links, discussion/comment/response reads, outcome/reaction reads, CM review queues, notifications and unread counts. Direct links return the usual unavailable/not-found result, including for CMs. Do not add an archive browser or unarchive UI.
+- [x] Reject application writes to archived posts and their content, and prevent official-response notification fanout for archived posts. Lock/unlock/archive actions themselves do not notify followers.
+- [x] Keep these actions in the existing feedback review capability. Reuse post locking and ordinary transaction-taking operations to serialize content writes with lock/archive decisions; retain request-time CM authorization.
+- [x] Test CM-only actions, administrator-only denial, locked write rejection and unlocking, archive visibility across all affected reads, notification suppression, persistence and preservation of stored content.
+- [x] Append typed metadata for moderation and business mutations to `event_log` in the same transaction. Preserve human actor references; NULL identifies system actions. Keep the log internal, without content snapshots or an event-history UI.
 
-Reports, individual comment/response hiding, account suspension, moderation reasons/history and appeals are deferred beyond this initial release scope.
+Reports, individual comment/response hiding, account suspension, moderation reasons/history UI and appeals are deferred beyond this initial release scope.
 
 ## 7. Complete community configuration
 
@@ -130,7 +131,7 @@ The canonical product exclusions are in [Explicitly deferred](../requirements.md
 
 - Summaries, curated highlights, curator roles, nested replies and separate threads.
 - Tag filtering, duplicate suggestions/merging, related feedback, popularity rankings and advanced queue tools.
-- Reports/private report queues, individual contribution hiding/restoration, account suspensions, moderation reasons/action history, appeals/review contact and an unarchive UI.
+- Reports/private report queues, individual contribution hiding/restoration, account suspensions, moderation reasons/action-history UI, appeals/review contact and an unarchive UI.
 - Additional identity providers, Discord bots/imports/cross-posting, and email/push/Discord notifications.
 - Attachments, rich text, profile/branding editors, application-level exports and multi-community hosting.
 - Bug-report diagnostics, persisted drafts/offline replay, a separate mobile redesign and self-service account deletion.

@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm'
 import { getDatabase } from '../../../../server/db/index.ts'
 import { user, userRole } from '../../../auth/server/schema.ts'
 import { feedbackFollow, feedbackOfficialResponse, feedbackPost } from '../schema.ts'
@@ -19,8 +19,13 @@ export async function getOfficialResponse(postId: string, responseId: string) {
     .select(responseFields)
     .from(feedbackOfficialResponse)
     .innerJoin(user, eq(user.id, feedbackOfficialResponse.authorId))
+    .innerJoin(feedbackPost, eq(feedbackPost.id, feedbackOfficialResponse.postId))
     .where(
-      and(eq(feedbackOfficialResponse.postId, postId), eq(feedbackOfficialResponse.id, responseId)),
+      and(
+        eq(feedbackOfficialResponse.postId, postId),
+        eq(feedbackOfficialResponse.id, responseId),
+        isNull(feedbackPost.archivedAt),
+      ),
     )
   return response
 }
@@ -29,9 +34,13 @@ export async function getOutcome(postId: string, viewerId?: string) {
   return getDatabase().transaction(
     async (db) => {
       const [post] = await db
-        .select({ status: feedbackPost.status, version: feedbackPost.workflowVersion })
+        .select({
+          lockedAt: feedbackPost.lockedAt,
+          status: feedbackPost.status,
+          version: feedbackPost.workflowVersion,
+        })
         .from(feedbackPost)
-        .where(eq(feedbackPost.id, postId))
+        .where(and(eq(feedbackPost.id, postId), isNull(feedbackPost.archivedAt)))
       if (!post) throw new FeedbackWriteError(404, 'Feedback not found.')
       const responses = (statusOnly: boolean) =>
         db
@@ -65,7 +74,8 @@ export async function getOutcome(postId: string, viewerId?: string) {
         latestResponse: latest[0] ?? null,
         statusResponse: status[0] ?? null,
         following: follow.length > 0,
-        canRespond: roles.length > 0,
+        canRespond: roles.length > 0 && !post.lockedAt,
+        canModerate: roles.length > 0,
       }
     },
     { isolationLevel: 'repeatable read', accessMode: 'read only' },

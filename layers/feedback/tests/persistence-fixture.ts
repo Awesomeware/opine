@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { eq, inArray } from 'drizzle-orm'
 import { getDatabase } from '../../../server/db/index.ts'
+import { eventLog } from '../../../server/events/schema.ts'
 import { user } from '../../auth/server/schema.ts'
 import {
   feedbackCategory,
@@ -23,6 +24,11 @@ export const persistenceContent = {
 
 export interface PersistenceFixture {
   postId: string
+  lockedPostId: string
+  lockedAt: string
+  archivedPostId: string
+  archivedAt: string
+  moderationEvents: { id: string; eventType: string; details: Record<string, unknown> }[]
   categoryId: string
   tagId: string
   userIds: string[]
@@ -55,8 +61,11 @@ export async function cleanPersistenceFixture(fixture: PersistenceFixture) {
   await database
     .delete(feedbackOfficialResponse)
     .where(eq(feedbackOfficialResponse.postId, fixture.postId))
-  await database.delete(feedbackPost).where(eq(feedbackPost.id, fixture.postId))
+  await database
+    .delete(feedbackPost)
+    .where(inArray(feedbackPost.id, [fixture.postId, fixture.lockedPostId, fixture.archivedPostId]))
   await database.delete(feedbackTag).where(eq(feedbackTag.id, fixture.tagId))
   await database.delete(feedbackCategory).where(eq(feedbackCategory.id, fixture.categoryId))
+  await database.delete(eventLog).where(inArray(eventLog.actorId, fixture.userIds))
   await database.delete(user).where(inArray(user.id, fixture.userIds))
 }

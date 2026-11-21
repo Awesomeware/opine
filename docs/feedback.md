@@ -1,6 +1,6 @@
 # Feedback: schema and local use
 
-The feedback layer provides public browsing, stable links, authenticated submission, typed contributions, discussion filters, reactions, author editing, and optional tags. The interface uses matte charcoal surfaces, gold accents, serif headings, and a centered responsive layout. Official responses and current status appear above the discussion. Members can follow outcomes and read an in-platform notification inbox; community managers have a review queue and category correction controls.
+The feedback layer provides public browsing, stable links, authenticated submission, typed contributions, discussion filters, reactions, author editing, and optional tags. The interface uses matte charcoal surfaces, gold accents, serif headings, and a centered responsive layout. Official responses and current status appear above the discussion. Members can follow outcomes and read an in-platform notification inbox; community managers have a review queue, category correction controls, and whole-post lock/unlock and archive actions.
 
 ## Structured participation
 
@@ -37,9 +37,19 @@ Administrator access alone does not grant this permission. Reload the applicatio
 
 Open a post, expand **Publish an official response**, and publish an explicit official response, optionally changing its status. A response alone does not acknowledge or change New: New means awaiting initial review. Every actual status change records its explanation, previous/new status, representative, and time. The latest response is featured; the explanation for the current status remains linked even after a later response leaves the status unchanged. Earlier responses remain in All and Official responses and have permanent links. Corrections use a new response; official records are not edited in place. Ordinary comments by managers remain ordinary contributions.
 
-Members can follow or unfollow any post, including their own automatically followed posts. Each official response creates one inbox notification per current follower, including a combined status change; comments do not notify. The inbox supports unread filtering and marking a notification read, and links to the exact response. No email, push, or Discord delivery is included.
+Members can follow or unfollow any non-archived post, including their own automatically followed posts. Each official response creates one inbox notification per current follower, including a combined status change; comments do not notify. The inbox supports unread filtering and marking a notification read, and links to the exact response. No email, push, or Discord delivery is included.
 
 Community managers may correct a post's category to an active category. The separate audit records the actor, time, previous category, and replacement category; it does not mark the author's proposal text as edited.
+
+## Locking and archiving
+
+Community managers can lock/unlock or archive a whole post from its manager controls. Administrator access alone does not grant these actions. `feedback_post.locked_at` and `archived_at` are nullable timestamps, separate from the feedback status.
+
+A locked post remains readable and displays **Locked**. Until a CM unlocks it, the server rejects post and comment edits, new comments, reaction changes, official responses/status changes, and category corrections, including attempts by privileged users. Following/unfollowing and reading notifications remain available. Locking does not change the feedback status or the author's edit marker.
+
+Archiving sets `archived_at` and retains the post and related records. The post and all related content disappear from application reads, including public lists/search, CM review queues and category history, direct post/comment/response links, discussion, outcome and reaction reads, inbox notifications and unread counts. Direct links return the usual unavailable/not-found result, including for CMs. Writes and following are rejected; official responses cannot publish or fan out notifications. Existing notification rows remain stored but hidden. There is no archive browser or unarchive UI.
+
+Lock/unlock/archive actions do not notify followers. They append internal [application events](events.md), without creating content snapshots. Reports, individual contribution hiding, account suspension, moderation reasons/history UI, and appeals remain deferred.
 
 ## Category configuration
 
@@ -64,7 +74,7 @@ Migrations install **Gameplay**, **UI**, **Class-specific**, **Combat**, and **$
 
 Disabled tags remain on existing posts but cannot be newly assigned. An author may keep or remove a disabled tag already attached to their post. Disabling and renaming do not mark the post as edited; changing its assignments does. There is no tag deletion action and no administrator override of author selections.
 
-The post, tags, and initial author follow commit together. Post edits use one version and transaction for text and tags. Omitted `tagIds` preserves assignments on edit and means none on creation; explicit `[]` clears them. Legacy request fingerprints retain omission so pending requests from before tags were introduced can still be retried. Tag IDs are normalized as a set, with a 100-ID request bound. This is a safety bound, not a required selection count.
+The post, tags, and initial author follow commit together. Post edits use one version and transaction for text and tags. Omitted `tagIds` preserves assignments on edit and means none on creation; explicit `[]` clears them. Tag IDs are normalized as a set, with a 100-ID request bound. This is a safety bound, not a required selection count.
 
 Reset restores the five initial tags. Example seeding adds tags only to newly inserted example posts and respects disabled tags; repeating it does not replenish tags removed from existing examples.
 
@@ -72,11 +82,11 @@ Reset restores the five initial tags. Example seeding adds tags only to newly in
 
 Authentication remains in [the auth schema](../layers/auth/server/schema.ts). Feedback references the internal `auth_user.id`, never a Discord ID or email address. All feedback timestamps are `timestamptz(3)`; created timestamps default to now, and operations maintain update/edit timestamps explicitly.
 
-| Table               | Columns                                                                                                                                                                                                                   | Constraints                                                                                                                              |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `feedback_category` | UUID `id`; text `slug`, `name`; integer `sort_order`; boolean `is_active`; `created_at`, `updated_at`                                                                                                                     | Primary key `id`; unique slug; valid slug/name checks; active by default                                                                 |
-| `feedback_post`     | UUID `id`; text `author_id`; UUID `category_id`; text `title`, `description`; nullable text `desired_improvement`; enum `status`; integer `version`, `workflow_version`; nullable `edited_at`; `created_at`, `updated_at` | Primary key `id`; required author/category foreign keys with `ON DELETE RESTRICT`; text length/nonblank checks; status defaults to `new` |
-| `feedback_follow`   | UUID `post_id`; text `user_id`; `created_at`                                                                                                                                                                              | Composite primary key `(post_id, user_id)`; foreign keys cascade on post/user deletion                                                   |
+| Table               | Columns                                                                                                                                                                                                                                               | Constraints                                                                                                                              |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `feedback_category` | UUID `id`; text `slug`, `name`; integer `sort_order`; boolean `is_active`; `created_at`, `updated_at`                                                                                                                                                 | Primary key `id`; unique slug; valid slug/name checks; active by default                                                                 |
+| `feedback_post`     | UUID `id`; text `author_id`; UUID `category_id`; text `title`, `description`; nullable text `desired_improvement`; enum `status`; integer `version`, `workflow_version`; nullable `edited_at`, `locked_at`, `archived_at`; `created_at`, `updated_at` | Primary key `id`; required author/category foreign keys with `ON DELETE RESTRICT`; text length/nonblank checks; status defaults to `new` |
+| `feedback_follow`   | UUID `post_id`; text `user_id`; `created_at`                                                                                                                                                                                                          | Composite primary key `(post_id, user_id)`; foreign keys cascade on post/user deletion                                                   |
 
 Additional participation tables:
 
@@ -108,7 +118,7 @@ The tag tables extend this schema:
 
 ## Contribution retention
 
-Deleting a user must not delete their contributions. Author foreign keys currently block physical deletion when posts, comments, official responses, or category audit records exist. Posts with comments also cannot be physically deleted. Removable reactions and follows are not retained if their account is eventually deleted. A future explicit anonymization/deletion workflow must decide how to retain attribution and handle personal data before the public pilot. There is no self-service deletion endpoint.
+Deleting a user must not delete their contributions. Author foreign keys currently block physical deletion when posts, comments, official responses, category audit records, or application events reference the user. Human event actors use restrictive deletion; deleting an account must not turn its events into system actions. Posts with comments also cannot be physically deleted. Removable reactions and follows are not retained if their account is eventually deleted. A future explicit anonymization/deletion workflow must decide how to retain attribution and handle personal data before the public pilot. There is no self-service deletion endpoint.
 
 Public responses expose the author's current display name. They omit email, session data, provider identities, and privileged-role assignments. Administrator status does not make a contribution official.
 
@@ -132,11 +142,11 @@ Official updates and category corrections use `workflow_version`, independent of
 
 ## Persistence and concurrency
 
-Use cases coordinate capability-owned persistence functions by passing one transaction explicitly. Post creation includes its author follow; official publication includes the post workflow update and follower notifications. See [capability ownership and transaction boundaries](architecture.md#operations-spanning-capabilities) for code locations.
+Use cases coordinate capability-owned persistence functions by passing one transaction explicitly. Post creation includes its author follow; official publication includes the post workflow update and follower notifications. Business mutations append their [event metadata](events.md) in that same transaction. See [capability ownership and transaction boundaries](architecture.md#operations-spanning-capabilities) for code locations.
 
 Creation inserts the post, tags, and author follow atomically. Category availability is checked under a shared row lock; selected tag rows are locked while validating assignments. An actor row lock serializes creation-limit checks and inserts. Failed writes roll back their content and do not consume an allowance. Migration `0006_remove_write_receipts.sql` drops only obsolete receipt records, preserving posts, comments and their timestamps.
 
-Official publication locks the post and atomically writes the immutable response, optional status delta and follower notifications. An unchanged status stores no delta. Follow changes take the same post lock. Category correction shares the workflow version and writes its own audit. Author edits use an independent version. The HTTP boundary requires community-manager access; administrator alone is insufficient. Actor creation locks use `FOR NO KEY UPDATE`, allowing notification foreign keys to reference other active members. Role revocation is not coordinated with these locks.
+Official publication locks the post and atomically writes the immutable response, optional status delta and follower notifications. An unchanged status stores no delta. Follow changes take the same post lock. Category correction shares the workflow version and writes its own audit. Author edits use an independent version. Lock/unlock/archive decisions and content writes serialize on the post row; writers check the current locked/archived state under that lock. Following checks archive state but is allowed while locked. The HTTP boundary requires community-manager access; administrator alone is insufficient. Actor creation locks use `FOR NO KEY UPDATE`, allowing notification foreign keys to reference other active members. Role revocation is not coordinated with these locks.
 
 Outcome reads use one repeatable-read snapshot for status/version, featured response, and status explanation. Discussion reads use one snapshot for comments and official responses so a concurrent insert cannot be skipped between source reads. Each source is bounded before merging. Reaction totals and the viewer's selection come from one query. Inbox entries and the unread count share one repeatable-read snapshot. Public post reads also keep text and tags coherent. Responses explicitly select public fields.
 

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { after, afterEach, test } from 'node:test'
+import { eventLog } from '../../../../server/events/schema.ts'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import {
   applyMigrations,
@@ -22,6 +23,7 @@ after(closeDatabase)
 afterEach(async () => {
   await getDatabase().delete(feedbackPost)
   await getDatabase().delete(feedbackCategory)
+  await getDatabase().delete(eventLog)
   await getDatabase().delete(user)
   await getDatabase().delete(feedbackTag)
   await getDatabase().insert(feedbackTag).values(defaultFeedbackTags)
@@ -45,14 +47,27 @@ test('migration seeds optional defaults and tag administration enforces names an
   const tags = await listTags()
   for (const tag of defaultFeedbackTags)
     assert.ok(tags.some((row) => row.id === tag.id && row.name === tag.name))
-  const created = await createTag({ name: 'New' })
-  await assert.rejects(createTag({ name: 'New' }), status(409))
-  await assert.rejects(createTag({ name: 'new' }), status(409))
+  const admin = await createMember({ roles: ['administrator'] })
+  const created = await createTag({ name: 'New' }, admin.user.id)
+  await assert.rejects(createTag({ name: 'New' }, null), status(409))
+  await assert.rejects(createTag({ name: 'new' }, null), status(409))
   const unchanged = { name: 'New', isActive: true, version: 1 }
-  assert.deepEqual(await updateTag(created.id, unchanged), created)
-  const updated = await updateTag(created.id, { name: 'Renamed', isActive: false, version: 1 })
+  assert.deepEqual(await updateTag(created.id, unchanged, null), created)
+  const updated = await updateTag(
+    created.id,
+    { name: 'Renamed', isActive: false, version: 1 },
+    admin.user.id,
+  )
   assert.equal(updated.version, 2)
-  await assert.rejects(updateTag(created.id, unchanged), status(409))
+  const events = await getDatabase().select().from(eventLog)
+  assert.equal(events.length, 2)
+  assert.ok(events.every((event) => event.actorId === admin.user.id))
+  assert.deepEqual(events.find((event) => event.eventType === 'tag.updated')!.details, {
+    tagId: created.id,
+    version: 2,
+    changedFields: ['name', 'isActive'],
+  })
+  await assert.rejects(updateTag(created.id, unchanged, null), status(409))
 })
 test('optional tag sets save atomically with text, retain disabled assignments, clear explicitly and preserve omission', async () => {
   const { member, admin, input } = await setup()
@@ -70,7 +85,7 @@ test('optional tag sets save atomically with text, retain disabled assignments, 
   assert.ok(post)
   assert.equal((await getPost(post.id))!.tags.length, 2)
   assert.equal((await listPosts()).posts.find((row) => row.id === post.id)!.tags.length, 2)
-  await updateTag(ids[0]!, { name: 'Renamed', isActive: false, version: 1 })
+  await updateTag(ids[0]!, { name: 'Renamed', isActive: false, version: 1 }, null)
   const other = await createMember()
   await assert.rejects(createPost(other.user.id, { ...input, tagIds: [ids[0]!] }), status(400))
   const edit = {
@@ -113,7 +128,7 @@ test('tag disabling and assignment serialize without attaching an already disabl
   const tag = defaultFeedbackTags[0]!
   const [publication, disabling] = await Promise.allSettled([
     createPost(member.user.id, { ...input, tagIds: [tag.id] }),
-    updateTag(tag.id, { name: tag.name, isActive: false, version: 1 }),
+    updateTag(tag.id, { name: tag.name, isActive: false, version: 1 }, null),
   ])
   assert.equal(disabling.status, 'fulfilled')
   if (publication.status === 'rejected') assert.ok(status(400)(publication.reason))

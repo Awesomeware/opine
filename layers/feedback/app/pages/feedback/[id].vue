@@ -7,6 +7,7 @@ import FeedbackText from '../../components/FeedbackText.vue'
 import { computed, ref, watch } from 'vue'
 import FeedbackPostEditor from '../../posts/components/FeedbackPostEditor.vue'
 import { authClient } from '../../../../auth/app/auth-client'
+import type { PostLockResult } from '../../../shared/review/contracts'
 import type { FeedbackPost } from '../../../shared/posts/contracts'
 
 const route = useRoute()
@@ -25,7 +26,7 @@ watch(owner, () => {
 const { data, pending, error, refresh } = useFetch<{ post: FeedbackPost }>(
   () => `/api/feedback/posts/${encodeURIComponent(String(route.params.id))}`,
 )
-const post = computed(() => data.value?.post)
+const post = computed(() => (error.value?.statusCode === 404 ? undefined : data.value?.post))
 useHead(() => ({ title: post.value ? `${post.value.title} · Opine` : 'Feedback · Opine' }))
 
 const shareMessage = ref('')
@@ -33,6 +34,13 @@ const shareMessage = ref('')
 function refreshPublished() {
   discussion.value?.refresh()
   refresh()
+}
+
+function updateLock(result: PostLockResult) {
+  if (data.value) {
+    data.value = { post: { ...data.value.post, ...result } }
+  }
+  editing.value = false
 }
 
 function finishEditing() {
@@ -69,17 +77,21 @@ async function copyLink() {
     </div>
     <FeedbackOutcome
       v-if="post"
-      :key="`outcome.${post.id}.${owner}`"
+      :key="`outcome.${post.id}.${owner}.${post.lockedAt}`"
+      :locked-at="post.lockedAt"
       :category-id="post.category.id"
       :category-name="post.category.name"
       :post-id="post.id"
       :owner="owner"
       @published="refreshPublished"
+      @locked="updateLock"
+      @archived="navigateTo('/feedback')"
     >
       <template #proposal>
         <article class="proposal-article">
           <p class="eyebrow">{{ post.category.name }}</p>
           <h1>{{ post.title }}</h1>
+          <p v-if="post.lockedAt" role="status">Locked · Contributions and changes are paused.</p>
           <FeedbackTags :tags="post.tags" />
           <p class="byline">
             <strong>{{ post.author.name }}</strong>
@@ -92,7 +104,7 @@ async function copyLink() {
             </span>
           </p>
           <FeedbackPostEditor
-            v-if="editing && owner"
+            v-if="editing && owner && !post.lockedAt"
             :key="owner"
             :owner="owner"
             :post="post"
@@ -107,6 +119,7 @@ async function copyLink() {
             </template>
           </div>
           <FeedbackReactions
+            :locked="!!post.lockedAt"
             :post-id="post.id"
             :owner="owner"
             @contribute="discussion?.focusComposer()"
@@ -130,7 +143,8 @@ async function copyLink() {
     <FeedbackDiscussion
       ref="discussion"
       v-if="post"
-      :key="`${post.id}.${owner}`"
+      :key="`${post.id}.${owner}.${post.lockedAt}`"
+      :locked="!!post.lockedAt"
       :post-id="post.id"
       :owner="owner"
     />

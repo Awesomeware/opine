@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { makeSignature } from 'better-auth/crypto'
 import { eq } from 'drizzle-orm'
+import { eventLog } from '../../../server/events/schema.ts'
 import { getDatabase } from '../../../server/db/index.ts'
 import { createAuth } from '../server/auth.ts'
 import { account, session, user, userRole } from '../server/schema.ts'
@@ -63,6 +64,7 @@ export async function createMember(
     cookie,
     cookieHeader: `${cookie.name}=${cookie.value}`,
     cleanup: async () => {
+      await getDatabase().delete(eventLog).where(eq(eventLog.actorId, id))
       await getDatabase().delete(user).where(eq(user.id, id))
     },
   }

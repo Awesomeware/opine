@@ -488,3 +488,101 @@ test('an authorized publication can finish after revocation but its retry must a
     await manager.cleanup()
   }
 })
+
+test('community managers pause contributions, reopen them, and archive feedback for everyone', async ({
+  page,
+  request,
+}) => {
+  const author = await createMember()
+  const manager = await createMember({ roles: ['community-manager'] })
+  const category = await createCategory()
+  const post = await createFeedbackPost({ authorId: author.user.id, categoryId: category.id })
+  const base = `/api/feedback/posts/${post.id}`
+
+  try {
+    await page.context().addCookies([author.cookie])
+    await page.goto(`/feedback/${post.id}`)
+    await expect(page.getByRole('button', { name: 'Edit feedback', exact: true })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Moderation', exact: true })).toHaveCount(0)
+    expect(
+      (
+        await request.put(`${base}/lock`, {
+          headers: headers(author.cookieHeader),
+          data: { locked: true },
+        })
+      ).status(),
+    ).toBe(403)
+    expect(
+      (
+        await request.post(`${base}/archive`, {
+          headers: headers(author.cookieHeader),
+          data: {},
+        })
+      ).status(),
+    ).toBe(403)
+
+    await page.context().clearCookies()
+    await page.context().addCookies([manager.cookie])
+    await page.reload()
+    await page.getByRole('button', { name: 'Lock feedback', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Unlock feedback', exact: true })).toBeVisible()
+    await expect(
+      page.getByText('Locked · Contributions and changes are paused.', { exact: true }),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Agree/ })).toBeDisabled()
+    await expect(page.getByLabel('Add a comment', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Publish an official response', { exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Follow updates', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Unfollow updates', exact: true })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Unlock feedback', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Lock feedback', exact: true })).toBeVisible()
+    await expect(page.getByLabel('Add a comment', { exact: true })).toBeVisible()
+    await expect(page.getByText('Publish an official response', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Archive feedback', exact: true }).click()
+    await expect(
+      page.getByText('There is no restore option in the app.', { exact: false }),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Confirm archive', exact: true }).click()
+    await expect(page).toHaveURL('/feedback')
+    await expect(page.getByRole('link', { name: post.title, exact: true })).toHaveCount(0)
+    await page.goto(`/feedback/${post.id}`)
+    await expect(page.getByRole('heading', { name: 'Feedback not found' })).toBeVisible()
+    await page.context().clearCookies()
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Feedback not found' })).toBeVisible()
+  } finally {
+    await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await author.cleanup()
+    await manager.cleanup()
+  }
+})
+
+test('unlocking restores author editing without requiring another post read', async ({ page }) => {
+  const manager = await createMember({ roles: ['community-manager'] })
+  const category = await createCategory()
+  const post = await createFeedbackPost({ authorId: manager.user.id, categoryId: category.id })
+
+  try {
+    await page.context().addCookies([manager.cookie])
+    await page.goto(`/feedback/${post.id}`)
+    await expect(page.getByRole('button', { name: 'Edit feedback', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Lock feedback', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Unlock feedback', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Edit feedback', exact: true })).toHaveCount(0)
+
+    // Confirmed mutation data must remain usable without a successful follow-up read.
+    await page.route(`**/api/feedback/posts/${post.id}`, (route) =>
+      route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }),
+    )
+    await page.getByRole('button', { name: 'Unlock feedback', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Edit feedback', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Edit feedback', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeVisible()
+  } finally {
+    await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
+    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await manager.cleanup()
+  }
+})

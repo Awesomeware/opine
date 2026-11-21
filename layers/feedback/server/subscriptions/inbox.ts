@@ -28,6 +28,7 @@ export async function listNotifications(
         .innerJoin(feedbackPost, eq(feedbackPost.id, feedbackOfficialResponse.postId))
         .where(
           and(
+            isNull(feedbackPost.archivedAt),
             eq(t.userId, actorId),
             unread ? isNull(t.readAt) : undefined,
             cursor
@@ -43,7 +44,9 @@ export async function listNotifications(
       const [total] = await db
         .select({ count: count() })
         .from(t)
-        .where(and(eq(t.userId, actorId), isNull(t.readAt)))
+        .innerJoin(feedbackOfficialResponse, eq(feedbackOfficialResponse.id, t.responseId))
+        .innerJoin(feedbackPost, eq(feedbackPost.id, feedbackOfficialResponse.postId))
+        .where(and(eq(t.userId, actorId), isNull(t.readAt), isNull(feedbackPost.archivedAt)))
       const notifications = rows.slice(0, limit)
       return {
         notifications,
@@ -59,6 +62,7 @@ export async function markNotificationRead(actorId: string, notificationId: stri
   const where = and(
     eq(feedbackNotification.id, notificationId),
     eq(feedbackNotification.userId, actorId),
+    sql`exists (select 1 from ${feedbackOfficialResponse} r join ${feedbackPost} p on p.id = r.post_id where r.id = ${feedbackNotification.responseId} and p.archived_at is null)`,
   )
   const [notification] = await getDatabase()
     .update(feedbackNotification)

@@ -15,5 +15,9 @@ export type FeedbackOutcome = {
   latestResponse: OfficialResponse | null
   statusResponse: OfficialResponse | null
   following: boolean
+  canModerate: boolean
   canRespond: boolean
 }
+
+export type PostLockResult = { lockedAt: string | null; canEdit: boolean }
+export type PostArchiveResult = { archived: true }

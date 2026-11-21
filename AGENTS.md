@@ -65,6 +65,8 @@ Use [layers/feedback/README.md](layers/feedback/README.md) for ownership and pub
 
 Frontend form state is ephemeral; follow [UI workflow conventions](docs/ui.md#vue-component-readability). Keep authorization, transactions, conflict checks and creation limits on the server. Use existing domain rows for limits; do not add write receipts or browser request-key state. Mutations must not retry automatically.
 
+Append business events in the mutation's existing transaction, using typed metadata without content snapshots. NULL actors explicitly mean system actions; preserve human references. Follow the canonical [event-log rules](docs/events.md), including unchanged-operation behavior.
+
 ## Product direction
 
 Follow [requirements.md](requirements.md) for product scope and [docs/TODO.md](docs/TODO.md) for implementation status. Keep proposals, typed discussion, official responses, and status distinct. Preserve historical unclassified comments without guessing their type. New comment requests always require a type.

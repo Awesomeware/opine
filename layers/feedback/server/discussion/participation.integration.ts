@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { after, afterEach, test } from 'node:test'
 import { Client } from 'pg'
+import { eventLog } from '../../../../server/events/schema.ts'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
@@ -23,6 +24,7 @@ afterEach(async () => {
   await database.delete(feedbackReaction)
   await database.delete(feedbackPost)
   await database.delete(feedbackCategory)
+  await database.delete(eventLog)
   await database.delete(user)
 })
 
@@ -129,6 +131,17 @@ test('comment edits enforce ownership and versions without retaining original te
   const input = { body: 'Updated comment', version: 1 }
   const saved = await editComment(commenter.user.id, post.id, created.id, input)
   assert.equal(saved.version, 2)
+  const [event] = await getDatabase()
+    .select()
+    .from(eventLog)
+    .where(eq(eventLog.eventType, 'comment.edited'))
+  assert.equal(event!.actorId, commenter.user.id)
+  assert.deepEqual(event!.details, {
+    postId: post.id,
+    commentId: created.id,
+    version: 2,
+    changedFields: ['body'],
+  })
   await assert.rejects(editComment(commenter.user.id, post.id, created.id, input), status(409))
   const outcomes = await Promise.allSettled(
     ['First edit', 'Second edit'].map((body) =>

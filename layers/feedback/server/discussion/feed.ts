@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, or } from 'drizzle-orm'
+import { and, asc, eq, gt, isNull, or } from 'drizzle-orm'
 import { getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import type { ContributionType } from '../../shared/discussion/contribution-types.ts'
@@ -27,7 +27,7 @@ export async function listDiscussion(
         const [post] = await db
           .select({ id: feedbackPost.id })
           .from(feedbackPost)
-          .where(eq(feedbackPost.id, postId))
+          .where(and(eq(feedbackPost.id, postId), isNull(feedbackPost.archivedAt)))
         if (!post) throw new FeedbackWriteError(404, 'Feedback not found.')
       }
       const t = feedbackOfficialResponse

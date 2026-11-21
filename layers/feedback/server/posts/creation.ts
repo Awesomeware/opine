@@ -1,4 +1,5 @@
 import { and, desc, eq, gte } from 'drizzle-orm'
+import { appendEvent } from '../../../../server/events/repository.ts'
 import { getDatabase } from '../../../../server/db/index.ts'
 import type { PostInput } from '../../shared/posts/input.ts'
 import { feedbackPost } from '../schema.ts'
@@ -26,6 +27,11 @@ export async function createPost(authorId: string, input: PostInput) {
       .returning({ id: feedbackPost.id })
 
     await replacePostTags(transaction, post!.id, tagIds ?? [])
+    await appendEvent(transaction, {
+      type: 'post.created',
+      actorId: authorId,
+      details: { postId: post!.id },
+    })
     await followPost(transaction, post!.id, authorId)
 
     return post!

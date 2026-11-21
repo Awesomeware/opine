@@ -354,7 +354,7 @@ test('tag retries authorize again after administrator access is revoked', async 
   try {
     const options = { headers: headers(admin.cookieHeader), data: { name } }
     expect((await request.post('/api/feedback/tags', options)).status()).toBe(201)
-    await setUserRole(admin.user.id, 'administrator', false)
+    await setUserRole(admin.user.id, 'administrator', false, null)
     expect((await request.post('/api/feedback/tags', options)).status()).toBe(403)
     // Input validation precedes authentication, even for an unauthenticated caller.
     expect((await request.post('/api/feedback/tags', { data: { name: '' } })).status()).toBe(400)

@@ -15,7 +15,7 @@ if (
   process.exitCode = 1
 } else {
   try {
-    const updated = await setUserRole(userId, role, action === 'grant')
+    const updated = await setUserRole(userId, role, action === 'grant', null)
     if (!updated) {
       console.error('User not found. The user must sign in before receiving a role.')
       process.exitCode = 1

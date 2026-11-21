@@ -15,6 +15,7 @@ defineProps<{ post: FeedbackPostSummary }>()
       <p class="row-excerpt">{{ post.excerpt }}</p>
       <FeedbackTags :tags="post.tags" />
       <p class="row-byline">
+        <span v-if="post.lockedAt">Locked ·</span>
         <span>{{ post.category.name }}</span>
         <span aria-hidden="true">·</span>
         <span>{{ post.author.name }}</span>

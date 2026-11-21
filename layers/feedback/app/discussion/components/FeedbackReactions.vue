@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useFeedbackReactions } from '../composables/useFeedbackReactions'
 
-const props = defineProps<{ postId: string; owner: string | null }>()
+const props = defineProps<{ postId: string; owner: string | null; locked: boolean }>()
 const emit = defineEmits<{ contribute: [] }>()
 
 const {
@@ -24,7 +24,7 @@ const {
           variant="quiet"
           :aria-pressed="reactions.mine === 'agree'"
           :busy="reacting"
-          :disabled="!owner"
+          :disabled="!owner || locked"
           @click="react('agree')"
         >
           <UiIcon name="agree" />
@@ -35,7 +35,7 @@ const {
           variant="quiet"
           :aria-pressed="reactions.mine === 'disagree'"
           :busy="reacting"
-          :disabled="!owner"
+          :disabled="!owner || locked"
           @click="react('disagree')"
         >
           <UiIcon name="disagree" />
@@ -51,7 +51,7 @@ const {
     </p>
     <p v-if="writeError" role="alert">{{ writeError }}</p>
     <UiButton v-if="expired" variant="quiet" @click="signIn">Sign in again</UiButton>
-    <p v-if="explain && owner" class="invitation">
+    <p v-if="explain && owner && !locked" class="invitation">
       Want to expand on that?
       <UiButton variant="quiet" @click="emit('contribute')">Add a comment</UiButton>
     </p>

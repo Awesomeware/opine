@@ -1,4 +1,5 @@
 import { asc, eq, inArray, sql } from 'drizzle-orm'
+import { appendEvent } from '../../../../server/events/repository.ts'
 import { getDatabase } from '../../../../server/db/index.ts'
 import type { FeedbackTag } from '../../shared/posts/contracts.ts'
 import type { TagEditInput, TagInput } from '../../shared/posts/tag-input.ts'
@@ -26,19 +27,26 @@ function rethrowTagConflict(error: unknown): never {
   throw error
 }
 
-export async function createTag(input: TagInput) {
+export async function createTag(input: TagInput, actorId: string | null) {
   try {
-    const [tag] = await getDatabase()
-      .insert(feedbackTag)
-      .values(input)
-      .returning({ id: feedbackTag.id, version: feedbackTag.version })
-    return tag!
+    return await getDatabase().transaction(async (transaction) => {
+      const [tag] = await transaction
+        .insert(feedbackTag)
+        .values(input)
+        .returning({ id: feedbackTag.id, version: feedbackTag.version })
+      await appendEvent(transaction, {
+        type: 'tag.created',
+        actorId,
+        details: { tagId: tag!.id, version: tag!.version },
+      })
+      return tag!
+    })
   } catch (error) {
     rethrowTagConflict(error)
   }
 }
 
-export async function updateTag(tagId: string, input: TagEditInput) {
+export async function updateTag(tagId: string, input: TagEditInput, actorId: string | null) {
   try {
     return await getDatabase().transaction(async (transaction) => {
       const [tag] = await transaction
@@ -61,6 +69,14 @@ export async function updateTag(tagId: string, input: TagEditInput) {
         .set({ name: input.name, isActive: input.isActive, version: tag.version + 1 })
         .where(eq(feedbackTag.id, tagId))
         .returning({ id: feedbackTag.id, version: feedbackTag.version })
+      const changedFields = (['name', 'isActive'] as const).filter(
+        (field) => tag[field] !== input[field],
+      )
+      await appendEvent(transaction, {
+        type: 'tag.updated',
+        actorId,
+        details: { tagId, version: updated!.version, changedFields },
+      })
       return updated!
     })
   } catch (error) {

@@ -2,6 +2,7 @@ import { NodePgPreparedQuery } from 'drizzle-orm/node-postgres/session'
 import assert from 'node:assert/strict'
 import { after, afterEach, test } from 'node:test'
 import { Client } from 'pg'
+import { eventLog } from '../../../../server/events/schema.ts'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
@@ -33,6 +34,7 @@ afterEach(async () => {
   await database.delete(feedbackComment)
   await database.delete(feedbackPost)
   await database.delete(feedbackCategory)
+  await database.delete(eventLog)
   await database.delete(user)
 })
 

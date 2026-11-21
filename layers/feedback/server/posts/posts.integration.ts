@@ -6,6 +6,7 @@ import { after, afterEach, test } from 'node:test'
 import { Client } from 'pg'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import { eventLog } from '../../../../server/events/schema.ts'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
@@ -25,6 +26,7 @@ afterEach(async () => {
   const database = getDatabase()
   await database.delete(feedbackPost)
   await database.delete(feedbackCategory)
+  await database.delete(eventLog)
   await database.delete(user)
 })
 
@@ -64,6 +66,7 @@ test('submission persists the author follow and exposes only public author infor
   assert.deepEqual(
     Object.keys(post).sort(),
     [
+      'lockedAt',
       'id',
       'title',
       'tags',
@@ -78,6 +81,17 @@ test('submission persists the author follow and exposes only public author infor
       'author',
       'category',
     ].sort(),
+  )
+  const creationEvents = await getDatabase().select().from(eventLog)
+  assert.deepEqual(creationEvents.map((event) => event.eventType).sort(), [
+    'post.created',
+    'post.followed',
+  ])
+  assert.ok(creationEvents.every((event) => event.actorId === member.user.id))
+  assert.ok(
+    creationEvents.every(
+      (event) => JSON.stringify(event.details) === JSON.stringify({ postId: result.id }),
+    ),
   )
   assert.deepEqual(post.author, { name: 'A Player' })
   const publicOutput = JSON.stringify({ post, list: await listPosts({}) })
@@ -373,6 +387,12 @@ test('authors edit current post content only, unchanged saves do not mark edits,
   const input = { ...original, title: 'A clearer combat indicator' }
   const updated = await editPost(author.user.id, post.id, input)
   assert.equal(updated.version, 2)
+  const [event] = await getDatabase()
+    .select()
+    .from(eventLog)
+    .where(eq(eventLog.eventType, 'post.edited'))
+  assert.equal(event!.actorId, author.user.id)
+  assert.deepEqual(event!.details, { postId: post.id, version: 2, changedFields: ['title'] })
   await assert.rejects(editPost(author.user.id, post.id, original), status(409))
   await assert.rejects(editPost(author.user.id, post.id, input), status(409))
   const current = await getPost(post.id, author.user.id)

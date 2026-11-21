@@ -9,6 +9,7 @@ const meta = {
       tags: [{ id: 'gameplay', name: 'Gameplay', isActive: true, version: 1 }],
       title: 'Finding a group takes most of my evening',
       excerpt: 'Forty minutes organising a group, barely an hour left to play.',
+      lockedAt: null,
       status: 'reviewing',
       createdAt: '2026-11-20T12:00:00.000Z',
       author: { name: 'Thalen' },
@@ -29,4 +30,8 @@ export const LongContent: StoryObj<typeof meta> = {
       status: 'planned',
     },
   },
+}
+
+export const Locked: StoryObj<typeof meta> = {
+  args: { post: { ...meta.args.post, lockedAt: '2026-11-20T13:00:00.000Z' } },
 }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { PostLockResult } from '../../../shared/review/contracts'
+import FeedbackModeration from './FeedbackModeration.vue'
 import { statusLabels, postStatuses } from '../../../shared/status'
 import { useOfficialPublication } from '../composables/useOfficialPublication'
 import { useFeedbackFollowing } from '../../subscriptions/composables/useFeedbackFollowing'
@@ -8,8 +10,9 @@ const props = defineProps<{
   owner: string | null
   categoryId: string
   categoryName: string
+  lockedAt: string | null
 }>()
-const emit = defineEmits<{ published: [] }>()
+const emit = defineEmits<{ published: []; locked: [result: PostLockResult]; archived: [] }>()
 
 const {
   outcome,
@@ -95,6 +98,13 @@ function categorySaved() {
         <h2>Official response</h2>
         <p>No official response yet.</p>
       </div>
+      <FeedbackModeration
+        v-if="owner && outcome.canModerate"
+        :post-id="postId"
+        :locked-at="lockedAt"
+        @locked="emit('locked', $event)"
+        @archived="emit('archived')"
+      />
       <div v-if="owner && outcome.canRespond" class="management-tools">
         <details class="response-composer">
           <summary>

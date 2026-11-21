@@ -1,6 +1,6 @@
 # Feedback feature
 
-This layer assembles four capability groups: `posts` (authoring, browsing, categories and tags), `discussion` (comments and reactions), `review` (official decisions and queue), and `subscriptions` (following and inbox). Its schema lives in `server/schema.ts`, aggregated by the root database schema. It consumes the shared database pool and auth's public identity/session entrypoints. The approved schema and local operations are described in [Feedback](../../docs/feedback.md).
+This layer assembles four capability groups: `posts` (authoring, browsing, categories and tags), `discussion` (comments and reactions), `review` (official decisions, queue and whole-post moderation), and `subscriptions` (following and inbox). Its schema lives in `server/schema.ts`, aggregated by the root database schema. It consumes the shared database pool and auth's public identity/session entrypoints. The approved schema and local operations are described in [Feedback](../../docs/feedback.md).
 
 ## Browser workflows
 
@@ -35,11 +35,13 @@ Tag endpoints (implemented in `server/posts/tags.ts`):
 - `POST /api/feedback/tags` requires current administrator access and `{ name }`.
 - `PATCH /api/feedback/tags/:id` requires current administrator access and `{ name, isActive, version }`. Tag writes require the configured origin and request-time authorization. Names remain unique and edits require the current version.
 
-Post list/detail results include `tags`. See [tag rules and administration](../../docs/feedback.md#tags) for assignment, disabled-tag, version, and omitted-field semantics.
+Post list/detail results include `tags` and nullable `lockedAt`. See [tag rules and administration](../../docs/feedback.md#tags) for assignment, disabled-tag, version, and omitted-field semantics.
 
 Cross-capability endpoints are implemented in `server/review/`, `server/discussion/feed.ts`, and `server/subscriptions/`:
 
-- `GET /api/feedback/posts/:id/outcome` returns current `status`, workflow `version`, `latestResponse`, the latest status-changing `statusResponse`, viewer `following`, and `canRespond`.
+- `PUT /api/feedback/posts/:id/lock` requires community-manager access and `{ locked: boolean }`.
+- `POST /api/feedback/posts/:id/archive` requires community-manager access and archives the whole post.
+- `GET /api/feedback/posts/:id/outcome` returns current `status`, workflow `version`, `latestResponse`, the latest status-changing `statusResponse`, viewer `following`, `canRespond`, and `canModerate`. A locked post disables response publication without removing CM moderation controls.
 - `POST /api/feedback/posts/:id/responses` requires current community-manager access and `{ body, version, status? }`. It returns `{ id, version }`; omitted status preserves the current status. Ordinary privileged comments are never automatically official.
 - `GET /api/feedback/posts/:id/responses/:responseId` returns the immutable public response for direct links.
 - `GET /api/feedback/posts/:id/discussion` merges comments and official responses chronologically. Optional `type` accepts the four ordinary types or `team`; omission selects All. It returns discriminated `entries` and `nextCursor`; both sources share one consistent snapshot and are bounded before merging. The older comments API still returns only comments.
@@ -56,7 +58,7 @@ All writes require a member session and the configured origin. Viewer-aware read
 
 - Posts expose `server/posts/workflow.ts` for post locking and workflow persistence. `updatePostWorkflow` requires the caller's transaction, post lock, and checked workflow version.
 - Subscriptions expose `followPost(transaction, postId, userId)` from `server/subscriptions/following.ts` and `notifyFollowers(transaction, postId, responseId, createdAt)` from `server/subscriptions/notifications.ts`. They participate in creation/publication rather than opening their own transaction.
-- Review owns publication and category-correction coordination. The HTTP boundary validates the request and requires the appropriate role before invoking review or tag operations; use cases do not recheck roles mid-write. Discussion owns the combined feed; cross-capability read projections may reference the shared schema explicitly.
+- Review owns publication, category-correction and whole-post moderation coordination. The HTTP boundary validates the request and requires the appropriate role before invoking review or tag operations; use cases do not recheck roles mid-write. Discussion owns the combined feed; cross-capability read projections may reference the shared schema explicitly.
 
 These helpers are internal persistence contracts, not alternative HTTP commands. Protected read projections such as the review queue and category history likewise require authorization at their HTTP entrypoint. Keep their preconditions in the owning use case. See [multi-capability transactions](../../docs/architecture.md#operations-spanning-capabilities) for the canonical rules.
 
@@ -64,6 +66,8 @@ These helpers are internal persistence contracts, not alternative HTTP commands.
 
 [Feedback documentation](../../docs/feedback.md) is the canonical source for schema and behavior:
 
+- [Locking, archiving and visibility](../../docs/feedback.md#locking-and-archiving).
+- [Application events](../../docs/events.md).
 - [Retention and public attribution](../../docs/feedback.md#contribution-retention).
 - [Discussion and reactions](../../docs/feedback.md#discussion-and-reactions).
 - [Editing, versions, and failed requests](../../docs/feedback.md#editing-and-failed-requests).

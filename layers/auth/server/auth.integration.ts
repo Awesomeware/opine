@@ -4,6 +4,7 @@ import { after, afterEach, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { eq } from 'drizzle-orm'
+import { eventLog } from '../../../server/events/schema.ts'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
 import { createMember } from '../tests/fixtures.ts'
 import { createAuth } from './auth.ts'
@@ -17,6 +18,7 @@ const origin = process.env.BETTER_AUTH_URL!
 after(closeDatabase)
 afterEach(async () => {
   const database = getDatabase()
+  await database.delete(eventLog)
   await database.delete(user)
   await database.delete(verification)
   await database.delete(rateLimit)
@@ -162,17 +164,17 @@ test('sessions survive auth recreation and reject expiry, revocation, and logout
 test('privileged roles are explicit, independent, and revocable', async () => {
   const member = await createMember()
   assert.deepEqual(await getUserRoles(member.user.id), ['member'])
-  assert.equal(await setUserRole(member.user.id, 'administrator', true), true)
-  assert.equal(await setUserRole(member.user.id, 'administrator', true), true)
+  assert.equal(await setUserRole(member.user.id, 'administrator', true, null), true)
+  assert.equal(await setUserRole(member.user.id, 'administrator', true, null), true)
   assert.deepEqual(await getUserRoles(member.user.id), ['member', 'administrator'])
-  await setUserRole(member.user.id, 'community-manager', true)
+  await setUserRole(member.user.id, 'community-manager', true, null)
   assert.deepEqual(
     new Set(await getUserRoles(member.user.id)),
     new Set(['member', 'administrator', 'community-manager']),
   )
-  await setUserRole(member.user.id, 'administrator', false)
+  await setUserRole(member.user.id, 'administrator', false, null)
   assert.deepEqual(await getUserRoles(member.user.id), ['member', 'community-manager'])
-  assert.equal(await setUserRole('missing-user', 'administrator', true), false)
+  assert.equal(await setUserRole('missing-user', 'administrator', true, null), false)
   assert.deepEqual(await getUserRoles('missing-user'), [])
 
   const execute = promisify(execFile)
@@ -221,4 +223,42 @@ test('HTTP social sign-in rate limit returns 429 after the configured allowance'
   )
   assert.equal(response.status, 429)
   assert.ok(Number(response.headers.get('x-retry-after')) > 0)
+})
+
+test('role events identify humans and system actions, skip no-ops, and roll back on log failure', async () => {
+  const actor = await createMember()
+  const target = await createMember()
+  const database = getDatabase()
+
+  await setUserRole(target.user.id, 'administrator', true, actor.user.id)
+  await setUserRole(target.user.id, 'administrator', true, actor.user.id)
+  await setUserRole(target.user.id, 'administrator', false, null)
+  await setUserRole(target.user.id, 'administrator', false, null)
+  const events = await database.select().from(eventLog).orderBy(eventLog.createdAt, eventLog.id)
+  assert.deepEqual(
+    events.map(({ eventType, actorId, details }) => ({ eventType, actorId, details })),
+    [
+      {
+        eventType: 'role.granted',
+        actorId: actor.user.id,
+        details: { userId: target.user.id, role: 'administrator' },
+      },
+      {
+        eventType: 'role.revoked',
+        actorId: null,
+        details: { userId: target.user.id, role: 'administrator' },
+      },
+    ],
+  )
+
+  await assert.rejects(database.delete(user).where(eq(user.id, actor.user.id)))
+  assert.equal(
+    (await database.select().from(eventLog).where(eq(eventLog.actorId, actor.user.id))).length,
+    1,
+  )
+
+  // A missing actor fails the log FK after the role write: neither may commit.
+  await assert.rejects(setUserRole(target.user.id, 'community-manager', true, 'missing-actor'))
+  assert.deepEqual(await getUserRoles(target.user.id), ['member'])
+  assert.equal((await database.select().from(eventLog)).length, 2)
 })

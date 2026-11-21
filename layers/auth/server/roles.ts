@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { getDatabase } from '../../../server/db/index.ts'
+import { appendEvent } from '../../../server/events/repository.ts'
 import { isPrivilegedRole, type PrivilegedRole, type Role } from '../shared/roles.ts'
 import { user, userRole } from './schema.ts'
 
@@ -16,19 +17,35 @@ export async function getUserRoles(userId: string): Promise<Role[]> {
 
 // The HTTP boundary or trusted operator authorizes this operation.
 // Returns false when the target user does not exist.
-export async function setUserRole(userId: string, role: PrivilegedRole, grant: boolean) {
+export async function setUserRole(
+  userId: string,
+  role: PrivilegedRole,
+  grant: boolean,
+  actorId: string | null,
+) {
   if (!isPrivilegedRole(role)) throw new Error('Invalid privileged role.')
 
   return getDatabase().transaction(async (transaction) => {
     const [target] = await transaction.select({ id: user.id }).from(user).where(eq(user.id, userId))
     if (!target) return false
 
-    if (grant) {
-      await transaction.insert(userRole).values({ userId, role }).onConflictDoNothing()
-    } else {
-      await transaction
-        .delete(userRole)
-        .where(and(eq(userRole.userId, userId), eq(userRole.role, role)))
+    const changed = grant
+      ? await transaction
+          .insert(userRole)
+          .values({ userId, role })
+          .onConflictDoNothing()
+          .returning()
+      : await transaction
+          .delete(userRole)
+          .where(and(eq(userRole.userId, userId), eq(userRole.role, role)))
+          .returning()
+
+    if (changed.length) {
+      await appendEvent(transaction, {
+        type: grant ? 'role.granted' : 'role.revoked',
+        actorId,
+        details: { userId, role },
+      })
     }
 
     return true

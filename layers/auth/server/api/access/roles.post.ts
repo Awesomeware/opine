@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Invalid request origin.' })
   }
 
-  const updated = await setUserRole(body.userId, body.role, body.action === 'grant')
+  const updated = await setUserRole(body.userId, body.role, body.action === 'grant', access.user.id)
   if (!updated) throw createError({ statusCode: 404, statusMessage: 'User not found.' })
   return { success: true }
 })

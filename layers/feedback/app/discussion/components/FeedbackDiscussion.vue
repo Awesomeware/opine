@@ -9,7 +9,7 @@ import { useFeedbackDiscussion } from '../composables/useFeedbackDiscussion'
 import FeedbackContributionItem from './FeedbackContributionItem.vue'
 import FeedbackCommentComposer from './FeedbackCommentComposer.vue'
 
-const props = defineProps<{ postId: string; owner: string | null }>()
+const props = defineProps<{ postId: string; owner: string | null; locked: boolean }>()
 const route = useRoute()
 const {
   entries,
@@ -121,6 +121,7 @@ defineExpose({ refresh: retryComments, focusComposer })
       Load more comments
     </UiButton>
     <FeedbackCommentComposer
+      v-if="!locked"
       ref="composer"
       :post-id="postId"
       :owner="owner"

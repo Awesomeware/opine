@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { after, afterEach, test } from 'node:test'
 import { Client } from 'pg'
+import { eventLog } from '../../../../server/events/schema.ts'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import {
   applyMigrations,
@@ -12,7 +13,11 @@ import { setUserRole } from '../../../auth/server/roles.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
 import { createCategory, createFeedbackPost } from '../../tests/fixtures.ts'
-import { createComment } from '../discussion/comments.ts'
+import { createComment, editComment, getComment, listComments } from '../discussion/comments.ts'
+import { getReactions, setReaction } from '../discussion/reactions.ts'
+import { getPost, listPosts } from '../posts/queries.ts'
+import { listNotifications, markNotificationRead } from '../subscriptions/inbox.ts'
+import { archivePost, setPostLocked } from './moderation.ts'
 import { listDiscussion } from '../discussion/feed.ts'
 import { editPost } from '../posts/editing.ts'
 import {
@@ -42,6 +47,7 @@ afterEach(async () => {
   await database.delete(feedbackComment)
   await database.delete(feedbackPost)
   await database.delete(feedbackCategory)
+  await database.delete(eventLog)
   await database.delete(user)
 })
 
@@ -143,7 +149,7 @@ test('official publication atomically changes status and notifies each follower 
     publishResponse(manager.user.id, post.id, { ...input, body: 'Changed' }),
     status(409),
   )
-  await setUserRole(manager.user.id, 'community-manager', false)
+  await setUserRole(manager.user.id, 'community-manager', false, null)
   assert.equal((await getOutcome(post.id, manager.user.id))?.canRespond, false)
   const publicResponse = await getOfficialResponse(post.id, results[0]!.id)
   assert.deepEqual(publicResponse?.author, { name: 'Community manager' })
@@ -487,5 +493,225 @@ test('discussion pages use one snapshot when publication commits between source 
     await writer.query('rollback')
     await pending?.catch(() => {})
     await writer.end()
+  }
+})
+
+test('locking makes contributions read-only, preserves following, and logs only state changes', async () => {
+  const { author, manager, post } = await discussion()
+  const comment = await createComment(author.user.id, post.id, {
+    body: 'A useful suggestion.',
+    type: 'suggestion',
+  })
+  const locked = await setPostLocked(manager.user.id, post.id, true)
+  assert.ok(locked.lockedAt)
+  assert.deepEqual(await setPostLocked(manager.user.id, post.id, true), locked)
+  assert.equal((await getPost(post.id, author.user.id))?.canEdit, false)
+  assert.equal((await getComment(post.id, comment.id, author.user.id))?.canEdit, false)
+  const outcome = await getOutcome(post.id, manager.user.id)
+  assert.equal(outcome.canModerate, true)
+  assert.equal(outcome.canRespond, false)
+
+  await assert.rejects(
+    editPost(author.user.id, post.id, {
+      title: post.title,
+      description: post.description,
+      desiredImprovement: null,
+      version: 1,
+    }),
+    status(423),
+  )
+  await assert.rejects(
+    createComment(author.user.id, post.id, { body: 'Another idea.', type: 'suggestion' }),
+    status(423),
+  )
+  await assert.rejects(
+    editComment(author.user.id, post.id, comment.id, {
+      body: 'Changed idea.',
+      type: 'suggestion',
+      version: 1,
+    }),
+    status(423),
+  )
+  await assert.rejects(setReaction(author.user.id, post.id, 'agree'), status(423))
+  await assert.rejects(
+    publishResponse(manager.user.id, post.id, { body: 'Official answer.', version: 1 }),
+    status(423),
+  )
+  await assert.rejects(
+    correctCategory(manager.user.id, post.id, { categoryId: post.categoryId, version: 1 }),
+    status(423),
+  )
+  await setFollowing(author.user.id, post.id, true)
+  await setFollowing(author.user.id, post.id, true)
+  await setFollowing(author.user.id, post.id, false)
+  await setFollowing(author.user.id, post.id, false)
+  await setPostLocked(manager.user.id, post.id, false)
+  assert.equal((await getPost(post.id, author.user.id))?.canEdit, true)
+  await setReaction(author.user.id, post.id, 'agree')
+  await setReaction(author.user.id, post.id, 'agree')
+  await setReaction(author.user.id, post.id, null)
+  const events = await getDatabase().select().from(eventLog)
+  assert.equal(events.filter((event) => event.eventType === 'post.locked').length, 1)
+  assert.equal(events.filter((event) => event.eventType === 'post.unlocked').length, 1)
+  assert.equal(events.filter((event) => event.eventType === 'post.followed').length, 1)
+  assert.equal(events.filter((event) => event.eventType === 'post.unfollowed').length, 1)
+  assert.equal(events.filter((event) => event.eventType === 'reaction.changed').length, 2)
+  assert.equal(events.filter((event) => event.eventType === 'comment.created').length, 1)
+})
+
+test('archiving hides every post projection and notification without deleting retained content', async () => {
+  const { author, manager, post } = await discussion()
+  await setFollowing(author.user.id, post.id, true)
+  const comment = await createComment(author.user.id, post.id, {
+    body: 'A useful suggestion.',
+    type: 'suggestion',
+  })
+  const response = await publishResponse(manager.user.id, post.id, {
+    body: 'Official answer.',
+    version: 1,
+  })
+  const inbox = await listNotifications(author.user.id)
+  assert.equal(inbox.unreadCount, 1)
+  const notification = inbox.notifications[0]!
+  await archivePost(manager.user.id, post.id)
+
+  assert.equal(await getPost(post.id, manager.user.id), undefined)
+  assert.equal((await listPosts()).posts.length, 0)
+  assert.equal((await listReviewQueue({ status: 'all' })).posts.length, 0)
+  assert.equal(await getComment(post.id, comment.id), undefined)
+  assert.equal(await getOfficialResponse(post.id, response.id), undefined)
+  await assert.rejects(listComments(post.id), status(404))
+  await assert.rejects(listDiscussion(post.id), status(404))
+  await assert.rejects(listDiscussion(post.id, { type: 'team' }), status(404))
+  await assert.rejects(getOutcome(post.id, manager.user.id), status(404))
+  await assert.rejects(getReactions(post.id), status(404))
+  await assert.rejects(listCategoryHistory(post.id), status(404))
+  assert.deepEqual(await listNotifications(author.user.id), {
+    notifications: [],
+    nextCursor: null,
+    unreadCount: 0,
+  })
+  await assert.rejects(markNotificationRead(author.user.id, notification.id), status(404))
+  await assert.rejects(setFollowing(author.user.id, post.id, true), status(404))
+  await assert.rejects(setReaction(author.user.id, post.id, 'agree'), status(404))
+  await assert.rejects(setPostLocked(manager.user.id, post.id, false), status(404))
+  await assert.rejects(archivePost(manager.user.id, post.id), status(404))
+  await assert.rejects(
+    createComment(author.user.id, post.id, { body: 'Another idea.', type: 'suggestion' }),
+    status(404),
+  )
+  await assert.rejects(
+    editComment(author.user.id, post.id, comment.id, {
+      body: 'Edited idea.',
+      type: 'suggestion',
+      version: 1,
+    }),
+    status(404),
+  )
+  await assert.rejects(
+    editPost(author.user.id, post.id, {
+      title: post.title,
+      description: post.description,
+      desiredImprovement: null,
+      version: 1,
+    }),
+    status(404),
+  )
+  await assert.rejects(
+    publishResponse(manager.user.id, post.id, { body: 'Another answer.', version: 2 }),
+    status(404),
+  )
+  await assert.rejects(
+    correctCategory(manager.user.id, post.id, { categoryId: post.categoryId, version: 2 }),
+    status(404),
+  )
+  assert.equal((await getDatabase().select().from(feedbackPost)).length, 1)
+  assert.equal((await getDatabase().select().from(feedbackComment)).length, 1)
+  assert.equal((await getDatabase().select().from(feedbackOfficialResponse)).length, 1)
+  assert.equal((await getDatabase().select().from(feedbackNotification)).length, 1)
+  const events = await getDatabase()
+    .select()
+    .from(eventLog)
+    .where(eq(eventLog.eventType, 'post.archived'))
+  assert.equal(events.length, 1)
+  assert.equal(events[0]!.actorId, manager.user.id)
+  assert.deepEqual(events[0]!.details, { postId: post.id })
+})
+
+test('a failed event insert rolls back moderation and its timestamp', async () => {
+  const { manager, post } = await discussion()
+  const database = getDatabase()
+  await database.execute(
+    sql`create function reject_test_event() returns trigger language plpgsql as $$ begin raise exception 'Simulated event failure'; end $$`,
+  )
+  try {
+    await database.execute(
+      sql`create trigger reject_test_event before insert on event_log for each row execute function reject_test_event()`,
+    )
+    try {
+      await assert.rejects(setPostLocked(manager.user.id, post.id, true))
+      await assert.rejects(archivePost(manager.user.id, post.id))
+      const [stored] = await database
+        .select()
+        .from(feedbackPost)
+        .where(eq(feedbackPost.id, post.id))
+      assert.equal(stored!.lockedAt, null)
+      assert.equal(stored!.archivedAt, null)
+    } finally {
+      await database.execute(sql`drop trigger reject_test_event on event_log`)
+    }
+  } finally {
+    await database.execute(sql`drop function reject_test_event()`)
+  }
+})
+
+test('a contribution waiting on moderation observes the committed lock or archive', async () => {
+  const { author, post } = await discussion()
+  const blocker = new Client({ connectionString: databaseUrl })
+  await blocker.connect()
+  try {
+    for (const state of ['locked', 'archived'] as const) {
+      await blocker.query('begin')
+      const { rows } = await blocker.query('select pg_backend_pid() as pid')
+      await blocker.query('select id from feedback_post where id = $1 for no key update', [post.id])
+      const pending = createComment(author.user.id, post.id, {
+        body: 'A concurrent suggestion.',
+        type: 'suggestion',
+      })
+      // Attach the rejection handler before releasing the blocked request.
+      const rejected = assert.rejects(pending, status(state === 'locked' ? 423 : 404))
+      try {
+        const deadline = Date.now() + 5000
+        let waiting = false
+        while (Date.now() < deadline) {
+          const blocked = await blocker.query(
+            'select 1 from pg_stat_activity where $1::integer = any(pg_blocking_pids(pid))',
+            [rows[0].pid],
+          )
+          if (blocked.rowCount) {
+            waiting = true
+            break
+          }
+          await new Promise((resolve) => setTimeout(resolve, 10))
+        }
+        assert.ok(waiting, 'Comment must wait for the moderation transaction')
+        if (state === 'locked') {
+          await blocker.query('update feedback_post set locked_at = now() where id = $1', [post.id])
+        } else {
+          await blocker.query('update feedback_post set archived_at = now() where id = $1', [
+            post.id,
+          ])
+        }
+        await blocker.query('commit')
+        await rejected
+      } finally {
+        await blocker.query('rollback')
+        await rejected
+      }
+    }
+    assert.equal((await getDatabase().select().from(feedbackComment)).length, 0)
+    assert.equal((await getDatabase().select().from(eventLog)).length, 0)
+  } finally {
+    await blocker.end()
   }
 })
