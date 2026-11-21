@@ -12,6 +12,9 @@ RUN pnpm exec nuxt prepare && NITRO_PRESET=node-server pnpm build
 
 FROM base AS runtime
 
+# Render's operator shell requires a private SSH directory for the runtime user.
+RUN install -d -m 0700 -o node -g node /home/node/.ssh
+
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 

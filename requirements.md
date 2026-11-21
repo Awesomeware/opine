@@ -137,7 +137,7 @@ These are possible later additions, not a committed roadmap:
 - Bug-report diagnostic fields, persisted drafts, restoration of unsaved forms, offline replay and a separate mobile redesign. Basic narrow-screen readability and accessibility remain required.
 - A self-service account-deletion interface. A documented operator process for deletion/anonymization requests and contribution retention remains required.
 
-CI automation is included in the Railway hosting trial. The workflow runs local-equivalent validation before deployment; hosted CI, deployment and release checks still need verification as recorded in [the implementation checklist](docs/TODO.md).
+CI automation is included in the Render deployment setup. The workflow runs local-equivalent validation before deployment; hosted CI, deployment and release checks still need verification as recorded in [the implementation checklist](docs/TODO.md).
 
 ## First-release acceptance
 

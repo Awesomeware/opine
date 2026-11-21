@@ -2,14 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [main, railway]
+    branches: [main, render]
   pull_request:
-    branches: [main, railway]
+    branches: [main, render]
 
 permissions:
   contents: read
 
-# Railway waits for the entire workflow. Do not skip checks or cancel older runs.
+# Render waits for CI checks. Keep validation unconditional on deployment branches.
 jobs:
   verify:
     name: Verify

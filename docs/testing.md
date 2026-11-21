@@ -17,13 +17,13 @@ Install the browser with `pnpm exec playwright install chromium`. On Linux, `pnp
 
 ## Continuous integration
 
-[GitHub Actions](../.github/workflows/ci.yml) runs on pushes to `railway` and `main`, and pull requests targeting either branch. Its single `Verify` job uses the pinned Node and pnpm versions on an Ubuntu runner with Docker, installs Chromium and its system dependencies, then runs lint, formatting, both typechecks, migration-history checks, unit tests, database integration tests, production-build/browser journeys, Storybook/component checks, and the deployment Docker build.
+[GitHub Actions](../.github/workflows/ci.yml) runs on pushes to `render` and `main`, and pull requests targeting either branch. Its single `Verify` job uses the pinned Node and pnpm versions on an Ubuntu runner with Docker, installs Chromium and its system dependencies, then runs lint, formatting, both typechecks, migration-history checks, unit tests, database integration tests, production-build/browser journeys, Storybook/component checks, and the deployment Docker build.
 
 The workflow requires no deployment credentials, real Discord credentials, or shared database. Database suites use the same disposable containers and concurrency limit as local runs. Integration and browser commands run sequentially, so their container limits do not overlap.
 
 After building the deployment image, `bash scripts/test-deployment.sh opine:ci` verifies the shipped image against its own fresh PostgreSQL 18 container and private Docker network. It runs migrations twice, seeds only that isolated database, starts the application, and checks its HTTP responses before cleaning up. This exercises the image's migration/operator tooling and runtime files as well as the compiled application.
 
-Configure Railway's **Wait for CI** for the connected branch before enabling automatic deployments; see [deployment](deployment.md). Keep the checks in one required workflow, without path filters, conditional test skips, `continue-on-error`, or automatic cancellation of older runs. Railway must receive a successful complete run before deploying. A failed step fails the job; subsequent dependent steps do not run. Repository branch protection should require `Verify` before merging.
+Configure Render's **After CI Checks Pass** for the connected branch before enabling automatic deployments; see [deployment](deployment.md). Keep the checks in one required workflow, without path filters, conditional test skips, `continue-on-error`, or automatic cancellation of older runs. Render must receive a successful complete run before deploying. A failed step fails the job; subsequent dependent steps do not run. Repository branch protection should require `Verify` before merging.
 
 ## Suite isolation and resource limits
 

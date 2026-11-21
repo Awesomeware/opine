@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Exercise the shipped image against a disposable database, never DATABASE_URL.
-image=${1:-opine:railway}
+image=${1:-opine:local}
 artifacts=$(mktemp -d -t opine-deployment-XXXXXXXX)
 network=$(basename "$artifacts")
 postgres_id=
@@ -43,14 +43,19 @@ DISCORD_CLIENT_SECRET=opine-deployment-test-secret
 PORT=8080
 ENV
 
-# Railway runs migrations in a separate container before starting the application.
+# The hosting platform runs migrations before starting the new application.
 docker run --rm --network "$network" --env-file "$artifacts/environment" "$image" pnpm db:migrate
 docker run --rm --network "$network" --env-file "$artifacts/environment" "$image" pnpm db:migrate
 docker run --rm --network "$network" --env-file "$artifacts/environment" "$image" pnpm db:seed
 docker run --rm "$image" node --input-type=module -e '
   import assert from "node:assert/strict";
-  import { existsSync } from "node:fs";
+  import { existsSync, statSync } from "node:fs";
+  import { homedir } from "node:os";
   assert.notEqual(process.getuid(), 0);
+  const ssh = statSync(`${homedir()}/.ssh`);
+  assert.ok(ssh.isDirectory());
+  assert.equal(ssh.uid, process.getuid());
+  assert.equal(ssh.mode & 0o777, 0o700);
   for (const path of [".env", ".git", ".github"]) assert.equal(existsSync(path), false);
 '
 

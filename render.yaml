@@ -1,0 +1,38 @@
+# Paid instances provide pre-deploy commands, shell access and database recovery.
+services:
+  - type: web
+    name: opine
+    runtime: docker
+    repo: https://github.com/Awesomeware/opine
+    branch: render
+    region: frankfurt
+    plan: 0.5c-512mb
+    numInstances: 1
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: checksPass
+    preDeployCommand: pnpm db:migrate
+    healthCheckPath: /api/ready
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: opine-db
+          property: connectionString
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: BETTER_AUTH_URL
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+
+databases:
+  - name: opine-db
+    databaseName: opine
+    user: opine
+    postgresMajorVersion: '18'
+    region: frankfurt
+    plan: 0.1c-256mb
+    diskSizeGB: 5
+    ipAllowList: []
