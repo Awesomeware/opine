@@ -15,6 +15,8 @@ pnpm dev
 
 The app runs at <http://localhost:3000>. See [README.md](README.md) for setup details.
 
+Use [docs/development.md](docs/development.md) for Zed run/debug profiles and [docs/migrations.md](docs/migrations.md) for creation and undo workflows. `pnpm dev:local` / `pnpm dev:debug` start Compose PostgreSQL and Nuxt; migrations remain an explicit command. Debuggers use loopback interfaces. Keep editor configuration portable and free of credentials.
+
 - `pnpm lint` / `pnpm lint:fix` — check code with oxlint / apply fixes.
 - `pnpm format` / `pnpm format:check` — format with oxfmt / check formatting.
 - `pnpm typecheck` — check application/server TypeScript, Vue templates, tests, and operational scripts.

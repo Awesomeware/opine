@@ -33,6 +33,8 @@ pnpm dev
 
 If pnpm is not installed, bootstrap the pinned version with `npm install --global pnpm@12.21.0` after `nvm use`. Application dependencies are managed exclusively with pnpm.
 
+For subsequent runs, `pnpm dev:local` starts PostgreSQL and Nuxt together. Use `pnpm dev:debug` with the checked-in Zed run/debug profiles for server and Vue breakpoints; see [Running and debugging locally](docs/development.md).
+
 Install Docker Engine (or Docker Desktop) with Docker Compose before starting PostgreSQL. Compose runs PostgreSQL 18, waits for its healthcheck, and exposes it only on `127.0.0.1:5432`. The credentials in `.env.example` and `compose.yaml` are for local development only. If port 5432 is occupied, change `POSTGRES_PORT` in `.env` and the port in `DATABASE_URL` together.
 
 Configure the Discord application and authentication secrets using [Authentication and access](docs/authentication.md), then open <http://localhost:3000>. The homepage opens the public feedback feed. Sign in to submit feedback, contribute context, a different view, a suggestion, or a question, react with Agree / Disagree, and edit your own text and optional tags. Filter the discussion by contribution type or official responses. Follow posts and read official-update notifications; community managers can publish responses, change status, correct categories, and use the review queue. Administrator alone does not grant community-manager permission. Share public post and comment links. Administrators can manage the available tags from **Tags** in the navigation. See [Feedback](docs/feedback.md) for tag/category configuration and the current schema. `GET /api/health` checks application liveness without a database query. `GET /api/ready` queries PostgreSQL, returning HTTP 200 with `{"status":"ok"}` when available or HTTP 503 with a generic error when unavailable. Database credentials and driver errors are never returned by this endpoint.
@@ -50,6 +52,9 @@ For production installation, HTTPS, upgrades and backup/restore commands, see [D
 | Command                                               | Purpose                                                          |
 | ----------------------------------------------------- | ---------------------------------------------------------------- |
 | `pnpm dev`                                            | Start the development server.                                    |
+| `pnpm dev:local`                                      | Start PostgreSQL and the development server.                     |
+| `pnpm dev:debug`                                      | Start PostgreSQL and Nuxt with its server inspector.             |
+| `pnpm db:up` / `pnpm db:stop`                         | Start/wait for PostgreSQL / stop it while keeping data.          |
 | `pnpm lint`                                           | Check JavaScript, TypeScript, and Vue script blocks with oxlint. |
 | `pnpm lint:fix`                                       | Apply automatic lint fixes.                                      |
 | `pnpm format`                                         | Format source files and documentation with oxfmt.                |
@@ -115,15 +120,9 @@ Both commands read `.env`; an exported `DATABASE_URL` takes precedence. Check it
 
 Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The committed migrations create authentication, session, rate-limit, role, category, tag, post-tag, post, follow, comment, reaction, official-response, notification, and category-audit tables. A fresh installation starts with a General feedback category and Gameplay, UI, Class-specific, Combat, and $$$ tags. Existing posts gain no tags automatically. The contribution-type migration preserves older comments as Unspecified instead of guessing their classification. Migration `0006_remove_write_receipts.sql` removes obsolete retry bookkeeping while retaining feedback content. Later features extend this history.
 
-For each schema change:
+Follow [Creating and undoing migrations](docs/migrations.md) for schema changes, custom SQL, review and testing. The normal sequence is `pnpm db:generate --name=describe_the_change`, review, `pnpm db:check`, then `pnpm db:migrate`.
 
-1. Edit the owning feature's `layers/<feature>/server/schema.ts`. Re-export new tables and relations from `server/db/schema.ts`, the shared entrypoint for Drizzle and migration tooling.
-2. Run `pnpm db:generate --name=describe_the_change`.
-3. Review the generated SQL under `drizzle/`, including any data-loss implications. Commit the SQL and generated `drizzle/meta/` snapshots and journal together with the schema change.
-4. Run `pnpm db:check` to check migration history consistency, then `pnpm db:migrate` against your local database.
-5. Run `pnpm test:integration` to apply the committed migrations to a fresh test database and check database behavior.
-
-Run `pnpm db:migrate` again to verify that applied migrations are not rerun. Test migrations on a fresh database as well as existing data. `db:check` checks migration files, not database connectivity or schema drift. Do not edit already-applied migrations or use `drizzle-kit push` for shared databases; generate a new reviewed migration instead. Migrations are an explicit command and never run automatically on server startup.
+The installed Drizzle version has no database `down` command. Unapplied local artifacts can be dropped; applied changes need either a new reversing migration or a deliberate rebuild of a disposable local database. `pnpm db:reset` preserves schema and migration history and is not a rollback. Migrations are explicit and never run automatically on server startup.
 
 Production runs with `node .output/server/index.mjs` after `pnpm build`. Deploy `config/community.json` and `config/rules.md` separately alongside the build, under `config/` in the server's working directory; `.output/` alone is insufficient. See [Community configuration](docs/community.md#apply-settings) for the production layout. Keep the Nitro server in the deployment: the SPA will use it for authentication and database access. Supply production environment variables through the deployment environment; the built server does not load `.env` automatically. Apply committed migrations as a deployment step before starting the new server. For a local production smoke test, use `node --env-file=.env .output/server/index.mjs`, then request `/api/ready`.
 

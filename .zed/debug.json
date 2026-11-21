@@ -1,0 +1,28 @@
+[
+  {
+    "label": "Opine: attach server",
+    "adapter": "JavaScript",
+    "type": "node",
+    "request": "attach",
+    "address": "127.0.0.1",
+    "port": 9229,
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "restart": true,
+    "autoAttachChildProcesses": false,
+    "sourceMaps": true,
+    "skipFiles": ["<node_internals>/**"]
+  },
+  {
+    "label": "Opine: debug browser",
+    "adapter": "JavaScript",
+    "type": "chrome",
+    "request": "launch",
+    "url": "http://localhost:3000",
+    "webRoot": "$ZED_WORKTREE_ROOT/app",
+    "pathMapping": {
+      "/_nuxt/@fs/": "/",
+      "/_nuxt/": "$ZED_WORKTREE_ROOT/app/"
+    },
+    "sourceMaps": true
+  }
+]

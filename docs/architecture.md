@@ -152,7 +152,7 @@ Each feature defines its tables and relations in `layers/<feature>/server/schema
 
 Schema modules describe the database without opening connections. They must not import the database client, the aggregate schema, or use-case code. For cross-feature foreign keys, import the owning feature's exported schema definition directly, keeping schema dependencies acyclic. This avoids a cycle between schema assembly and the shared client.
 
-All features use the connection pool in `server/db/index.ts`. Keep one reviewed, committed migration history under `drizzle/` because the application has one database and deploys as a unit. Generate and apply migrations explicitly using the [README workflow](../README.md#database-migrations); do not migrate from feature startup hooks.
+All features use the connection pool in `server/db/index.ts`. Keep one reviewed, committed migration history under `drizzle/` because the application has one database and deploys as a unit. Follow the [migration workflow](migrations.md) for generation, application and undo; do not migrate from feature startup hooks.
 
 ## Infrastructure established in TODO #1
 

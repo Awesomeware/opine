@@ -1,0 +1,39 @@
+[
+  {
+    "label": "Opine: run (database + app)",
+    "command": "pnpm",
+    "args": ["dev:local"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "allow_concurrent_runs": false,
+    "use_new_terminal": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Opine: run for debugging (database + app)",
+    "command": "pnpm",
+    "args": ["dev:debug"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "allow_concurrent_runs": false,
+    "use_new_terminal": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Opine: start database",
+    "command": "pnpm",
+    "args": ["db:up"],
+    "cwd": "$ZED_WORKTREE_ROOT"
+  },
+  {
+    "label": "Opine: apply migrations",
+    "command": "pnpm",
+    "args": ["db:migrate"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "allow_concurrent_runs": false
+  },
+  {
+    "label": "Opine: stop database (keep data)",
+    "command": "pnpm",
+    "args": ["db:stop"],
+    "cwd": "$ZED_WORKTREE_ROOT"
+  }
+]
