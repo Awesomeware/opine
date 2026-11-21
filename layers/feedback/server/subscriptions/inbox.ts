@@ -1,14 +1,17 @@
-import { and, count, desc, eq, isNull, lt, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, isNull, sql } from 'drizzle-orm'
 import { getDatabase } from '../../../../server/db/index.ts'
-import { cursorFor, type PostCursor } from '../list-input.ts'
+import {
+  cursorCondition,
+  defaultPageSize,
+  paginateRows,
+  type Pagination,
+} from '../../../../server/pagination.ts'
 import { feedbackNotification, feedbackOfficialResponse, feedbackPost } from '../schema.ts'
 import { FeedbackWriteError } from '../writes.ts'
 
-type Pagination = { cursor?: PostCursor; limit?: number }
-
 export async function listNotifications(
   actorId: string,
-  { unread, cursor, limit = 20 }: Pagination & { unread?: boolean } = {},
+  { unread, cursor, limit = defaultPageSize }: Pagination & { unread?: boolean } = {},
 ) {
   return getDatabase().transaction(
     async (db) => {
@@ -31,12 +34,7 @@ export async function listNotifications(
             isNull(feedbackPost.archivedAt),
             eq(t.userId, actorId),
             unread ? isNull(t.readAt) : undefined,
-            cursor
-              ? or(
-                  lt(t.createdAt, new Date(cursor.createdAt)),
-                  and(eq(t.createdAt, new Date(cursor.createdAt)), lt(t.id, cursor.id)),
-                )
-              : undefined,
+            cursorCondition(t, cursor, 'desc'),
           ),
         )
         .orderBy(desc(t.createdAt), desc(t.id))
@@ -47,10 +45,10 @@ export async function listNotifications(
         .innerJoin(feedbackOfficialResponse, eq(feedbackOfficialResponse.id, t.responseId))
         .innerJoin(feedbackPost, eq(feedbackPost.id, feedbackOfficialResponse.postId))
         .where(and(eq(t.userId, actorId), isNull(t.readAt), isNull(feedbackPost.archivedAt)))
-      const notifications = rows.slice(0, limit)
+      const { items: notifications, nextCursor } = paginateRows(rows, limit)
       return {
         notifications,
-        nextCursor: cursorFor(notifications.at(-1), rows.length > limit),
+        nextCursor,
         unreadCount: total!.count,
       }
     },

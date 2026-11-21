@@ -17,7 +17,7 @@ Create request scopes during setup. Mount account/resource workflows with stable
 
 The `server/posts/` functions own post use cases. In particular, `createPost` expects an already-authenticated internal user ID and validated input; it must not be exposed directly to arbitrary client-supplied authors. Future features must preserve this boundary.
 
-`shared/posts/input.ts` owns browser-safe post validation and limits. Each `shared/<capability>/contracts.ts` describes its serialized public responses; database types remain derived from Drizzle. Server-only `list-input.ts` validates filters and decodes the pagination cursor before any SQL query.
+`shared/posts/input.ts` owns browser-safe post validation and limits. Each `shared/<capability>/contracts.ts` describes its serialized public responses; database types remain derived from Drizzle. Server-only `list-input.ts` validates feature filters and delegates cursor/page-size validation to root `server/pagination.ts`. Queries reuse its cursor predicates and page helpers; see [server pagination](../../docs/architecture.md#server-pagination).
 
 Additional endpoints:
 

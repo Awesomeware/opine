@@ -1,6 +1,6 @@
 import { feedbackViewer, feedbackParam, feedbackResponse } from '../../../../http.ts'
 import { listCategoryHistory } from '../../../../review/category-correction.ts'
-import { parsePaginationInput } from '../../../../list-input.ts'
+import { parsePaginationInput } from '../../../../../../../server/pagination.ts'
 
 export default defineEventHandler(async (event) => {
   const id = feedbackParam(event, 'id')

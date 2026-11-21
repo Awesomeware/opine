@@ -453,6 +453,43 @@ test('category corrections are conflict-safe, audited once, and independent of a
   assert.equal((await getDatabase().select().from(feedbackNotification)).length, 0)
 })
 
+test('category history pages chronologically across timestamp ties without leaking another post', async () => {
+  const { manager, category, post } = await discussion()
+  const target = await createCategory({ name: 'Corrected category' })
+  const other = await createFeedbackPost({ authorId: manager.user.id, categoryId: category.id })
+  const ids = [1, 2, 3, 4, 5].map((id) => `00000000-0000-4000-8000-${String(id).padStart(12, '0')}`)
+  const times = [1, 1, 0, 2, 1]
+  await getDatabase()
+    .insert(feedbackCategoryChange)
+    .values(
+      ids.map((id, index) => ({
+        id,
+        postId: index === 4 ? other.id : post.id,
+        actorId: manager.user.id,
+        previousCategoryId: category.id,
+        categoryId: target.id,
+        createdAt: new Date(Date.UTC(2026, 0, 1, 0, times[index])),
+      })),
+    )
+
+  const first = await listCategoryHistory(post.id, { limit: 2 })
+  assert.deepEqual(
+    first.changes.map((change) => change.id),
+    [ids[2], ids[0]],
+  )
+  assert.ok(first.nextCursor)
+  const second = await listCategoryHistory(post.id, { limit: 2, cursor: cursor(first.nextCursor) })
+  assert.deepEqual(
+    second.changes.map((change) => change.id),
+    [ids[1], ids[3]],
+  )
+  assert.equal(second.nextCursor, null)
+  assert.deepEqual(
+    (await listCategoryHistory(other.id)).changes.map((change) => change.id),
+    [ids[4]],
+  )
+})
+
 test('discussion pages use one snapshot when publication commits between source reads', async () => {
   const { author, manager, post } = await discussion()
   const writer = new Client({ connectionString: databaseUrl })

@@ -65,7 +65,7 @@ layers/feedback/
     write-repository.ts      Actor creation serialization and limits from existing rows
     writes.ts                Shared transaction type, errors and configuration
     http.ts                  Authenticated HTTP boundary and error mapping
-    list-input.ts            Shared query validation and pagination
+    list-input.ts            Feedback filter validation
   shared/
     posts/                   Post/tag inputs and response contracts
     discussion/              Comment/reaction inputs, contribution types, feed contracts
@@ -92,6 +92,14 @@ Nuxt layers merge into a single application. They provide physical grouping, whi
 The local `layers/ui/` Nuxt layer owns reusable presentation: design tokens, global document defaults, and shared controls with colocated scoped CSS and stories. It is a shared dependency of feature layers and has no dependencies on product features, server code, authentication, or data fetching. The application shell remains in root `app/`. Feedback-specific components remain in the feedback layer, even when they have Storybook stories. See [UI development](ui.md) for the component and styling conventions.
 
 Storybook uses Vue/Vite to render the same components with deterministic props, slots, and events. It loads the UI layer's CSS directly, without starting Nuxt or PostgreSQL. Components intended for isolated stories import their Vue APIs and child components explicitly; application integration remains covered by Nuxt typechecking, builds, and browser journeys.
+
+## Server pagination
+
+Root [server/pagination.ts](../server/pagination.ts) owns timestamp/UUID cursors, HTTP page-size validation, cursor predicates and page-result construction. Feature parsers validate their own filters and pass only `cursor` and `limit` to `parsePaginationInput`. The shared module has no feature dependencies.
+
+Queries call `cursorCondition(table, cursor, 'asc' | 'desc')` alongside their filters, explicitly order by `createdAt` and `id` in that same direction, and fetch `limit + 1` rows. `paginateRows(rows, limit)` returns `items` and `nextCursor`; callers retain their endpoint's response names. A cursor describes an ordering position, not a snapshot or permission grant. Authorization, archive visibility, transactions, indexes and feature-specific joins stay with the query.
+
+The combined discussion feed keeps its bounded merge and snapshot transaction, using `cursorFor` on its last returned entry. HTTP requests default to 20 items and accept 1–50; internal reads may request additional rows for merging. Timestamp precision must match JavaScript's millisecond serialization. Keep these helpers as ordinary operations rather than a callback-driven query framework.
 
 ## Installation configuration
 

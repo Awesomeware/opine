@@ -1,18 +1,21 @@
-import { and, asc, eq, gt, isNull, or } from 'drizzle-orm'
+import { and, asc, eq, isNull } from 'drizzle-orm'
 import { getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import type { ContributionType } from '../../shared/discussion/contribution-types.ts'
-import { cursorFor, type PostCursor } from '../list-input.ts'
+import {
+  cursorCondition,
+  defaultPageSize,
+  cursorFor,
+  type Pagination,
+} from '../../../../server/pagination.ts'
 import { responseFields } from '../review/outcome.ts'
 import { feedbackOfficialResponse, feedbackPost } from '../schema.ts'
 import { FeedbackWriteError } from '../writes.ts'
 import { listComments } from './comments.ts'
 
-type Pagination = { cursor?: PostCursor; limit?: number }
-
 export async function listDiscussion(
   postId: string,
-  { cursor, limit = 20, type }: Pagination & { type?: ContributionType | 'team' } = {},
+  { cursor, limit = defaultPageSize, type }: Pagination & { type?: ContributionType | 'team' } = {},
   viewerId?: string,
 ) {
   // A cursor must not advance past comments committed between the two source reads.
@@ -37,17 +40,7 @@ export async function listDiscussion(
               .select(responseFields)
               .from(t)
               .innerJoin(user, eq(user.id, t.authorId))
-              .where(
-                and(
-                  eq(t.postId, postId),
-                  cursor
-                    ? or(
-                        gt(t.createdAt, new Date(cursor.createdAt)),
-                        and(eq(t.createdAt, new Date(cursor.createdAt)), gt(t.id, cursor.id)),
-                      )
-                    : undefined,
-                ),
-              )
+              .where(and(eq(t.postId, postId), cursorCondition(t, cursor, 'asc')))
               .orderBy(asc(t.createdAt), asc(t.id))
               .limit(limit + 1)
           : []

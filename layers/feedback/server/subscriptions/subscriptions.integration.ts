@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm'
 import { NodePgPreparedQuery } from 'drizzle-orm/node-postgres/session'
 import assert from 'node:assert/strict'
 import { after, afterEach, test } from 'node:test'
@@ -64,35 +65,61 @@ test('following accepts repeated assignments, inboxes stay private, and unfollow
     body: 'First response',
     version: 1,
   })
-  await publishResponse(manager.user.id, post.id, { body: 'Second response', version: 2 })
+  const secondResponse = await publishResponse(manager.user.id, post.id, {
+    body: 'Second response',
+    version: 2,
+  })
+  const thirdResponse = await publishResponse(manager.user.id, post.id, {
+    body: 'Third response',
+    version: 3,
+  })
+  const notificationIds = [1, 2, 3].map(
+    (id) => `00000000-0000-4000-8000-${String(id).padStart(12, '0')}`,
+  )
+  // Fix both sort keys: later responses tie on time, so UUID descending breaks the tie.
+  for (const [index, publication] of [response, secondResponse, thirdResponse].entries()) {
+    await getDatabase()
+      .update(feedbackNotification)
+      .set({
+        id: notificationIds[index],
+        createdAt: new Date(Date.UTC(2026, 0, 1, 0, index === 0 ? 0 : 1)),
+      })
+      .where(eq(feedbackNotification.responseId, publication.id))
+  }
   const first = await listNotifications(author.user.id, { limit: 1 })
   assert.equal(first.notifications.length, 1)
-  assert.equal(first.unreadCount, 2)
+  assert.equal(first.unreadCount, 3)
   assert.ok(first.nextCursor)
   const second = await listNotifications(author.user.id, {
     limit: 1,
     cursor: cursor(first.nextCursor),
   })
   assert.equal(second.notifications.length, 1)
-  assert.equal(second.nextCursor, null)
-  assert.notEqual(first.notifications[0]!.id, second.notifications[0]!.id)
-  assert.ok(
-    [...first.notifications, ...second.notifications].some((row) => row.responseId === response.id),
+  assert.ok(second.nextCursor)
+  const third = await listNotifications(author.user.id, {
+    limit: 1,
+    cursor: cursor(second.nextCursor),
+  })
+  assert.deepEqual(
+    [...first.notifications, ...second.notifications, ...third.notifications].map((row) => row.id),
+    [notificationIds[2], notificationIds[1], notificationIds[0]],
   )
+  assert.equal(third.notifications[0]!.responseId, response.id)
+  assert.equal(third.nextCursor, null)
   assert.equal((await listNotifications(outsider.user.id)).notifications.length, 0)
   const notificationId = first.notifications[0]!.id
   await assert.rejects(markNotificationRead(outsider.user.id, notificationId), status(404))
   await markNotificationRead(author.user.id, notificationId)
   await markNotificationRead(author.user.id, notificationId)
   const unread = await listNotifications(author.user.id, { unread: true })
-  assert.equal(unread.unreadCount, 1)
-  assert.equal(unread.notifications.length, 1)
+  assert.equal(unread.unreadCount, 2)
+  assert.equal(unread.notifications.length, 2)
   await setFollowing(author.user.id, post.id, false)
   await publishResponse(manager.user.id, post.id, {
-    body: 'Third response after unfollow',
-    version: 3,
+    body: 'Fourth response after unfollow',
+    version: 4,
   })
-  assert.equal((await listNotifications(author.user.id)).notifications.length, 2)
+  assert.equal((await listNotifications(author.user.id)).notifications.length, 3)
   assert.equal((await getOutcome(post.id, author.user.id))?.following, false)
 })
 

@@ -2,16 +2,14 @@ import {
   isContributionType,
   type ContributionType,
 } from '../shared/discussion/contribution-types.ts'
-import { isUuid } from '../shared/input.ts'
+import { parsePaginationInput, type PageCursor } from '../../../server/pagination.ts'
 import { isPostStatus, type PostStatus } from '../shared/status.ts'
-
-export type PostCursor = { createdAt: string; id: string }
 
 export type ListPostsInput = {
   q?: string
   category?: string
   status?: PostStatus
-  cursor?: PostCursor
+  cursor?: PageCursor
   limit: number
 }
 
@@ -49,60 +47,10 @@ export function parseListInput(
     : parsed
 }
 
-export function parsePaginationInput(
-  query: Record<string, unknown>,
-):
-  | { success: true; data: { cursor?: PostCursor; limit: number } }
-  | { success: false; message: string } {
-  if (
-    Object.keys(query).some(
-      (key) => !['cursor', 'limit'].includes(key) || typeof query[key] !== 'string',
-    )
-  )
-    return { success: false, message: 'Invalid pagination.' }
-  const limit = query.limit === undefined ? 20 : Number(query.limit)
-  if (
-    !Number.isInteger(limit) ||
-    limit < 1 ||
-    limit > 50 ||
-    (query.limit !== undefined && !/^\d+$/.test(String(query.limit)))
-  ) {
-    return { success: false, message: 'Page size must be between 1 and 50.' }
-  }
-  let cursor: PostCursor | undefined
-  if (query.cursor) {
-    try {
-      if (
-        typeof query.cursor !== 'string' ||
-        query.cursor.length > 256 ||
-        !/^[A-Za-z0-9_-]+$/.test(query.cursor)
-      )
-        throw new Error()
-      const decoded: unknown = JSON.parse(Buffer.from(query.cursor, 'base64url').toString('utf8'))
-      if (
-        !decoded ||
-        typeof decoded !== 'object' ||
-        !('id' in decoded) ||
-        !isUuid(decoded.id) ||
-        !('createdAt' in decoded) ||
-        typeof decoded.createdAt !== 'string' ||
-        !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(decoded.createdAt) ||
-        decoded.createdAt.startsWith('0000-') ||
-        new Date(decoded.createdAt).toISOString() !== decoded.createdAt
-      )
-        throw new Error()
-      cursor = { id: decoded.id, createdAt: decoded.createdAt }
-    } catch {
-      return { success: false, message: 'Invalid page cursor.' }
-    }
-  }
-  return { success: true as const, data: { cursor, limit } }
-}
-
 export function parseCommentListInput(
   query: Record<string, unknown>,
 ):
-  | { success: true; data: { cursor?: PostCursor; limit: number; type?: ContributionType } }
+  | { success: true; data: { cursor?: PageCursor; limit: number; type?: ContributionType } }
   | { success: false; message: string } {
   if (Object.keys(query).some((key) => !['cursor', 'limit', 'type'].includes(key)))
     return { success: false, message: 'Invalid discussion filters.' }
@@ -171,12 +119,4 @@ export function parseNotificationListInput(query: Record<string, unknown>) {
         data: { cursor: parsed.data.cursor, limit: parsed.data.limit, unread: unread === 'true' },
       }
     : parsed
-}
-
-export function cursorFor(row: { id: string; createdAt: Date } | undefined, more: boolean) {
-  return more && row
-    ? Buffer.from(JSON.stringify({ id: row.id, createdAt: row.createdAt.toISOString() })).toString(
-        'base64url',
-      )
-    : null
 }

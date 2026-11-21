@@ -1,10 +1,15 @@
-import { and, asc, eq, gt, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, eq, isNull, sql } from 'drizzle-orm'
 import { appendEvent } from '../../../../server/events/repository.ts'
 import { getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import type { ContributionType } from '../../shared/discussion/contribution-types.ts'
 import type { CommentEditInput, CommentInput } from '../../shared/discussion/input.ts'
-import { cursorFor, type PostCursor } from '../list-input.ts'
+import {
+  cursorCondition,
+  defaultPageSize,
+  paginateRows,
+  type Pagination,
+} from '../../../../server/pagination.ts'
 import { requirePost } from '../posts/workflow.ts'
 import { feedbackComment, feedbackOfficialResponse, feedbackPost } from '../schema.ts'
 import { lockActorCreations, enforceContributionLimit } from '../write-repository.ts'
@@ -126,11 +131,7 @@ export async function getComment(postId: string, commentId: string, viewerId?: s
 
 export async function listComments(
   postId: string,
-  {
-    cursor,
-    limit = 20,
-    type,
-  }: { cursor?: PostCursor; limit?: number; type?: ContributionType } = {},
+  { cursor, limit = defaultPageSize, type }: Pagination & { type?: ContributionType } = {},
   viewerId?: string,
   database: Pick<FeedbackTransaction, 'select'> = getDatabase(),
 ) {
@@ -139,7 +140,7 @@ export async function listComments(
     .from(feedbackPost)
     .where(and(eq(feedbackPost.id, postId), isNull(feedbackPost.archivedAt)))
   if (!posts.length) throw new FeedbackWriteError(404, 'Feedback not found.')
-  const comments = await database
+  const rows = await database
     .select(commentFields(viewerId))
     .from(feedbackComment)
     .innerJoin(user, eq(user.id, feedbackComment.authorId))
@@ -149,23 +150,11 @@ export async function listComments(
         eq(feedbackComment.postId, postId),
         isNull(feedbackPost.archivedAt),
         type ? eq(feedbackComment.type, type) : undefined,
-        cursor
-          ? or(
-              gt(feedbackComment.createdAt, new Date(cursor.createdAt)),
-              and(
-                eq(feedbackComment.createdAt, new Date(cursor.createdAt)),
-                gt(feedbackComment.id, cursor.id),
-              ),
-            )
-          : undefined,
+        cursorCondition(feedbackComment, cursor, 'asc'),
       ),
     )
     .orderBy(asc(feedbackComment.createdAt), asc(feedbackComment.id))
     .limit(limit + 1)
-  const page = comments.slice(0, limit)
-  const last = page.at(-1)
-  return {
-    comments: page,
-    nextCursor: cursorFor(last, comments.length > limit),
-  }
+  const { items: comments, nextCursor } = paginateRows(rows, limit)
+  return { comments, nextCursor }
 }

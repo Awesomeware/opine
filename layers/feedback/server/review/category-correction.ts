@@ -1,16 +1,19 @@
-import { and, asc, eq, gt, isNull, or } from 'drizzle-orm'
+import { and, asc, eq, isNull } from 'drizzle-orm'
 import { appendEvent } from '../../../../server/events/repository.ts'
 import { getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import type { CategoryCorrectionInput } from '../../shared/review/input.ts'
-import { cursorFor, type PostCursor } from '../list-input.ts'
+import {
+  cursorCondition,
+  defaultPageSize,
+  paginateRows,
+  type Pagination,
+} from '../../../../server/pagination.ts'
 import { findActiveCategory } from '../posts/categories.ts'
 import { lockPost, updatePostWorkflow } from '../posts/workflow.ts'
 import { feedbackCategoryChange, feedbackPost } from '../schema.ts'
 import { FeedbackWriteError } from '../writes.ts'
 import { checkWorkflowVersion } from './guards.ts'
-
-type Pagination = { cursor?: PostCursor; limit?: number }
 
 export async function correctCategory(
   actorId: string,
@@ -45,7 +48,10 @@ export async function correctCategory(
   })
 }
 
-export async function listCategoryHistory(postId: string, { cursor, limit = 20 }: Pagination = {}) {
+export async function listCategoryHistory(
+  postId: string,
+  { cursor, limit = defaultPageSize }: Pagination = {},
+) {
   const [post] = await getDatabase()
     .select({ id: feedbackPost.id })
     .from(feedbackPost)
@@ -65,19 +71,10 @@ export async function listCategoryHistory(postId: string, { cursor, limit = 20 }
     .innerJoin(user, eq(user.id, t.actorId))
     .innerJoin(feedbackPost, eq(feedbackPost.id, t.postId))
     .where(
-      and(
-        eq(t.postId, postId),
-        isNull(feedbackPost.archivedAt),
-        cursor
-          ? or(
-              gt(t.createdAt, new Date(cursor.createdAt)),
-              and(eq(t.createdAt, new Date(cursor.createdAt)), gt(t.id, cursor.id)),
-            )
-          : undefined,
-      ),
+      and(eq(t.postId, postId), isNull(feedbackPost.archivedAt), cursorCondition(t, cursor, 'asc')),
     )
     .orderBy(asc(t.createdAt), asc(t.id))
     .limit(limit + 1)
-  const changes = rows.slice(0, limit)
-  return { changes, nextCursor: cursorFor(changes.at(-1), rows.length > limit) }
+  const { items: changes, nextCursor } = paginateRows(rows, limit)
+  return { changes, nextCursor }
 }
