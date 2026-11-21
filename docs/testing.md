@@ -44,6 +44,12 @@ For the event log, verify mutation/event atomicity, typed metadata without text 
 
 Lightweight tests cover configuration files, missing or invalid settings, unsafe or credential-bearing community URLs, and Markdown rendering with raw HTML disabled. Browser checks use isolated configuration files with the built application to verify the configured name and link, public rules navigation, links from contribution forms, and rendered Markdown. Keep these checks in the existing application browser suite; configuration does not need another database suite or container.
 
+## Backup and restoration coverage
+
+The existing `database` suite exercises the operator backup and restore scripts against a fresh target database in its own container. Test-only PATH wrappers stream archives through the container's native PostgreSQL tools; the host needs Docker but no PostgreSQL client installation. Checks compare every application row and migration-history row, configuration and secret files, restored sessions/roles, and lock/archive application reads. They also cover private backup permissions, existing destinations, confirmation failures, occupied targets and failed-restore rollback. No additional suite or PostgreSQL container is created.
+
+The [restoration evidence](deployment.md#restoration-evidence) also records a successful production-server smoke rehearsal against a restored installation.
+
 ## Current coverage
 
 - Tags are covered within the existing feedback integration and application browser suites: catalog authorization, case-insensitive names, migration of existing posts, disabled assignments, atomic edits, ephemeral forms, catalog outages, lost replies, and persistence after restart. Reset/seed checks cover default tags and preservation of removed example assignments.
@@ -60,11 +66,11 @@ Migration checks share a small test-only helper for temporary database lifecycle
 
 ## Remaining release verification
 
-The checks below are planned release work, not completed coverage. Track them in [steps 8–9](TODO.md#8-complete-operational-readiness-and-retention):
+The checks below are planned release work, not completed coverage. Track them in [steps 9–10](TODO.md#9-verify-release-acceptance):
 
 - Accessibility: keyboard navigation, accessible names, focus, contrast, form errors and status identification across the release journeys, plus basic narrow-screen readability.
 - Deployment: a real Discord consent/sign-in, session reload and sign-out on the configured HTTPS origin, and operational errors that do not disclose private data.
-- Recovery: back up the database and installation configuration, restore into an isolated installation, and verify content, accounts, permissions and post lock/archive state. The existing database/application restart test does not prove backup restoration.
+- Recovery: repeat the documented restoration drill for the release installation and retain its evidence. The local restoration check above is complete; restart checks alone do not prove recovery.
 
 Run the full local checks and [pilot walkthrough](../journeys.md#pilot-walkthrough) on the release candidate and record the results. CI remains deferred; these checks still gate the public pilot.
 

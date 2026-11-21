@@ -74,6 +74,6 @@ The Nitro adapter overwrites the rate-limit IP header with the socket's remote a
 
 Run `pnpm test`, `pnpm test:integration`, and `pnpm test:e2e`. Tests use isolated PostgreSQL databases, generated test secrets, and dummy Discord credentials. Integration tests control Discord's token/profile responses; browser tests exercise the application with genuine seeded database sessions. No test login endpoint or production authentication bypass is installed.
 
-A real Discord consent round trip still requires an application registered with Discord and its credentials. Before deployment, verify sign-in, refresh, and sign-out on the configured public HTTPS origin.
+A real Discord consent round trip still requires an application registered with Discord and its credentials. Before a public pilot, verify sign-in, refresh, and sign-out on the configured public HTTPS origin; this final deployed check is tracked in [TODO #10](TODO.md#10-complete-final-deployment-and-retention-checks).
 
 References: [Better Auth Nuxt integration](https://better-auth.com/docs/integrations/nuxt), [Discord provider](https://better-auth.com/docs/authentication/discord), [sessions](https://better-auth.com/docs/concepts/session-management), [account linking](https://better-auth.com/docs/concepts/users-accounts#account-linking), and [rate limits](https://better-auth.com/docs/concepts/rate-limit).

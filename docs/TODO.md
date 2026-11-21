@@ -4,7 +4,7 @@ First milestone complete: **a player signs in with Discord, submits feedback, an
 
 Work through these steps individually. Each step should include its schema changes, UI, endpoints, and relevant tests. The [requirements](../requirements.md) define the release scope.
 
-The core feedback loop and steps 1–7 are implemented. The next work is **#8: operational readiness and retention**. Steps 8–9 are prerequisites for a public pilot; the license is required before publishing the repository. CI is explicitly deferred.
+The core feedback loop and steps 1–8 are implemented. The next work is **#9: release acceptance**. Steps 9–10 are prerequisites for a public pilot; the license is required before publishing the repository. CI is explicitly deferred.
 
 ## 1. Make local development reproducible
 
@@ -104,22 +104,27 @@ Completes V1-F28. [Community configuration](community.md) documents installation
 - [x] Surface that configuration in the relevant public views. Moderation-review contact and appeals UI are deferred.
 - [x] Document the complete installation configuration alongside the existing category, role and tag commands/UI. A full settings or branding editor is not required.
 
-## 8. Complete operational readiness and retention
+## 8. Complete deployment and recovery
 
-Completes the remaining operational work in V1-T01, T03, T09–T11 and T13.
+Covers deployment and recovery work in V1-T01, T03 and T09–T11. Final deployed checks and retention are in #10.
 
-- [ ] Document production installation, upgrades, HTTPS/proxy configuration and routine operation, building on the existing setup instructions.
-- [ ] Verify Discord sign-in, session reload and sign-out on the deployed HTTPS origin; automated provider fixtures do not replace this check.
-- [ ] Document backups of PostgreSQL and installation configuration, and the restoration procedure.
-- [ ] Perform and record a successful restoration into an isolated installation, verifying content, accounts, permissions and post lock/archive state. Restart persistence alone is not a restoration check.
-- [ ] Define and document an operator process for account deletion/anonymization requests that preserves contributions and explains attribution and retention. No self-service deletion UI is required.
-- [ ] Verify operational error reporting does not expose credentials or archived content.
+- [x] Document production installation, upgrades, HTTPS/proxy configuration and routine operation, building on the existing setup instructions.
+- [x] Document backups of PostgreSQL and installation configuration, and the restoration procedure. Provide `pnpm backup` and `pnpm restore` using PostgreSQL's native tools.
+- [x] Perform and record a successful restoration into an isolated installation, verifying content, accounts, permissions and post lock/archive state. See [restoration evidence](deployment.md#restoration-evidence). Restart persistence alone is not a restoration check.
 
 ## 9. Verify release acceptance
 
 - [ ] Complete keyboard, accessible-name, focus, contrast, error-state and non-color-only status checks against V1-U02–U05, including moderation screens and basic narrow-screen layout.
 - [ ] Run the full local validation set and the [pilot walkthrough](../journeys.md#pilot-walkthrough), including moderation and configuration journeys, on the release candidate.
-- [ ] Record deployment, accessibility and restoration evidence; resolve remaining gaps against [first-release acceptance](../requirements.md#first-release-acceptance) before a public pilot.
+- [ ] Record local validation, accessibility and restoration evidence against [first-release acceptance](../requirements.md#first-release-acceptance). Complete the final deployed checks and retention process in #10 before a public pilot.
+
+## 10. Complete final deployment and retention checks
+
+Deferred until after #9, but still required before a public pilot. Completes the remaining deployed checks and operator retention work, including V1-T13.
+
+- [ ] Verify Discord sign-in, session reload and sign-out on the deployed HTTPS origin; automated provider fixtures do not replace this check.
+- [ ] Verify operational error reporting does not expose credentials or archived content.
+- [ ] Define and document an operator process for account deletion/anonymization requests that preserves contributions and explains attribution and retention. No self-service deletion UI is required.
 
 ## Before publishing the repository
 

@@ -43,31 +43,35 @@ The server creates a shared database connection pool on first use and closes it 
 
 PostgreSQL data lives in the Compose-managed `postgres_data` volume. `docker compose stop` / `docker compose start --wait`, `docker compose restart`, and `docker compose down` / `docker compose up -d --wait` preserve it. After a restart, run `docker compose up -d --wait` to wait for readiness. **`docker compose down --volumes` deletes the local database permanently.** Use that only when intentionally resetting local data, then start PostgreSQL and reapply migrations. Do not change the PostgreSQL major version on an existing volume without a database upgrade or dump/restore.
 
+For production installation, HTTPS, upgrades and backup/restore commands, see [Deployment and recovery](docs/deployment.md).
+
 ## Commands
 
-| Command                      | Purpose                                                          |
-| ---------------------------- | ---------------------------------------------------------------- |
-| `pnpm dev`                   | Start the development server.                                    |
-| `pnpm lint`                  | Check JavaScript, TypeScript, and Vue script blocks with oxlint. |
-| `pnpm lint:fix`              | Apply automatic lint fixes.                                      |
-| `pnpm format`                | Format source files and documentation with oxfmt.                |
-| `pnpm format:check`          | Check formatting without modifying files.                        |
-| `pnpm typecheck`             | Check application, server, tests, and scripts.                   |
-| `pnpm test`                  | Run lightweight Node tests without Docker.                       |
-| `pnpm test:integration`      | Run isolated PostgreSQL integration suites.                      |
-| `pnpm test:e2e`              | Build and run isolated Playwright browser suites.                |
-| `pnpm storybook`             | Develop shared and feature UI at localhost:6006.                 |
-| `pnpm storybook:build`       | Build the static component catalog.                              |
-| `pnpm storybook:typecheck`   | Check stories independently of Nuxt auto-imports.                |
-| `pnpm test:ui`               | Build Storybook and run isolated component browser checks.       |
-| `pnpm feedback:category ...` | Configure category names, ordering, and availability.            |
-| `pnpm auth:role ...`         | Grant or revoke privileged roles as a database operator.         |
-| `pnpm layer:new <name>`      | Scaffold a local feature layer with Nuxt's built-in generator.   |
-| `pnpm build`                 | Build the SPA and Nitro server for production.                   |
-| `pnpm preview`               | Preview the production build locally.                            |
-| `pnpm db:generate`           | Generate SQL migrations after adding or changing the schema.     |
-| `pnpm db:migrate`            | Apply committed migrations using `DATABASE_URL`.                 |
-| `pnpm db:check`              | Check migration history consistency.                             |
+| Command                                               | Purpose                                                          |
+| ----------------------------------------------------- | ---------------------------------------------------------------- |
+| `pnpm dev`                                            | Start the development server.                                    |
+| `pnpm lint`                                           | Check JavaScript, TypeScript, and Vue script blocks with oxlint. |
+| `pnpm lint:fix`                                       | Apply automatic lint fixes.                                      |
+| `pnpm format`                                         | Format source files and documentation with oxfmt.                |
+| `pnpm format:check`                                   | Check formatting without modifying files.                        |
+| `pnpm typecheck`                                      | Check application, server, tests, and scripts.                   |
+| `pnpm test`                                           | Run lightweight Node tests without Docker.                       |
+| `pnpm test:integration`                               | Run isolated PostgreSQL integration suites.                      |
+| `pnpm test:e2e`                                       | Build and run isolated Playwright browser suites.                |
+| `pnpm storybook`                                      | Develop shared and feature UI at localhost:6006.                 |
+| `pnpm storybook:build`                                | Build the static component catalog.                              |
+| `pnpm storybook:typecheck`                            | Check stories independently of Nuxt auto-imports.                |
+| `pnpm test:ui`                                        | Build Storybook and run isolated component browser checks.       |
+| `pnpm feedback:category ...`                          | Configure category names, ordering, and availability.            |
+| `pnpm auth:role ...`                                  | Grant or revoke privileged roles as a database operator.         |
+| `pnpm layer:new <name>`                               | Scaffold a local feature layer with Nuxt's built-in generator.   |
+| `pnpm build`                                          | Build the SPA and Nitro server for production.                   |
+| `pnpm preview`                                        | Preview the production build locally.                            |
+| `pnpm db:generate`                                    | Generate SQL migrations after adding or changing the schema.     |
+| `pnpm db:migrate`                                     | Apply committed migrations using `DATABASE_URL`.                 |
+| `pnpm backup <installation-dir> <new-backup-dir>`     | Back up PostgreSQL and installation configuration.               |
+| `pnpm restore <backup-dir> --confirm <database-name>` | Restore into an empty PostgreSQL database.                       |
+| `pnpm db:check`                                       | Check migration history consistency.                             |
 
 Oxlint checks Vue script blocks; `pnpm typecheck` also checks Vue templates.
 
@@ -168,6 +172,6 @@ The tree includes planned feature locations; no empty feature layers are require
 
 The core feedback loop is implemented: proposals, typed contributions and filters, official responses and statuses, review queues, follows, notifications, and admin-defined author-selected tags. Agree / Disagree reactions remain secondary.
 
-CM lock/unlock and archive actions are implemented, with an internal application event log. Archived content disappears from application queries and notifications; no unarchive UI is included. Community configuration is also implemented through installation files with Markdown rules. Remaining release work covers production operation and backup restoration, the operator account-retention process, accessibility and release verification, and an open-source license before repository publication. Follow [steps 8–9 and the publication checklist](docs/TODO.md#8-complete-operational-readiness-and-retention) for the implementation sequence.
+CM lock/unlock and archive actions are implemented, with an internal application event log. Archived content disappears from application queries and notifications; no unarchive UI is included. Community configuration uses installation files with Markdown rules. Deployment documentation and backup/restore commands are complete, with a successful isolated restoration recorded. Remaining release work covers accessibility and release acceptance, real deployed sign-in and error-reporting checks, the operator account-retention process, and an open-source license before repository publication. Follow [steps 9–10 and the publication checklist](docs/TODO.md#9-verify-release-acceptance) for the implementation sequence.
 
 The [deferred features](requirements.md#explicitly-deferred) are outside this release, including reports, suspensions, moderation-history UI/appeals, individual contribution hiding, summaries/highlights, nested replies, tag filtering, duplicate handling, Discord bots and external notifications. CI remains deferred; local validation and release-readiness checks still apply.

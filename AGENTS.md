@@ -32,6 +32,7 @@ The app runs at <http://localhost:3000>. See [README.md](README.md) for setup de
 - `pnpm db:seed` — apply migrations and add repeatable example feedback without replacing existing content.
 - `pnpm db:reset --confirm <database-name>` — erase all application data and restore the default category; see [reset details](README.md#example-data-and-starting-over). Test resets only against disposable databases.
 - `pnpm db:migrate` — apply migrations to the database configured by `DATABASE_URL`.
+- `pnpm backup` / `pnpm restore` — back up installation files and PostgreSQL / restore into an empty database; see [deployment and recovery](docs/deployment.md). These commands use native PostgreSQL connection settings, not `DATABASE_URL`.
 
 ## Architecture
 

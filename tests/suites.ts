@@ -6,7 +6,11 @@ export const suites: Record<'integration' | 'e2e', TestSuite[]> = {
   integration: [
     {
       name: 'database',
-      files: ['server/db/db.integration.ts', 'server/db/example-data.integration.ts'],
+      files: [
+        'server/db/db.integration.ts',
+        'server/db/example-data.integration.ts',
+        'server/db/backup.integration.ts',
+      ],
     },
     { name: 'authentication', files: ['layers/auth/server/auth.integration.ts'] },
     {

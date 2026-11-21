@@ -88,6 +88,8 @@ async function runSuite(suite: TestSuite) {
       ...process.env,
       DATABASE_URL: databaseUrl,
       OPINE_TEST_DATABASE_URL: databaseUrl,
+      OPINE_TEST_POSTGRES_CONTAINER_ID: postgres.getId(),
+      OPINE_TEST_POSTGRES_USER: postgres.getUsername(),
       OPINE_TEST_SUITE_NAME: suite.name,
       BETTER_AUTH_URL: 'http://localhost:3000',
       BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),

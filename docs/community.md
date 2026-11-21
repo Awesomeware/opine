@@ -59,4 +59,4 @@ Public community settings complement the existing configuration paths:
 - [Tags](feedback.md#tags): administrators use **Tags** in the application navigation to create, rename, disable and re-enable the available tags.
 - [Posting limits](feedback.md#posting-limits) and [sign-in limits](authentication.md#sign-in-rate-limits): server-only environment settings tune creation and authentication limits.
 
-Keep installation environment files out of source control and include configuration in the operator's backup process. Production operation, backup restoration and account-retention procedures remain tracked in [TODO #8](TODO.md#8-complete-operational-readiness-and-retention).
+Keep installation environment files out of source control and include configuration in the operator's backup process. Follow [Deployment and recovery](deployment.md) for production operation and backup restoration. Account-retention procedures remain tracked in [TODO #10](TODO.md#10-complete-final-deployment-and-retention-checks).
