@@ -52,11 +52,11 @@ Migration checks share a small test-only helper for temporary database lifecycle
 
 The checks below are planned release work, not completed coverage. Track them in [steps 6–9](TODO.md#6-add-basic-moderation--next):
 
-- Moderation: private reports, CM-only actions and restricted reads, hide/restore behavior across public projections, suspension/restoration, and access to reasons and the external review contact.
-- Community configuration: public name, rules, community link and review contact appear in the intended views, including those available to suspended members.
+- Moderation: CM-only lock/unlock/archive actions, locked content remaining readable while writes are rejected, and archived posts and related content excluded from public/CM queries, direct links, notifications and unread counts. Verify no archive/lock alerts, no archived-post publication/fanout, and persistence without deleting content.
+- Community configuration: public name, rules and community link appear in the intended views.
 - Accessibility: keyboard navigation, accessible names, focus, contrast, form errors and status identification across the release journeys, plus basic narrow-screen readability.
 - Deployment: a real Discord consent/sign-in, session reload and sign-out on the configured HTTPS origin, and operational errors that do not disclose private data.
-- Recovery: back up the database and installation configuration, restore into an isolated installation, and verify content, accounts, permissions and moderation records. The existing database/application restart test does not prove backup restoration.
+- Recovery: back up the database and installation configuration, restore into an isolated installation, and verify content, accounts, permissions and post lock/archive state. The existing database/application restart test does not prove backup restoration.
 
 Run the full local checks and [pilot walkthrough](../journeys.md#pilot-walkthrough) on the release candidate and record the results. CI remains deferred; these checks still gate the public pilot.
 

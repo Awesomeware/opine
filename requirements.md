@@ -22,9 +22,9 @@ Implementation status and the agreed sequence live in [the implementation checkl
 ## Access and roles
 
 - V1-F01: Visitors shall be able to browse, search, and read public feedback, comments, and official responses without signing in.
-- V1-F02: Members shall sign in before posting, commenting, reacting to feedback, following feedback, or reporting content. Discord shall be the only enabled sign-in method in v1. Public contributions shall identify members by a display name.
+- V1-F02: Members shall sign in before posting, commenting, reacting to feedback, or following feedback. Discord shall be the only enabled sign-in method in v1. Public contributions shall identify members by a display name.
 - V1-F03: Support member, community manager, and administrator roles. An account may hold multiple roles; privileged accounts retain ordinary member capabilities.
-- V1-F04: Only community managers shall publish official responses, change feedback statuses, review reports, or moderate content and participation. Administrative access alone shall not confer these powers or make contributions official.
+- V1-F04: Only community managers shall publish official responses, change feedback statuses, or lock, unlock and archive feedback posts. Administrative access alone shall not confer these powers or make contributions official.
 
 ## Feedback and discussion
 
@@ -80,11 +80,11 @@ Each new ordinary contribution requires an explicit choice; there is no preselec
 ## Basic moderation and administration
 
 - V1-F23: The installation shall publish community rules distinguishing criticism and disagreement from prohibited conduct. Negative sentiment alone shall not justify moderation.
-- V1-F24: Members shall be able to report a post or comment with a reason, including official responses. Community managers shall have a private report queue and record an outcome and explanation when resolving a report. Report details shall not be public.
-- V1-F25: Community managers shall be able to hide or restore posts and comments, including official responses, and suspend or restore an account's ability to participate. Suspended accounts shall retain read access and access to moderation reasons and the review contact.
-- V1-F26: Moderation actions shall retain actor, time, target, action, and reason. Hidden content shall leave a visible moderation notice. Hiding a post shall also restrict its discussion; hidden text shall not remain available through public links, search, or notifications. The featured response shall always be the latest visible official response. Only community managers shall be able to inspect restricted content and private reports.
-- V1-F27: Affected members shall be able to see the moderation reason and a configured external contact for requesting review. A dedicated appeals workflow is outside v1.
-- V1-F28: Administrators shall have a documented way to grant and revoke community-manager and administrator roles. Installation configuration shall provide the public name, categories, rules, community link, and moderation-review contact. A full settings or branding editor is not required.
+- V1-F24: Community managers shall be able to lock and unlock whole feedback posts. A locked post remains readable and displays a Locked indicator. While locked, reject post/comment edits, new comments, reaction changes, official response/status publication and category corrections, including attempts by privileged users. Following/unfollowing and reading notifications remain available. A CM may unlock the post to resume participation or archive it.
+- V1-F25: Community managers shall be able to archive a whole feedback post by setting `archived_at`. Preserve its stored content and related records, but exclude the post and all of its related content from application reads and writes, including public and CM views. There is no archive browser or unarchive UI in this release.
+- V1-F26: Archived posts shall be absent from lists, search, CM queues, direct links, discussions, official-response/outcome/reaction reads, notifications and unread counts. Direct links shall return the normal unavailable/not-found result, without exposing archived titles or text. Archived posts shall not generate follower notifications; existing notification rows remain stored but are excluded from visible inboxes and counts. Lock/unlock/archive actions shall not generate follower alerts.
+- V1-F27: Initial moderation shall operate on whole posts only. Reports, private report queues, individual comment/official-response hiding, account suspension, moderation reasons/action history, and appeals are deferred. No additional moderation tables are required for this scope.
+- V1-F28: Administrators shall have a documented way to grant and revoke community-manager and administrator roles. Installation configuration shall provide the public name, categories, rules and community link. A full settings or branding editor is not required; moderation-review contact is deferred with appeals.
 
 - V1-F29: Administrators shall define the available post tags, initially Gameplay, UI, Class-specific, Combat, and $$$ (money/cash shop). Authors may select zero or more tags when creating or editing their own posts. Tags supplement the required category and appear on public list and detail views. Administrators may create, rename, disable, and re-enable tags; disabling prevents new selections while preserving existing assignments. Authors may retain or remove disabled tags already assigned to their post. Tag-only edits use the same edit marker and conflict version as text edits. Tag management does not grant permission to edit another author’s post.
 
@@ -103,15 +103,15 @@ The approved image replaces the earlier simplified visual target. The original [
 ## Technical and operational baseline
 
 - V1-T01: Publish the source under an open-source license and document installation, configuration, upgrades, and routine operation for a single-community deployment.
-- V1-T02: Enforce authorization for every protected read and write, including history, moderation records, role changes, and notifications.
+- V1-T02: Enforce authorization for every protected read and write, including category history, lock/archive actions, role changes, and notifications.
 - V1-T03: Validate user input and render it without executing embedded active content. Protect sign-in and sessions, and support encrypted transport in deployment.
-- V1-T04: Apply configurable limits to sign-in attempts, post creation, commenting, official publication, and reports. Post creation allows one successful post per member per 60 seconds by default; creation limits use existing stored content. Edit, reaction, and follow operations do not require separate request-history counters.
+- V1-T04: Apply configurable limits to sign-in attempts, post creation, commenting, and official publication. Post creation allows one successful post per member per 60 seconds by default; creation limits use existing stored content. Edit, reaction, and follow operations do not require separate request-history counters.
 - V1-T05: Mutations shall not retry automatically. After an uncertain response, the interface shall advise checking saved content before submitting again. Post cooldowns and edit/workflow versions prevent immediate duplicate posts and stale edits; repeated unversioned creates may produce duplicates. Reactions, follows, and read markers set the requested state without replay records.
 - V1-T06: Concurrent edits and status updates shall detect conflicts before silently overwriting another user's change.
-- V1-T07: Current content, edit markers and versions, accounts, roles, reactions, statuses, follows, notifications, and moderation records shall persist across service restarts.
+- V1-T07: Current content, edit markers and versions, accounts, roles, reactions, statuses, follows, notifications, and post lock/archive state shall persist across service restarts.
 - V1-T08: Lists, discussions, audit records, and work queues shall load in bounded pages or batches.
 - V1-T09: Document backup and restoration of all persistent records and installation configuration. Verify recovery of a working installation through a documented restoration check before release.
-- V1-T10: Record operational errors without exposing credentials, private report details, or restricted content.
+- V1-T10: Record operational errors without exposing credentials or archived content.
 - V1-T11: Keep private account information out of public profiles, contributions, and history. Document account deletion, attribution, and retention behavior, including how an operator handles deletion requests; a self-service deletion interface is not required in v1.
 - V1-T12: Use Nuxt and TypeScript for a client-rendered SPA (`ssr: false`) and Nitro server endpoints in one Node application deployment. Access PostgreSQL only from server code, using Drizzle and reviewed, committed SQL migrations. Authentication callbacks and sessions shall run on the server under the same origin as the SPA.
 - V1-T13: Use Better Auth with its Drizzle adapter for PostgreSQL and database-backed sessions. Enable its built-in Discord provider as the only v1 sign-in method. Use internal Opine user IDs for authorship, roles, and participation history, with external provider identities linked to those users. Retain Better Auth's extension path for future OAuth/OIDC providers or custom authentication plugins without changing feedback ownership or Opine's authorization model. Future account linking shall require explicit authenticated proof of ownership rather than automatic matching by name or email. A Daybreak integration depends on a supported identity interface supplied by that team and is not part of v1.
@@ -123,7 +123,8 @@ These are possible later additions, not a committed roadmap:
 - Community curators, separate volunteer moderator permissions, maintained summaries, source-linked summary points, and highlights.
 - Nested replies, separate conversation threads, and manually featured responses. Typed contributions and discussion filters are included in v1.
 - Tag-based filtering, automatic similar-post suggestions, related or duplicate links, merged counts, and moving discussions.
-- Formal curation and moderation appeals with dedicated review records and interfaces.
+- Reports and private report queues, individual comment/official-response hiding and restoration, account suspensions, moderation reasons/action history, and appeals/review-contact workflows.
+- An archive browser and unarchive UI. Archiving retains data but removes it from application views.
 - Assignments, internal notes, saved queues, analytics, popularity feeds, and per-manager read tracking.
 - Discord bots, automatic cross-posting, conversation imports, and notifications outside the application. Discord sign-in is included in v1.
 - Additional sign-in providers, including a potential Daybreak integration, and an account-linking interface. The identity model and authentication tooling shall allow these to be added later.
@@ -138,4 +139,4 @@ CI automation is also deferred for now. This does not waive the local validation
 
 A player can find or submit feedback; another player can choose a contribution type and add context, a different view, a suggestion, or a question. Readers can filter those contributions and find official responses without scanning the entire discussion. A CM can acknowledge the feedback and respond with a visible status and explanation, and followers can see the response and eventual outcome. Agree / Disagree remains available without driving ranking or obscuring substantive contributions. This works without a curator. Basic moderation, access controls, accessibility, and a successful backup restoration are part of release readiness.
 
-Before a public pilot, the installation must also provide community rules and the configured review contact, private reporting and moderation reasons, consistent restrictions on hidden content, and suspension that preserves read access. Complete the installation configuration, operator retention process, production sign-in checks and accessibility verification. Record a successful backup restoration, rather than treating a service restart as proof of recovery. Choose and add the open-source license before publishing the repository.
+Before a public pilot, provide CM lock/unlock and archive controls with consistent server enforcement across content, direct links, work queues and notifications. Complete community configuration and rules, the operator retention process, production sign-in checks and accessibility verification. Record a successful backup restoration, rather than treating a service restart as proof of recovery. Choose and add the open-source license before publishing the repository. The broader moderation features listed above are not prerequisites for this initial release.

@@ -84,23 +84,23 @@ Discussion filters organize one flat discussion. See [deferred work](#deferred-a
 
 ## 6. Add basic moderation — next
 
-Implements V1-F23–F27 and the report limits in V1-T04. Review the schema and visibility rules before implementing them; this checklist does not choose a schema.
+Initial moderation is limited to CM lock/unlock and archive actions on whole feedback posts. The proposed schema is two nullable timestamps on `feedback_post`: `locked_at` and `archived_at`. Review these semantics before implementation; no report, suspension or moderation-history tables are planned.
 
-- [ ] Propose report, content-visibility, participation-suspension and moderation-action storage, including who can read each record.
-- [ ] Publish community rules distinguishing criticism and disagreement from prohibited conduct, using the configuration in #7.
-- [ ] Let members report posts, ordinary comments and official responses with a reason; enforce report limits and keep reports private.
-- [ ] Add the CM report queue with an outcome and explanation when resolving reports.
-- [ ] Let CMs hide/restore posts, comments and official responses, and suspend/restore participation while retaining read access.
-- [ ] Record each moderation action's actor, time, target, action and reason; show affected members the reason and external review contact.
-- [ ] Apply visibility consistently to lists, search, direct links, discussions, featured official responses and notifications. Hidden posts restrict their discussion; public views show a moderation notice instead of hidden text.
-- [ ] Test CM-only restricted access, administrator-only denial, report privacy, suspension, restoration and visibility across every affected read path.
+- [ ] Add CM lock/unlock controls and a visible Locked indicator. Locked posts remain readable; block post/comment edits, new comments, reaction changes, official publication/status changes and category corrections until unlocked. Following/unfollowing and reading notifications remain available for locked posts.
+- [ ] Add a CM archive action that sets `archived_at`, retaining the stored post and its related records. Archiving also makes all related content inaccessible through the application.
+- [ ] Exclude archived posts from public lists/search, direct links, discussion/comment/response reads, outcome/reaction reads, CM review queues, notifications and unread counts. Direct links return the usual unavailable/not-found result, including for CMs. Do not add an archive browser or unarchive UI.
+- [ ] Reject application writes to archived posts and their content, and prevent official-response notification fanout for archived posts. Lock/unlock/archive actions themselves do not notify followers.
+- [ ] Keep these actions in the existing feedback review capability. Reuse post locking and ordinary transaction-taking operations to serialize content writes with lock/archive decisions; retain request-time CM authorization.
+- [ ] Test CM-only actions, administrator-only denial, locked write rejection and unlocking, archive visibility across all affected reads, notification suppression, persistence and preservation of stored content.
+
+Reports, individual comment/response hiding, account suspension, moderation reasons/history and appeals are deferred beyond this initial release scope.
 
 ## 7. Complete community configuration
 
 Completes V1-F28. Categories, privileged-role management and tags already have supported management paths.
 
-- [ ] Provide documented configuration for the public name, community rules, community link and moderation-review contact.
-- [ ] Surface that configuration in the relevant public and moderation views, including access for suspended members.
+- [ ] Provide documented configuration for the public name, community rules and community link.
+- [ ] Surface that configuration in the relevant public views. Moderation-review contact and appeals UI are deferred.
 - [ ] Document the complete installation configuration alongside the existing category, role and tag commands/UI. A full settings or branding editor is not required.
 
 ## 8. Complete operational readiness and retention
@@ -110,9 +110,9 @@ Completes the remaining operational work in V1-T01, T03, T09–T11 and T13.
 - [ ] Document production installation, upgrades, HTTPS/proxy configuration and routine operation, building on the existing setup instructions.
 - [ ] Verify Discord sign-in, session reload and sign-out on the deployed HTTPS origin; automated provider fixtures do not replace this check.
 - [ ] Document backups of PostgreSQL and installation configuration, and the restoration procedure.
-- [ ] Perform and record a successful restoration into an isolated installation, verifying content, accounts, permissions and moderation records. Restart persistence alone is not a restoration check.
+- [ ] Perform and record a successful restoration into an isolated installation, verifying content, accounts, permissions and post lock/archive state. Restart persistence alone is not a restoration check.
 - [ ] Define and document an operator process for account deletion/anonymization requests that preserves contributions and explains attribution and retention. No self-service deletion UI is required.
-- [ ] Verify operational error reporting does not expose credentials, private reports or restricted content.
+- [ ] Verify operational error reporting does not expose credentials or archived content.
 
 ## 9. Verify release acceptance
 
@@ -130,7 +130,8 @@ The canonical product exclusions are in [Explicitly deferred](../requirements.md
 
 - Summaries, curated highlights, curator roles, nested replies and separate threads.
 - Tag filtering, duplicate suggestions/merging, related feedback, popularity rankings and advanced queue tools.
-- Formal appeals UI, additional identity providers, Discord bots/imports/cross-posting, and email/push/Discord notifications.
+- Reports/private report queues, individual contribution hiding/restoration, account suspensions, moderation reasons/action history, appeals/review contact and an unarchive UI.
+- Additional identity providers, Discord bots/imports/cross-posting, and email/push/Discord notifications.
 - Attachments, rich text, profile/branding editors, application-level exports and multi-community hosting.
 - Bug-report diagnostics, persisted drafts/offline replay, a separate mobile redesign and self-service account deletion.
 
