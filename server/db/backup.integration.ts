@@ -132,6 +132,7 @@ test('operator backup restores configuration, all records and working identities
     const restoredEnvironment = parse(await readFile(join(restoredInstallation, '.env')))
     assert.deepEqual(readCommunity(join(restoredInstallation, 'config')), {
       name: 'Restored community',
+      footerDisclaimer: '',
       url: 'https://example.test/',
       rulesHtml: '<h1>Our rules</h1>\n<p>Criticism is welcome.</p>\n',
     })
