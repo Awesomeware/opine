@@ -67,17 +67,17 @@ async function acceptConflict() {
         />
         Available for new selections
       </label>
-      <UiButton type="submit" :busy="busy" :disabled="conflict || refreshing || !!refreshError">
+      <Button type="submit" :busy="busy" :disabled="conflict || refreshing || !!refreshError">
         Save tag
-      </UiButton>
+      </Button>
     </form>
     <p v-if="message" :id="`tag-${tag.id}-message`" role="status">{{ message }}</p>
     <p v-if="refreshError" role="alert">
       {{ refreshError }}
-      <UiButton :busy="refreshing" @click="loadLatest">Retry latest tag</UiButton>
+      <Button :busy="refreshing" @click="loadLatest">Retry latest tag</Button>
     </p>
     <div v-if="conflict">
-      <UiButton type="button" :busy="refreshing" @click="loadLatest">Load latest tag</UiButton>
+      <Button type="button" :busy="refreshing" @click="loadLatest">Load latest tag</Button>
       <div v-if="latest">
         <p>
           Latest:
@@ -85,9 +85,9 @@ async function acceptConflict() {
           {{ latest.name }} — {{ latest.isActive ? 'Available' : 'Inactive' }}
         </p>
         <p v-if="!latest.icon">No icon.</p>
-        <UiButton type="button" :disabled="refreshing" @click="acceptConflict">
+        <Button type="button" :disabled="refreshing" @click="acceptConflict">
           I’ve reviewed the latest tag
-        </UiButton>
+        </Button>
       </div>
     </div>
   </section>

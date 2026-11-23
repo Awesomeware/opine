@@ -24,7 +24,7 @@ watch(
     <header class="site-header">
       <div class="identity">
         <NuxtLink class="brand" to="/feedback" aria-label="Opine home">
-          <UiBrand />
+          <Brand />
         </NuxtLink>
         <span v-if="community" class="community-name">{{ community.name }}</span>
       </div>
@@ -43,7 +43,7 @@ watch(
       </p>
       <p v-if="communityError" role="alert">
         Unable to load community settings.
-        <UiButton variant="quiet" @click="refreshCommunity()">Retry community settings</UiButton>
+        <Button variant="quiet" @click="refreshCommunity()">Retry community settings</Button>
       </p>
     </footer>
   </div>

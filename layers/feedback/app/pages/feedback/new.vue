@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
-import UiButton from '../../../../ui/app/components/UiButton.vue'
+import Button from '../../../../ui/app/components/Button.vue'
 import FeedbackTagPicker from '../../posts/components/FeedbackTagPicker.vue'
-import UiNotice from '../../../../ui/app/components/UiNotice.vue'
+import Notice from '../../../../ui/app/components/Notice.vue'
 import { useFeedbackSubmission } from '../../posts/composables/useFeedbackSubmission'
 import { postLimits } from '../../../shared/posts/input'
 
@@ -27,7 +27,7 @@ const {
   retrySession,
   clearTags,
 } = submission
-const errorSummary = ref<InstanceType<typeof UiNotice> | null>(null)
+const errorSummary = ref<InstanceType<typeof Notice> | null>(null)
 
 async function publish() {
   const id = await submission.publish()
@@ -57,7 +57,7 @@ async function publish() {
       </NuxtLink>
       before posting.
     </p>
-    <UiNotice v-if="message" ref="errorSummary" role="alert" tabindex="-1">{{ message }}</UiNotice>
+    <Notice v-if="message" ref="errorSummary" role="alert" tabindex="-1">{{ message }}</Notice>
     <p v-if="route.query.signIn" role="alert">
       Sign-in was cancelled or could not be completed. You can try again.
     </p>
@@ -65,14 +65,14 @@ async function publish() {
     <div v-else-if="session.error" class="panel empty-state">
       <h2>Unable to check your session</h2>
       <p>Retry to continue posting.</p>
-      <UiButton type="button" :busy="busy" @click="retrySession">Retry posting session</UiButton>
+      <Button type="button" :busy="busy" @click="retrySession">Retry posting session</Button>
     </div>
     <div v-else-if="!session.data" class="panel empty-state">
       <h2>Share feedback for the game</h2>
       <p>Sign in with Discord to share feedback.</p>
-      <UiButton variant="primary" type="button" :busy="busy" @click="signIn">
+      <Button variant="primary" type="button" :busy="busy" @click="signIn">
         Sign in with Discord to post
-      </UiButton>
+      </Button>
     </div>
     <form v-else class="panel feedback-form" novalidate @submit.prevent="publish">
       <p class="field-help">
@@ -136,7 +136,7 @@ async function publish() {
         <p v-if="categoriesPending" role="status">Loading categories…</p>
         <div v-else-if="categoriesError" role="alert">
           <p>Unable to load categories.</p>
-          <UiButton type="button" @click="refresh()">Retry categories</UiButton>
+          <Button type="button" @click="refresh()">Retry categories</Button>
         </div>
         <select
           id="post-category"
@@ -162,10 +162,10 @@ async function publish() {
         <p v-if="tagsPending" role="status">Loading tags…</p>
         <p v-else-if="tagsError" role="alert">
           Unable to load tags. Your selections are preserved; clear them to submit without tags.
-          <UiButton type="button" @click="refreshTags()">Retry tags</UiButton>
-          <UiButton v-if="form.tagIds.length" type="button" :disabled="busy" @click="clearTags">
+          <Button type="button" @click="refreshTags()">Retry tags</Button>
+          <Button v-if="form.tagIds.length" type="button" :disabled="busy" @click="clearTags">
             Clear selected tags
-          </UiButton>
+          </Button>
         </p>
         <FeedbackTagPicker
           v-else
@@ -177,14 +177,14 @@ async function publish() {
         />
       </div>
       <div class="form-actions">
-        <UiButton
+        <Button
           type="submit"
           variant="primary"
           :busy="busy"
           :disabled="busy || categoriesPending || !!categoriesError || !categories.length"
         >
           {{ busy ? 'Submitting…' : 'Submit feedback' }}
-        </UiButton>
+        </Button>
         <NuxtLink to="/feedback">Back to feedback</NuxtLink>
       </div>
       <p class="field-help">Your feedback and display name will be public.</p>

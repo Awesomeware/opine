@@ -65,11 +65,11 @@ async function loadMore() {
       <input v-model="filters.followUp" type="checkbox" aria-describedby="follow-up-help" />
       Needs follow-up
     </label>
-    <UiButton type="submit">Apply queue filters</UiButton>
+    <Button type="submit">Apply queue filters</Button>
   </form>
   <p v-if="categoryError" role="alert">
     {{ categoryError }}
-    <UiButton :busy="categoriesLoading" @click="loadCategories">Retry categories</UiButton>
+    <Button :busy="categoriesLoading" @click="loadCategories">Retry categories</Button>
   </p>
   <p id="follow-up-help" class="field-help">
     Needs follow-up shows member comments since the latest official response. Select All statuses to
@@ -77,7 +77,7 @@ async function loadMore() {
   </p>
   <p v-if="error" role="alert">
     {{ error }}
-    <UiButton type="button" @click="load()">Retry queue</UiButton>
+    <Button type="button" @click="load()">Retry queue</Button>
   </p>
   <p v-if="loading" role="status">Loading queue…</p>
   <p v-else-if="loaded && !posts.length" role="status">
@@ -93,7 +93,7 @@ async function loadMore() {
       <p>{{ post.excerpt }}</p>
     </li>
   </ol>
-  <UiButton v-if="cursor" type="button" :busy="loading" @click="loadMore">
+  <Button v-if="cursor" type="button" :busy="loading" @click="loadMore">
     Load more review items
-  </UiButton>
+  </Button>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue'
-import UiNotice from '../../../../ui/app/components/UiNotice.vue'
-import UiButton from '../../../../ui/app/components/UiButton.vue'
+import Notice from '../../../../ui/app/components/Notice.vue'
+import Button from '../../../../ui/app/components/Button.vue'
 import FeedbackText from '../../components/FeedbackText.vue'
 import FeedbackTags from './FeedbackTags.vue'
 import FeedbackTagPicker from './FeedbackTagPicker.vue'
@@ -36,7 +36,7 @@ const {
 } = editor
 
 const titleInput = ref<HTMLInputElement | null>(null)
-const errorSummary = ref<InstanceType<typeof UiNotice> | null>(null)
+const errorSummary = ref<InstanceType<typeof Notice> | null>(null)
 
 onMounted(() => titleInput.value?.focus())
 
@@ -57,8 +57,8 @@ async function save() {
 </script>
 <template>
   <form class="panel feedback-form" novalidate @submit.prevent="save">
-    <UiButton v-if="expired" type="button" @click="signIn">Sign in again</UiButton>
-    <UiNotice v-if="message" ref="errorSummary" role="alert" tabindex="-1">{{ message }}</UiNotice>
+    <Button v-if="expired" type="button" @click="signIn">Sign in again</Button>
+    <Notice v-if="message" ref="errorSummary" role="alert" tabindex="-1">{{ message }}</Notice>
     <div class="field">
       <label :for="`${endpoint}-title`">Title</label>
       <input
@@ -103,10 +103,10 @@ async function save() {
       <p v-if="tagsPending" role="status">Loading tags…</p>
       <p v-else-if="tagsError" role="alert">
         Unable to load tags. Existing selections are preserved.
-        <UiButton type="button" @click="refreshTags()">Retry tags</UiButton>
-        <UiButton v-if="form.tagIds.length" type="button" :disabled="busy" @click="clearTags">
+        <Button type="button" @click="refreshTags()">Retry tags</Button>
+        <Button v-if="form.tagIds.length" type="button" :disabled="busy" @click="clearTags">
           Clear selected tags
-        </UiButton>
+        </Button>
       </p>
       <FeedbackTagPicker
         v-else
@@ -132,9 +132,7 @@ async function save() {
     </p>
     <p v-if="latestError" role="alert">{{ latestError }}</p>
     <div v-if="conflict">
-      <UiButton type="button" :busy="loadingLatest" @click="loadLatest">
-        Load latest version
-      </UiButton>
+      <Button type="button" :busy="loadingLatest" @click="loadLatest">Load latest version</Button>
       <div v-if="latest" class="latest">
         <h3>Latest saved content</h3>
         <strong>{{ latest.title }}</strong>
@@ -143,14 +141,14 @@ async function save() {
         <p>Latest tags</p>
         <FeedbackTags :tags="latest.tags ?? []" />
         <p v-if="!latest.tags?.length">No tags</p>
-        <UiButton type="button" @click="reviewLatest">I’ve reviewed the latest version</UiButton>
+        <Button type="button" @click="reviewLatest">I’ve reviewed the latest version</Button>
       </div>
     </div>
     <div class="form-actions">
-      <UiButton type="submit" :busy="busy" :disabled="busy || conflict">
+      <Button type="submit" :busy="busy" :disabled="busy || conflict">
         {{ saving ? 'Saving…' : 'Save changes' }}
-      </UiButton>
-      <UiButton type="button" :busy="busy" @click="emit('cancel')">Cancel edit</UiButton>
+      </Button>
+      <Button type="button" :busy="busy" @click="emit('cancel')">Cancel edit</Button>
     </div>
   </form>
 </template>

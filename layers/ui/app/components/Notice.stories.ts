@@ -1,16 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import UiNotice from './UiNotice.vue'
+import Notice from './Notice.vue'
 
 const meta = {
   title: 'UI/Notice',
-  component: UiNotice,
+  component: Notice,
   render: (args) => ({
-    components: { UiNotice },
+    components: { Notice },
     setup: () => ({ args }),
-    template:
-      '<UiNotice v-bind="args" role="alert">Please check the highlighted fields.</UiNotice>',
+    template: '<Notice v-bind="args" role="alert">Please check the highlighted fields.</Notice>',
   }),
-} satisfies Meta<typeof UiNotice>
+} satisfies Meta<typeof Notice>
 export default meta
 
 type Story = StoryObj<typeof meta>

@@ -146,17 +146,17 @@ async function loadMore() {
           </option>
         </select>
       </div>
-      <UiButton type="submit">Apply filters</UiButton>
+      <Button type="submit">Apply filters</Button>
     </form>
     <p v-if="categoriesError" role="alert">
       Categories could not be loaded. You can still search feedback.
     </p>
     <p class="list-caption">Newest feedback first</p>
     <p v-if="pending" role="status">Loading feedback…</p>
-    <UiNotice v-else-if="error" as="div" role="alert">
+    <Notice v-else-if="error" as="div" role="alert">
       <p>Unable to load feedback. Please try again.</p>
-      <UiButton type="button" @click="refresh()">Retry</UiButton>
-    </UiNotice>
+      <Button type="button" @click="refresh()">Retry</Button>
+    </Notice>
     <template v-else>
       <div v-if="!posts.length" class="panel empty-state">
         <h2>No feedback found</h2>
@@ -174,9 +174,9 @@ async function loadMore() {
       </ol>
       <p v-if="moreError" role="alert">{{ moreError }}</p>
       <div v-if="nextCursor" class="load-more">
-        <UiButton type="button" :busy="loadingMore" @click="loadMore">
+        <Button type="button" :busy="loadingMore" @click="loadMore">
           {{ loadingMore ? 'Loading…' : 'Load more feedback' }}
-        </UiButton>
+        </Button>
       </div>
     </template>
   </main>

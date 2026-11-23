@@ -67,7 +67,7 @@ function categorySaved() {
         <strong class="category-name">{{ categoryName }}</strong>
         <p v-if="error" role="alert">
           {{ error }}
-          <UiButton variant="quiet" @click="load">Retry outcome</UiButton>
+          <Button variant="quiet" @click="load">Retry outcome</Button>
         </p>
         <template v-if="outcome">
           <h2>Current status</h2>
@@ -86,7 +86,7 @@ function categorySaved() {
           >
             Why this status?
           </NuxtLink>
-          <UiButton
+          <Button
             v-if="owner"
             variant="primary"
             :busy="followBusy"
@@ -94,7 +94,7 @@ function categorySaved() {
             @click="follow({ following: !outcome.following })"
           >
             {{ outcome.following ? 'Unfollow updates' : 'Follow updates' }}
-          </UiButton>
+          </Button>
           <p class="follow-help">
             {{
               owner
@@ -169,9 +169,9 @@ function categorySaved() {
             </div>
             <div v-if="conflict">
               <p v-if="reviewError" role="alert">{{ reviewError }}</p>
-              <UiButton type="button" :busy="reviewing" @click="loadLatest">
+              <Button type="button" :busy="reviewing" @click="loadLatest">
                 Load latest outcome
-              </UiButton>
+              </Button>
               <div v-if="latest">
                 <p>Current status: {{ statusLabels[latest.status] }}</p>
                 <FeedbackOfficialResponse
@@ -183,14 +183,14 @@ function categorySaved() {
                     <NuxtLink :to="href">Response link</NuxtLink>
                   </template>
                 </FeedbackOfficialResponse>
-                <UiButton type="button" @click="reviewLatest">
+                <Button type="button" @click="reviewLatest">
                   I’ve reviewed the latest outcome
-                </UiButton>
+                </Button>
               </div>
             </div>
-            <UiButton variant="primary" type="submit" :busy="busy" :disabled="busy || conflict">
+            <Button variant="primary" type="submit" :busy="busy" :disabled="busy || conflict">
               {{ busy ? 'Publishing…' : 'Publish official response' }}
-            </UiButton>
+            </Button>
           </form>
         </details>
         <FeedbackCategoryCorrection

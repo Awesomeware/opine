@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import UiBadge from '../../../../ui/app/components/UiBadge.vue'
+import Badge from '../../../../ui/app/components/Badge.vue'
 import { statusLabels, type PostStatus } from '../../../shared/status'
 
 defineProps<{ status: PostStatus }>()
@@ -14,4 +14,4 @@ const tones = {
 } as const
 </script>
 
-<template><UiBadge :tone="tones[status]">{{ statusLabels[status] }}</UiBadge></template>
+<template><Badge :tone="tones[status]">{{ statusLabels[status] }}</Badge></template>

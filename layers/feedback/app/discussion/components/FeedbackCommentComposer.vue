@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
-import UiNotice from '../../../../ui/app/components/UiNotice.vue'
+import Notice from '../../../../ui/app/components/Notice.vue'
 import { useCommentComposer } from '../composables/useCommentComposer'
 
 const props = defineProps<{ postId: string; owner: string | null; refresh: () => Promise<void> }>()
@@ -8,7 +8,7 @@ const { body, type, busy, message, fieldErrors, expired, signIn, submitComment }
   useCommentComposer(props, props.refresh)
 const commentInput = ref<HTMLTextAreaElement | null>(null)
 
-const errorSummary = ref<InstanceType<typeof UiNotice> | null>(null)
+const errorSummary = ref<InstanceType<typeof Notice> | null>(null)
 
 async function submit() {
   await submitComment()
@@ -25,8 +25,8 @@ function focus() {
 defineExpose({ focus })
 </script>
 <template>
-  <UiButton v-if="expired" type="button" @click="signIn">Sign in again</UiButton>
-  <UiNotice v-if="message" ref="errorSummary" role="alert" tabindex="-1">{{ message }}</UiNotice>
+  <Button v-if="expired" type="button" @click="signIn">Sign in again</Button>
+  <Notice v-if="message" ref="errorSummary" role="alert" tabindex="-1">{{ message }}</Notice>
   <form v-if="owner" class="comment-form" novalidate @submit.prevent="submit">
     <h3>Add a contribution</h3>
     <FeedbackContributionType
@@ -62,12 +62,12 @@ defineExpose({ focus })
       </NuxtLink>
       before contributing.
     </p>
-    <UiButton variant="primary" type="submit" :busy="busy" :disabled="busy">
+    <Button variant="primary" type="submit" :busy="busy" :disabled="busy">
       {{ busy ? 'Submitting…' : 'Submit comment' }}
-    </UiButton>
+    </Button>
   </form>
   <p v-else>
-    <UiButton type="button" @click="signIn">Sign in with Discord to participate</UiButton>
+    <Button type="button" @click="signIn">Sign in with Discord to participate</Button>
   </p>
 </template>
 <style scoped>

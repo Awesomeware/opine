@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import type { PostLockResult } from '../../../shared/review/contracts'
 import { nextTick, onMounted, ref, useId } from 'vue'
-import UiButton from '../../../../ui/app/components/UiButton.vue'
+import Button from '../../../../ui/app/components/Button.vue'
 import { usePostModeration } from '../composables/usePostModeration'
 
 const props = defineProps<{ postId: string; lockedAt: string | null; autofocus?: boolean }>()
 const emit = defineEmits<{ locked: [result: PostLockResult]; archived: []; focused: [] }>()
 const confirmingArchive = ref(false)
 const confirmationId = useId()
-const lockButton = ref<InstanceType<typeof UiButton> | null>(null)
-const archiveButton = ref<InstanceType<typeof UiButton> | null>(null)
-const confirmButton = ref<InstanceType<typeof UiButton> | null>(null)
+const lockButton = ref<InstanceType<typeof Button> | null>(null)
+const archiveButton = ref<InstanceType<typeof Button> | null>(null)
+const confirmButton = ref<InstanceType<typeof Button> | null>(null)
 
 const { busy, error, setLocked, archive } = usePostModeration(
   props.postId,
@@ -49,10 +49,10 @@ async function cancelArchive() {
       }}
     </p>
     <div class="actions">
-      <UiButton ref="lockButton" :disabled="busy" @click="setLocked(!lockedAt)">
+      <Button ref="lockButton" :disabled="busy" @click="setLocked(!lockedAt)">
         {{ lockedAt ? 'Unlock feedback' : 'Lock feedback' }}
-      </UiButton>
-      <UiButton
+      </Button>
+      <Button
         ref="archiveButton"
         :disabled="busy"
         :aria-expanded="confirmingArchive"
@@ -60,7 +60,7 @@ async function cancelArchive() {
         @click="showArchiveConfirmation"
       >
         Archive feedback
-      </UiButton>
+      </Button>
     </div>
     <div v-show="confirmingArchive" :id="confirmationId" class="confirmation">
       <p :id="`${confirmationId}-description`">
@@ -68,7 +68,7 @@ async function cancelArchive() {
         community managers. There is no restore option in the app.
       </p>
       <div class="actions">
-        <UiButton
+        <Button
           ref="confirmButton"
           :aria-describedby="`${confirmationId}-description`"
           :busy="busy"
@@ -76,8 +76,8 @@ async function cancelArchive() {
           @click="archive"
         >
           Confirm archive
-        </UiButton>
-        <UiButton :disabled="busy" variant="quiet" @click="cancelArchive">Cancel</UiButton>
+        </Button>
+        <Button :disabled="busy" variant="quiet" @click="cancelArchive">Cancel</Button>
       </div>
     </div>
     <p v-if="error" role="alert">{{ error }}</p>

@@ -1,16 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import UiButton from './UiButton.vue'
+import Button from './Button.vue'
 
 const meta = {
   title: 'UI/Button',
-  component: UiButton,
+  component: Button,
   args: { variant: 'default', type: 'button', disabled: false, busy: false },
   render: (args) => ({
-    components: { UiButton },
+    components: { Button },
     setup: () => ({ args }),
-    template: '<UiButton v-bind="args">Save changes</UiButton>',
+    template: '<Button v-bind="args">Save changes</Button>',
   }),
-} satisfies Meta<typeof UiButton>
+} satisfies Meta<typeof Button>
 export default meta
 
 type Story = StoryObj<typeof meta>
@@ -24,8 +24,8 @@ export const DisabledHighlight: Story = { args: { hoverHighlight: true, disabled
 export const Tab: Story = {
   args: { variant: 'tab' },
   render: (args) => ({
-    components: { UiButton },
+    components: { Button },
     setup: () => ({ args }),
-    template: '<UiButton v-bind="args" aria-pressed="true">All contributions</UiButton>',
+    template: '<Button v-bind="args" aria-pressed="true">All contributions</Button>',
   }),
 }

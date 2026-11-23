@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
-import UiButton from '../../../../ui/app/components/UiButton.vue'
+import Button from '../../../../ui/app/components/Button.vue'
 import { useFeedbackInbox } from '../composables/useFeedbackInbox'
 import { statusLabels } from '../../../shared/status'
 
@@ -20,8 +20,8 @@ const {
   mark,
 } = useFeedbackInbox()
 
-const unreadFilter = ref<InstanceType<typeof UiButton> | null>(null)
-const allFilter = ref<InstanceType<typeof UiButton> | null>(null)
+const unreadFilter = ref<InstanceType<typeof Button> | null>(null)
+const allFilter = ref<InstanceType<typeof Button> | null>(null)
 
 async function markRead(id: string) {
   await mark(id)
@@ -56,16 +56,16 @@ async function loadMore() {
     {{ unreadCount }} unread notifications. Only official responses trigger notifications.
   </p>
   <nav aria-label="Filter notifications">
-    <UiButton ref="unreadFilter" type="button" :aria-pressed="unread" @click="unread = true">
+    <Button ref="unreadFilter" type="button" :aria-pressed="unread" @click="unread = true">
       Unread
-    </UiButton>
-    <UiButton ref="allFilter" type="button" :aria-pressed="!unread" @click="unread = false">
+    </Button>
+    <Button ref="allFilter" type="button" :aria-pressed="!unread" @click="unread = false">
       All notifications
-    </UiButton>
+    </Button>
   </nav>
   <p v-if="error" role="alert">
     {{ error }}
-    <UiButton type="button" @click="load()">Retry notifications</UiButton>
+    <Button type="button" @click="load()">Retry notifications</Button>
   </p>
   <p v-if="markError" role="alert">{{ markError }}</p>
   <p v-if="loading" role="status">Loading notifications…</p>
@@ -98,7 +98,7 @@ async function loadMore() {
         {{ new Date(notification.createdAt).toLocaleString() }}
       </time>
       <p v-if="notification.readAt">Read</p>
-      <UiButton
+      <Button
         v-else
         type="button"
         :busy="marking"
@@ -106,10 +106,10 @@ async function loadMore() {
         @click="markRead(notification.id)"
       >
         Mark as read
-      </UiButton>
+      </Button>
     </li>
   </ol>
-  <UiButton v-if="cursor" type="button" :busy="loading" @click="loadMore">
+  <Button v-if="cursor" type="button" :busy="loading" @click="loadMore">
     Load more notifications
-  </UiButton>
+  </Button>
 </template>

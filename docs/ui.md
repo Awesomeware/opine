@@ -29,16 +29,16 @@ layers/ui/
     tokens.css
     base.css
   app/components/
-    UiButton.vue
-    UiButton.stories.ts
-    UiBadge.vue
-    UiBadge.stories.ts
-    UiNotice.vue
-    UiNotice.stories.ts
-    UiBrand.vue
-    UiBrand.stories.ts
-    UiIcon.vue
-    UiIcon.stories.ts
+    Button.vue
+    Button.stories.ts
+    Badge.vue
+    Badge.stories.ts
+    Notice.vue
+    Notice.stories.ts
+    Brand.vue
+    Brand.stories.ts
+    Icon.vue
+    Icon.stories.ts
 layers/feedback/app/
   components/
     FeedbackText.vue
@@ -70,7 +70,7 @@ layers/feedback/app/
 
 Native checkbox/radio controls have their own restrained defaults; full-width text-field rules must not apply to them. Contribution selectors may keep their intentional overlay styling local.
 
-Use `<UiButton hover-highlight>` for the same subtle background hover treatment
+Use `<Button hover-highlight>` for the same subtle background hover treatment
 used by quiet actions and discussion filters; it does not add gold text or borders.
 Native radio labels can reuse its `ui-hover-highlight` class, as contribution types
 do, without replacing radio semantics with buttons. The treatment uses shared theme
@@ -97,17 +97,17 @@ color pairs meet the contrast thresholds below.
 
 ## Components
 
-Buttons, status badges, and notices now use `UiButton`, `UiBadge`, and `UiNotice` in the application. `UiButton` defaults to `type="button"`; form actions must explicitly use `type="submit"`. Set `busy` for an operation in progress and `disabled` for an unavailable action. A notice does not announce itself automatically: its caller chooses `role="status"` or `role="alert"` when appropriate.
+Buttons, status badges, and notices now use `Button`, `Badge`, and `Notice` in the application. `Button` defaults to `type="button"`; form actions must explicitly use `type="submit"`. Set `busy` for an operation in progress and `disabled` for an unavailable action. A notice does not announce itself automatically: its caller chooses `role="status"` or `role="alert"` when appropriate.
 
-The [approved visual direction](design/README.md) now drives the shared theme, application shell, feedback list, and discussion. `UiBrand` owns the SVG wordmark; `UiIcon` provides the small decorative symbols used by actions and contribution types. `UiButton` supports primary, quiet, and underline-style filter variants; filter buttons retain `aria-pressed` rather than claiming tab semantics. `FeedbackStatusBadge` owns the mapping from domain statuses to generic badge tones.
+The [approved visual direction](design/README.md) now drives the shared theme, application shell, feedback list, and discussion. `Brand` owns the SVG wordmark; `Icon` provides the small decorative symbols used by actions and contribution types. `Button` supports primary, quiet, and underline-style filter variants; filter buttons retain `aria-pressed` rather than claiming tab semantics. `FeedbackStatusBadge` owns the mapping from domain statuses to generic badge tones.
 
 `FeedbackPostRow` and `FeedbackOfficialResponse` render from props. Their link slots let the application provide `NuxtLink` while standalone stories use ordinary anchors. Preserve client-side navigation when using these components in Nuxt so local editor and pagination state survives. `FeedbackOutcome` composes its proposal slot, status/follow sidebar, latest response, and manager disclosures; `FeedbackReactions` owns the reaction controls and pending state near the proposal.
 
 Root `app/assets/css/main.css` owns application page/form layout. Shared native form controls, field help/errors, and button foundations belong to the UI layer and load in both Nuxt and Storybook. Shell and feature presentation stays scoped to its owner. Do not load the application stylesheet in Storybook to hide an undeclared component dependency.
 
-`UiBadge` supports the default rounded shape and `shape="pill"`, with an optional plain-text `icon` (usually an emoji). Icons are decorative and hidden from assistive technology; the slot supplies the visible, accessible label. The component owns badge spacing, borders and colors using shared theme tokens. Storybook includes status tones, a text-only pill and a pill with an icon.
+`Badge` supports the default rounded shape and `shape="pill"`, with an optional plain-text `icon` (usually an emoji). Icons are decorative and hidden from assistive technology; the slot supplies the visible, accessible label. The component owns badge spacing, borders and colors using shared theme tokens. Storybook includes status tones, a text-only pill and a pill with an icon.
 
-`FeedbackTagPicker` uses native checkboxes with no default selection. It can retain disabled tags already assigned to a post and expose unavailable saved selections for removal. `FeedbackTags` renders a list of non-interactive `UiBadge` pills beneath list-row titles and on the proposal, distinct from status badges and discussion filters. Both accept data through props and have isolated stories.
+`FeedbackTagPicker` uses native checkboxes with no default selection. It can retain disabled tags already assigned to a post and expose unavailable saved selections for removal. `FeedbackTags` renders a list of non-interactive `Badge` pills beneath list-row titles and on the proposal, distinct from status badges and discussion filters. Both accept data through props and have isolated stories.
 
 ## Accessibility
 
@@ -115,7 +115,7 @@ Use native HTML first. Follow the [W3C page structure](https://www.w3.org/WAI/tu
 
 - Each page has one `<main id="main-content" tabindex="-1">`, a descriptive title, and an `h1`. Keep heading levels meaningful within sections. The shell owns the header, footer, labeled navigation, English document language and first-focusable skip link. Use real links for navigation and buttons for actions; never make a clickable `div` imitate a button.
 - Use explicit labels, native `required` attributes, and `fieldset`/`legend` for related choices. Associate help and errors through `aria-describedby`; set `aria-invalid` when validation fails. Keep entered values after validation errors and focus the error summary or invalid field. Custom validation forms use `novalidate` so the application can present its complete error summary.
-- Keep native keyboard behavior and visible focus. Do not add positive `tabindex` values. Open inline editors at their primary input and return focus when they close. If a refreshed list removes the focused row, move focus to a stable nearby heading or filter. `UiButton` and `UiNotice` expose `focus()` for this purpose; components own focus, not API composables.
+- Keep native keyboard behavior and visible focus. Do not add positive `tabindex` values. Open inline editors at their primary input and return focus when they close. If a refreshed list removes the focused row, move focus to a stable nearby heading or filter. `Button` and `Notice` expose `focus()` for this purpose; components own focus, not API composables.
 - On a pathname change, focus the new main content after rendering. The main container is a navigation target without a page-sized outline; controls, skip links and error summaries retain visible focus. Query/filter changes retain focus on the initiating control. Keep `NuxtRouteAnnouncer` for page-title announcements; it does not move focus. See [Nuxt accessibility](https://nuxt.com/docs/4.x/guide/best-practices/accessibility).
 - Prefer native `details`/`summary` for disclosures. Custom disclosure buttons expose `aria-expanded` and `aria-controls`. The archive confirmation is inline content, not a modal dialog: preserve normal tab order and return focus on cancellation.
 - Use `role="status"` for concise asynchronous progress/results and `role="alert"` for errors requiring attention. Do not make whole discussions live regions. Keep visual labels for status, official responses and selected actions; color and decorative icons alone cannot convey those states. Filter/reaction buttons use `aria-pressed`; native radios and checkboxes expose their own state.

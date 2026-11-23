@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import FeedbackText from '../../components/FeedbackText.vue'
 import { nextTick, ref } from 'vue'
-import UiButton from '../../../../ui/app/components/UiButton.vue'
+import Button from '../../../../ui/app/components/Button.vue'
 import type { FeedbackComment } from '../../../shared/discussion/contracts'
 import { contributionLabels } from '../../../shared/discussion/contribution-types'
 import FeedbackCommentEditor from './FeedbackCommentEditor.vue'
@@ -17,7 +17,7 @@ const emit = defineEmits<{ saved: [] }>()
 const route = useRoute()
 const postId = props.comment.postId
 const editing = ref(false)
-const editButton = ref<InstanceType<typeof UiButton> | null>(null)
+const editButton = ref<InstanceType<typeof Button> | null>(null)
 
 async function closeEditor() {
   editing.value = false
@@ -78,7 +78,7 @@ function saved() {
       >
         Comment link
       </NuxtLink>
-      <UiButton
+      <Button
         ref="editButton"
         variant="quiet"
         v-if="comment.canEdit && owner && !editing"
@@ -86,7 +86,7 @@ function saved() {
         @click="editing = true"
       >
         Edit comment
-      </UiButton>
+      </Button>
     </div>
   </article>
 </template>

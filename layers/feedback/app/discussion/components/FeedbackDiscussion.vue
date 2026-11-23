@@ -83,10 +83,10 @@ defineExpose({ refresh: retryComments, focusComposer })
   <section class="participation" aria-labelledby="comments-heading">
     <h2 id="comments-heading" ref="heading" tabindex="-1">Community contributions</h2>
     <nav class="discussion-filters" aria-label="Filter contributions">
-      <UiButton variant="tab" type="button" :aria-pressed="!filter" @click="selectFilter()">
+      <Button variant="tab" type="button" :aria-pressed="!filter" @click="selectFilter()">
         All
-      </UiButton>
-      <UiButton
+      </Button>
+      <Button
         variant="tab"
         v-for="kind in contributionTypes"
         :key="kind"
@@ -95,20 +95,20 @@ defineExpose({ refresh: retryComments, focusComposer })
         @click="selectFilter(kind)"
       >
         {{ contributionFilterLabels[kind] }}
-      </UiButton>
-      <UiButton
+      </Button>
+      <Button
         variant="tab"
         type="button"
         :aria-pressed="filter === 'team'"
         @click="selectFilter('team')"
       >
         Official responses
-      </UiButton>
+      </Button>
     </nav>
     <p class="field-help">Oldest first. Context, questions, and differing views are welcome.</p>
     <p v-if="error || targetError" role="alert">
       {{ error || targetError }}
-      <UiButton type="button" @click="retryComments">Retry comments</UiButton>
+      <Button type="button" @click="retryComments">Retry comments</Button>
     </p>
     <p v-if="loading" role="status">Loading comments…</p>
     <p v-else-if="loaded && !entries.length" role="status">
@@ -147,9 +147,9 @@ defineExpose({ refresh: retryComments, focusComposer })
         />
       </template>
     </div>
-    <UiButton v-if="nextCursor" type="button" :busy="loading" :disabled="loading" @click="loadMore">
+    <Button v-if="nextCursor" type="button" :busy="loading" :disabled="loading" @click="loadMore">
       Load more comments
-    </UiButton>
+    </Button>
     <FeedbackCommentComposer
       v-if="!locked"
       ref="composer"

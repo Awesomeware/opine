@@ -5,7 +5,7 @@ import FeedbackReactions from '../../discussion/components/FeedbackReactions.vue
 import FeedbackTags from '../../posts/components/FeedbackTags.vue'
 import FeedbackText from '../../components/FeedbackText.vue'
 import { computed, nextTick, ref, watch } from 'vue'
-import UiButton from '../../../../ui/app/components/UiButton.vue'
+import Button from '../../../../ui/app/components/Button.vue'
 import FeedbackPostEditor from '../../posts/components/FeedbackPostEditor.vue'
 import { authClient } from '../../../../auth/app/auth-client'
 import type { PostLockResult } from '../../../shared/review/contracts'
@@ -16,7 +16,7 @@ const session = authClient.useSession()
 const owner = computed(() => session.value.data?.user.id ?? null)
 
 const editing = ref(false)
-const editButton = ref<InstanceType<typeof UiButton> | null>(null)
+const editButton = ref<InstanceType<typeof Button> | null>(null)
 // Lock changes remount the overview to clear forms; return to the replacement control.
 const focusModeration = ref(false)
 const discussion = ref<{ refresh: () => Promise<void>; focusComposer: () => void } | null>(null)
@@ -83,7 +83,7 @@ async function copyLink() {
       <template v-else>
         <h1>Unable to load feedback</h1>
         <p>Please try again.</p>
-        <UiButton type="button" @click="refresh()">Retry</UiButton>
+        <Button type="button" @click="refresh()">Retry</Button>
       </template>
     </div>
     <FeedbackOutcome
@@ -137,18 +137,18 @@ async function copyLink() {
             :owner="owner"
             @contribute="discussion?.focusComposer()"
           >
-            <UiButton variant="quiet" @click="copyLink">
-              <UiIcon name="link" />
+            <Button variant="quiet" @click="copyLink">
+              <Icon name="link" />
               Copy link
-            </UiButton>
-            <UiButton
+            </Button>
+            <Button
               ref="editButton"
               v-if="post.canEdit && owner && !editing"
               variant="quiet"
               @click="editing = true"
             >
               Edit feedback
-            </UiButton>
+            </Button>
           </FeedbackReactions>
           <p v-if="shareMessage" role="status" class="share-message">{{ shareMessage }}</p>
         </article>

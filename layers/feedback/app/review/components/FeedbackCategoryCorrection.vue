@@ -61,7 +61,7 @@ async function loadMore() {
     <form class="feedback-form" @submit.prevent="save()">
       <p v-if="categoriesError" role="alert">
         {{ categoriesError }}
-        <UiButton :busy="categoriesLoading" @click="loadCategories">Retry categories</UiButton>
+        <Button :busy="categoriesLoading" @click="loadCategories">Retry categories</Button>
       </p>
       <div class="field">
         <label for="correct-category">Corrected category</label>
@@ -79,9 +79,7 @@ async function loadMore() {
       <p v-if="message" role="alert">{{ message }}</p>
       <div v-if="conflict">
         <p v-if="reviewError" role="alert">{{ reviewError }}</p>
-        <UiButton type="button" :busy="reviewing" @click="review">
-          Review category conflict
-        </UiButton>
+        <Button type="button" :busy="reviewing" @click="review">Review category conflict</Button>
         <div v-if="latest">
           <p>Current category: {{ latestCategory }}</p>
           <FeedbackOfficialResponse
@@ -91,19 +89,17 @@ async function loadMore() {
           >
             <template #link="{ href }"><NuxtLink :to="href">Response link</NuxtLink></template>
           </FeedbackOfficialResponse>
-          <UiButton type="button" @click="acceptConflict">
-            I’ve reviewed the category conflict
-          </UiButton>
+          <Button type="button" @click="acceptConflict">I’ve reviewed the category conflict</Button>
         </div>
       </div>
-      <UiButton type="submit" :busy="busy" :disabled="busy || conflict">
+      <Button type="submit" :busy="busy" :disabled="busy || conflict">
         Save category correction
-      </UiButton>
+      </Button>
     </form>
     <h3>Category history</h3>
     <p v-if="historyError" role="alert">
       {{ historyError }}
-      <UiButton @click="loadHistory()">Retry category history</UiButton>
+      <Button @click="loadHistory()">Retry category history</Button>
     </p>
     <p v-if="!changes.length">No category corrections.</p>
     <ol ref="items">
@@ -112,7 +108,7 @@ async function loadMore() {
         {{ change.actor.name }} · {{ new Date(change.createdAt).toLocaleString() }}
       </li>
     </ol>
-    <UiButton
+    <Button
       v-if="cursor"
       type="button"
       :busy="loadingHistory"
@@ -120,7 +116,7 @@ async function loadMore() {
       @click="loadMore"
     >
       Load more category history
-    </UiButton>
+    </Button>
   </details>
 </template>
 <style scoped>

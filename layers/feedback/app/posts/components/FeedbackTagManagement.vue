@@ -9,7 +9,7 @@ const { tags, ready, allowed, loading, error, createError, name, icon, busy, loa
 <template>
   <p v-if="error" role="alert">
     {{ error }}
-    <UiButton type="button" :busy="loading" @click="load">Reload tags</UiButton>
+    <Button type="button" :busy="loading" @click="load">Reload tags</Button>
   </p>
   <p v-if="createError" id="new-tag-error" role="alert">{{ createError }}</p>
   <p v-if="loading" role="status">Loading tags…</p>
@@ -42,7 +42,7 @@ const { tags, ready, allowed, loading, error, createError, name, icon, busy, loa
         />
         <p id="new-tag-icon-help" class="help">Use an emoji, or leave blank for no icon.</p>
       </div>
-      <UiButton type="submit" :busy="busy" variant="primary">Create tag</UiButton>
+      <Button type="submit" :busy="busy" variant="primary">Create tag</Button>
     </form>
     <div class="tag-list">
       <FeedbackTagAdminRow

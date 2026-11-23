@@ -20,40 +20,40 @@ const {
   <section class="reactions" aria-label="Reactions">
     <div class="actions">
       <template v-if="reactions">
-        <UiButton
+        <Button
           variant="quiet"
           :aria-pressed="reactions.mine === 'agree'"
           :busy="reacting"
           :disabled="!owner || locked"
           @click="react('agree')"
         >
-          <UiIcon name="agree" />
+          <Icon name="agree" />
           Agree
           <span>{{ reactions.agree }}</span>
-        </UiButton>
-        <UiButton
+        </Button>
+        <Button
           variant="quiet"
           :aria-pressed="reactions.mine === 'disagree'"
           :busy="reacting"
           :disabled="!owner || locked"
           @click="react('disagree')"
         >
-          <UiIcon name="disagree" />
+          <Icon name="disagree" />
           Disagree
           <span>{{ reactions.disagree }}</span>
-        </UiButton>
+        </Button>
       </template>
       <slot />
     </div>
     <p v-if="readError" role="alert">
       {{ readError }}
-      <UiButton variant="quiet" @click="loadReactions">Reload reactions</UiButton>
+      <Button variant="quiet" @click="loadReactions">Reload reactions</Button>
     </p>
     <p v-if="writeError" role="alert">{{ writeError }}</p>
-    <UiButton v-if="expired" variant="quiet" @click="signIn">Sign in again</UiButton>
+    <Button v-if="expired" variant="quiet" @click="signIn">Sign in again</Button>
     <p v-if="explain && owner && !locked" class="invitation">
       Want to expand on that?
-      <UiButton variant="quiet" @click="emit('contribute')">Add a comment</UiButton>
+      <Button variant="quiet" @click="emit('contribute')">Add a comment</Button>
     </p>
   </section>
 </template>

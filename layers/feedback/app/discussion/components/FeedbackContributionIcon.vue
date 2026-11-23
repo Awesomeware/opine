@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import UiIcon from '../../../../ui/app/components/UiIcon.vue'
+import Icon from '../../../../ui/app/components/Icon.vue'
 import type { ContributionType } from '../../../shared/discussion/contribution-types'
 
 defineProps<{ type: ContributionType }>()
@@ -12,4 +12,4 @@ const icons = {
 } as const
 </script>
 
-<template><UiIcon :name="icons[type]" /></template>
+<template><Icon :name="icons[type]" /></template>
