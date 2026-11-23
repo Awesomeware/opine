@@ -16,3 +16,15 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {}
 export const Review: Story = { args: { tone: 'review' } }
 export const Complete: Story = { args: { tone: 'complete' } }
+export const Pill: Story = {
+  args: { shape: 'pill' },
+  render: (args) => ({
+    components: { UiBadge },
+    setup: () => ({ args }),
+    template: '<UiBadge v-bind="args">Gameplay</UiBadge>',
+  }),
+}
+export const PillWithIcon: Story = {
+  ...Pill,
+  args: { shape: 'pill', icon: '🕹️' },
+}

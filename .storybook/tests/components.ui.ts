@@ -202,12 +202,25 @@ test('optional tags allow zero or multiple independent selections with native ke
   await expect(inactive).not.toBeChecked()
 })
 
+test('pill badges support decorative icons and text-only labels', async ({ page }) => {
+  await page.goto(story('ui-badge--pill-with-icon'))
+  const badge = page.locator('.ui-badge')
+  await expect(badge).toBeVisible()
+  await expect(badge).toHaveCSS('border-radius', '999px')
+  await expect(badge.locator('[aria-hidden="true"]')).toHaveText('🕹️')
+  await expect(badge).toMatchAriaSnapshot('- text: Gameplay')
+
+  await page.goto(story('ui-badge--pill'))
+  await expect(badge).toHaveText('Gameplay')
+  await expect(badge.locator('[aria-hidden="true"]')).toHaveCount(0)
+})
+
 test('public tags render as descriptive labels rather than interactive filters', async ({
   page,
 }) => {
   await page.goto(story('feedback-tags--default'))
   const tags = page.getByRole('list', { name: 'Tags', exact: true })
-  await expect(tags.getByRole('listitem')).toHaveText(['🕹️Gameplay', 'UI'])
+  await expect(tags.getByRole('listitem')).toHaveText([/🕹️\s*Gameplay/, 'UI'])
   await expect(tags.locator('[aria-hidden="true"]')).toHaveText('🕹️')
   await expect(tags).toMatchAriaSnapshot(`
     - list "Tags":
