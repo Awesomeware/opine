@@ -38,7 +38,9 @@ The database blocks external connections (`ipAllowList: []`). The application co
 
 `autoDeployTrigger: checksPass` selects **After CI Checks Pass**. Render waits for checks on new commits; zero detected checks or a failed check prevents automatic deployment. GitHub checks marked skipped or neutral count as passing, so keep our `Verify` job unconditional. Manual deployment is a separate path: verify the selected commit's CI before deploying manually. Observe an actual successful hosted run and the deployed revision; local validation does not prove that integration. See [Render's CI integration](https://render.com/docs/deploys#integrating-with-ci).
 
-The deployment sequence is image build, migrations, then application startup. Render's [pre-deploy command](https://render.com/docs/deploys#pre-deploy-command) runs separately with the service environment; failure stops deployment. The previous application may still serve requests while migrations run. Keep schema changes compatible with it, or arrange a maintenance window and stop writes. Redeploying an earlier commit does not undo database changes; follow the [migration guide](migrations.md).
+The deployment sequence is image build, migrations, then application startup. Render's [pre-deploy command](https://render.com/docs/deploys#pre-deploy-command) runs separately with the service environment; failure stops deployment. The previous application may still serve requests while migrations run. Keep schema changes compatible with it, or arrange a maintenance window and stop writes. The category-removal migration drops category tables and the post category column. Stop the old application for this upgrade: its queries are incompatible with the new schema. It preserves posts and tag assignments but does not convert old categories to tags or reset example content.
+
+Redeploying an earlier commit does not undo database changes; follow the [migration guide](migrations.md).
 
 `/api/ready` checks database connectivity. Render's [health checks](https://render.com/docs/health-checks) gate new deployments and continue checking running instances, restarting unhealthy ones. Configure failure notifications and external uptime monitoring as well. Verify `/api/health`, `/api/ready`, `/rules` and public feedback through the actual HTTPS origin.
 
@@ -53,7 +55,7 @@ pnpm auth:role grant YOUR_INTERNAL_USER_ID administrator
 pnpm auth:role grant YOUR_INTERNAL_USER_ID community-manager
 ```
 
-These independent roles use the existing [operator commands](authentication.md). Render's [shell and SSH access](https://render.com/docs/ssh) runs inside the service, where the private database is reachable. Use category commands and the Tags UI for subsequent setup. Never seed or reset the live database as part of deployment.
+These independent roles use the existing [operator commands](authentication.md). Render's [shell and SSH access](https://render.com/docs/ssh) runs inside the service, where the private database is reachable. Use the Tags UI for subsequent setup. Never seed or reset the live database as part of deployment.
 
 The [sign-in limiter](authentication.md#sign-in-rate-limits) uses the socket address. Behind Render's proxy, visitors may share its default allowance of 10 sign-in starts per 60 seconds. Tune `AUTH_SIGN_IN_MAX` and `AUTH_SIGN_IN_WINDOW_SECONDS` for aggregate traffic and verify behavior through the deployed ingress before the pilot. This is not a verified per-person limit; do not enable arbitrary forwarded-header trust.
 

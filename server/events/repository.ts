@@ -13,7 +13,6 @@ type EventDetails = {
   'post.locked': PostDetails
   'post.unlocked': PostDetails
   'post.archived': PostDetails
-  'post.category_changed': PostDetails & { fromCategoryId: string; toCategoryId: string }
   'comment.created': CommentDetails
   'comment.edited': CommentDetails & { changedFields: string[] }
   'official_response.published': PostDetails & { responseId: string }

@@ -3,14 +3,8 @@ import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
-import {
-  feedbackCategory,
-  feedbackComment,
-  feedbackFollow,
-  feedbackPost,
-  feedbackTag,
-} from '../../server/schema.ts'
-import { createCategory, createFeedbackPost } from '../fixtures.ts'
+import { feedbackComment, feedbackFollow, feedbackPost, feedbackTag } from '../../server/schema.ts'
+import { createTag, createFeedbackPost } from '../fixtures.ts'
 
 test.afterAll(closeDatabase)
 
@@ -19,7 +13,6 @@ test('a member publishes feedback and shares a public link', async ({
   browser,
 }, testInfo) => {
   const member = await createMember({ name: 'Aster' })
-  const category = await createCategory({ name: 'Grouping & travel' })
   try {
     await page.context().addCookies([member.cookie])
     await page.goto('/feedback/new')
@@ -43,7 +36,6 @@ test('a member publishes feedback and shares a public link', async ({
     await page
       .getByLabel('Suggested improvement')
       .fill('Help us find nearby players so we can spend more time adventuring together.')
-    await page.getByLabel('Category', { exact: true }).selectOption(category.id)
     await page.getByRole('button', { name: 'Submit feedback', exact: true }).click()
     await page.waitForURL(/\/feedback\/[0-9a-f-]{36}$/)
     await expect(
@@ -92,7 +84,6 @@ test('a member publishes feedback and shares a public link', async ({
     }
   } finally {
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.authorId, member.user.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })
@@ -101,17 +92,19 @@ test('public browsing combines filters, loads more, and handles empty and missin
   page,
 }, testInfo) => {
   const member = await createMember()
-  const category = await createCategory({ name: 'Combat' })
+  const tag = await createTag({ name: 'Browse combat' })
   try {
     for (let index = 0; index < 43; index++) {
       await createFeedbackPost({
         authorId: member.user.id,
-        categoryId: category.id,
+        tagIds: [tag.id],
         title: `Combat clarity ${index}`,
         status: index === 22 ? 'planned' : 'new',
       })
     }
-    await page.goto(`/feedback?category=${category.slug}`)
+    await createFeedbackPost({ authorId: member.user.id, title: 'Unrelated untagged feedback' })
+    await page.goto(`/feedback?tagId=${tag.id}`)
+    await expect(page.getByLabel('Tag', { exact: true })).toHaveValue(tag.id)
     await expect(page.locator('article.post-row')).toHaveCount(20)
     const more = page.getByRole('button', { name: 'Load more feedback' })
     await more.focus()
@@ -146,23 +139,18 @@ test('public browsing combines filters, loads more, and handles empty and missin
     await expect(page.getByRole('button', { name: 'Sign in with Discord to post' })).toBeVisible()
   } finally {
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.authorId, member.user.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
+    await getDatabase().delete(feedbackTag).where(eq(feedbackTag.id, tag.id))
     await member.cleanup()
   }
 })
 
-test('submission enforces identity, origin, validation, active categories, and rate limits', async ({
-  request,
-  page,
-}) => {
+test('submission enforces identity, origin, validation, and rate limits', async ({ request }) => {
   const member = await createMember()
-  const category = await createCategory()
   const origin = process.env.BETTER_AUTH_URL!
   const data = {
     title: 'Clearer combat feedback',
     description: 'Hits need more readable feedback.',
     desiredImprovement: null,
-    categoryId: category.id,
   }
   const headers = { origin, cookie: member.cookieHeader }
   try {
@@ -189,25 +177,6 @@ test('submission enforces identity, origin, validation, active categories, and r
     }
     expect((await request.get('/api/feedback/posts?limit=10000')).status()).toBe(400)
     expect((await request.get('/api/feedback/posts?cursor=not-valid')).status()).toBe(400)
-    await page.context().addCookies([member.cookie])
-    await page.goto('/feedback/new')
-    await page.getByLabel('Title', { exact: true }).fill(data.title)
-    await page.getByLabel('Feedback', { exact: true }).fill(data.description)
-    await page.getByLabel('Category', { exact: true }).selectOption(category.id)
-    await getDatabase()
-      .update(feedbackCategory)
-      .set({ isActive: false })
-      .where(eq(feedbackCategory.id, category.id))
-    await page.getByRole('button', { name: 'Submit feedback', exact: true }).click()
-    await expect(page.getByLabel('Category', { exact: true })).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    )
-    await expect(page.getByLabel('Title', { exact: true })).toHaveValue(data.title)
-    await getDatabase()
-      .update(feedbackCategory)
-      .set({ isActive: true })
-      .where(eq(feedbackCategory.id, category.id))
     const attempts = await Promise.all(
       [0, 1].map(() => request.post('/api/feedback/posts', { headers, data })),
     )
@@ -226,7 +195,6 @@ test('submission enforces identity, origin, validation, active categories, and r
     expect(records.every((post) => post.status === 'new')).toBe(true)
   } finally {
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.authorId, member.user.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })
@@ -235,9 +203,8 @@ test('unsaved forms clear on reload or navigation without storing browser drafts
   page,
 }) => {
   const member = await createMember({ roles: ['community-manager'] })
-  const category = await createCategory()
   const database = getDatabase()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   const [tag] = await database
     .insert(feedbackTag)
     .values({ name: `Temporary ${randomUUID().slice(0, 8)}` })
@@ -312,7 +279,6 @@ test('unsaved forms clear on reload or navigation without storing browser drafts
     await database.delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
     await database.delete(feedbackPost).where(eq(feedbackPost.id, post.id))
     await database.delete(feedbackTag).where(eq(feedbackTag.id, tag!.id))
-    await database.delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })

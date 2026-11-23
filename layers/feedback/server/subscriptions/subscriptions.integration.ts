@@ -7,12 +7,10 @@ import { eventLog } from '../../../../server/events/schema.ts'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
-import { createCategory, createFeedbackPost } from '../../tests/fixtures.ts'
+import { createFeedbackPost } from '../../tests/fixtures.ts'
 import { getOutcome } from '../review/outcome.ts'
 import { publishResponse } from '../review/publication.ts'
 import {
-  feedbackCategory,
-  feedbackCategoryChange,
   feedbackComment,
   feedbackFollow,
   feedbackNotification,
@@ -31,10 +29,8 @@ afterEach(async () => {
   const database = getDatabase()
   await database.delete(feedbackNotification)
   await database.delete(feedbackOfficialResponse)
-  await database.delete(feedbackCategoryChange)
   await database.delete(feedbackComment)
   await database.delete(feedbackPost)
-  await database.delete(feedbackCategory)
   await database.delete(eventLog)
   await database.delete(user)
 })
@@ -50,9 +46,8 @@ function status(code: number) {
 async function discussion() {
   const author = await createMember({ name: 'Post author' })
   const manager = await createMember({ name: 'Community manager', roles: ['community-manager'] })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: author.user.id, categoryId: category.id })
-  return { author, manager, category, post }
+  const post = await createFeedbackPost({ authorId: author.user.id })
+  return { author, manager, post }
 }
 
 test('following accepts repeated assignments, inboxes stay private, and unfollowing preserves received notifications', async () => {

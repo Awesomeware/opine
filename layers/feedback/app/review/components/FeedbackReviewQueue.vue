@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
+import FeedbackTags from '../../posts/components/FeedbackTags.vue'
 import { useFeedbackReviewQueue } from '../composables/useFeedbackReviewQueue'
 import { postStatuses, statusLabels } from '../../../shared/status'
 
 const {
   filters,
   posts,
-  categories,
-  categoryError,
-  categoriesLoading,
-  loadCategories,
+  tags,
+  tagsError,
+  tagsLoading,
+  loadTags,
   cursor,
   loading,
   loaded,
@@ -40,15 +41,11 @@ async function loadMore() {
   <p>Oldest feedback first. The initial queue shows New posts awaiting review.</p>
   <form class="panel filters" @submit.prevent="apply">
     <div class="field">
-      <label for="queue-category">Category</label>
-      <select
-        id="queue-category"
-        v-model="filters.category"
-        :disabled="categoriesLoading || !!categoryError"
-      >
-        <option value="">All categories</option>
-        <option v-for="category in categories" :key="category.id" :value="category.slug">
-          {{ category.name }}
+      <label for="queue-tag">Tag</label>
+      <select id="queue-tag" v-model="filters.tagId" :disabled="tagsLoading || !!tagsError">
+        <option value="">All tags</option>
+        <option v-for="tag in tags" :key="tag.id" :value="tag.id">
+          {{ tag.name }}
         </option>
       </select>
     </div>
@@ -67,9 +64,9 @@ async function loadMore() {
     </label>
     <Button type="submit">Apply queue filters</Button>
   </form>
-  <p v-if="categoryError" role="alert">
-    {{ categoryError }}
-    <Button :busy="categoriesLoading" @click="loadCategories">Retry categories</Button>
+  <p v-if="tagsError" role="alert">
+    {{ tagsError }}
+    <Button :busy="tagsLoading" @click="loadTags">Retry tags</Button>
   </p>
   <p id="follow-up-help" class="field-help">
     Needs follow-up shows member comments since the latest official response. Select All statuses to
@@ -86,10 +83,11 @@ async function loadMore() {
   <ol ref="items" class="feedback-list">
     <li tabindex="-1" v-for="post in posts" :key="post.id" class="panel feedback-card">
       <p>
-        {{ post.category.name }} · {{ statusLabels[post.status] }}
+        {{ statusLabels[post.status] }}
         <span v-if="post.lockedAt">· Locked</span>
       </p>
       <h2><NuxtLink :to="`/feedback/${post.id}`">{{ post.title }}</NuxtLink></h2>
+      <FeedbackTags :tags="post.tags" />
       <p>{{ post.excerpt }}</p>
     </li>
   </ol>

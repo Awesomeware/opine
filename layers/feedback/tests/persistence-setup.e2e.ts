@@ -4,7 +4,6 @@ import { eventLog } from '../../../server/events/schema.ts'
 import { feedbackPost } from '../server/schema.ts'
 import { closeDatabase, getDatabase } from '../../../server/db/index.ts'
 import { createMember } from '../../auth/tests/fixtures.ts'
-import { createCategory } from './fixtures.ts'
 import { persistenceContent as content, savePersistenceFixture } from './persistence-fixture.ts'
 
 test.afterAll(closeDatabase)
@@ -15,7 +14,6 @@ test('prepare explicit persistence state before database and application restart
   const author = await createMember({ name: 'Persistence author' })
   const follower = await createMember({ name: 'Persistence follower' })
   const manager = await createMember({ roles: ['administrator', 'community-manager'] })
-  const category = await createCategory()
 
   const headers = (cookie = author.cookieHeader) => ({
     origin: process.env.BETTER_AUTH_URL!,
@@ -43,7 +41,6 @@ test('prepare explicit persistence state before database and application restart
       data: {
         title: 'Initial proposal',
         description: content.description,
-        categoryId: category.id,
         tagIds: [tag.id],
       },
     }),
@@ -127,7 +124,6 @@ test('prepare explicit persistence state before database and application restart
       data: {
         title: 'Persistent locked feedback',
         description: content.description,
-        categoryId: category.id,
       },
     }),
     201,
@@ -144,7 +140,6 @@ test('prepare explicit persistence state before database and application restart
       data: {
         title: 'Persistent archived feedback',
         description: content.description,
-        categoryId: category.id,
       },
     }),
     201,
@@ -176,7 +171,6 @@ test('prepare explicit persistence state before database and application restart
     archivedPostId: archivedPost.id,
     archivedAt: archived!.archivedAt!.toISOString(),
     moderationEvents: savedEvents,
-    categoryId: category.id,
     tagId: tag.id,
     userIds: [author.user.id, follower.user.id, manager.user.id],
     authorCookie: author.cookie,

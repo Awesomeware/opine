@@ -8,7 +8,7 @@ export type PostForm = {
   version: number
 }
 
-export type SubmissionForm = Omit<PostForm, 'version'> & { categoryId: string }
+export type SubmissionForm = Omit<PostForm, 'version'>
 
 /** Omission preserves existing assignments; [] explicitly clears tags. */
 export function postEditInput(form: PostForm, baselineTagIds: string[]) {

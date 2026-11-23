@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
-import { feedbackCategory, feedbackComment, feedbackPost } from '../../server/schema.ts'
-import { createCategory, createFeedbackPost } from '../fixtures.ts'
+import { feedbackComment, feedbackPost } from '../../server/schema.ts'
+import { createFeedbackPost } from '../fixtures.ts'
 
 test.afterAll(closeDatabase)
 
@@ -12,8 +12,7 @@ test('contributions require a type and filter the full discussion while preservi
   request,
 }, testInfo) => {
   const member = await createMember()
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   const base = `/api/feedback/posts/${post.id}/comments`
   let releasePage = () => {}
   try {
@@ -159,7 +158,6 @@ test('contributions require a type and filter the full discussion while preservi
     releasePage()
     await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })
@@ -169,8 +167,7 @@ test('reviewing a type conflict saves the choice shown in the editor', async ({
   request,
 }) => {
   const member = await createMember()
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   try {
     const [comment] = await getDatabase()
       .insert(feedbackComment)
@@ -220,7 +217,6 @@ test('reviewing a type conflict saves the choice shown in the editor', async ({
   } finally {
     await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })
@@ -229,8 +225,7 @@ test('posting resolves its permalink once and filters leave the linked target al
   page,
 }) => {
   const member = await createMember()
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   let targetReads = 0
   page.on('request', (request) => {
     if (
@@ -271,7 +266,6 @@ test('posting resolves its permalink once and filters leave the linked target al
   } finally {
     await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })

@@ -137,7 +137,7 @@ test('feedback rows preserve the public link, status, and long text on narrow sc
   await expect(row.getByRole('heading', { level: 2 })).toBeVisible()
   await expect(row.getByRole('link')).toHaveAttribute('href', '/feedback/example-grouping')
   await expect(row).toContainText('Planned')
-  await expect(row).toContainText('Grouping & travel')
+  await expect(row).toContainText('Gameplay')
   await expect(row.locator('time')).toHaveAttribute('datetime', '2026-11-20T12:00:00.000Z')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
@@ -365,8 +365,8 @@ test('post rows place optional tag icons and names between the title and excerpt
   await page.goto(story('feedback-postrow--default'))
   const row = page.getByRole('article')
   const tags = row.getByRole('list', { name: 'Tags', exact: true })
-  await expect(tags.locator('[aria-hidden="true"]')).toHaveText('🕹️')
-  await expect(tags.getByRole('listitem')).toContainText('Gameplay')
+  await expect(tags.locator('[aria-hidden="true"]')).toHaveText(['🕹️', '💻'])
+  await expect(tags.getByRole('listitem')).toContainText(['Gameplay', 'UI'])
   await expect(row.locator('h2 + ul[aria-label="Tags"] + .row-excerpt')).toHaveText(
     'Forty minutes organising a group, barely an hour left to play.',
   )

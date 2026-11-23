@@ -47,7 +47,6 @@ test('content, sessions, cooldown, outcomes, tags, inbox, and moderation survive
       data: {
         title: 'Another proposal too soon',
         description: content.description,
-        categoryId: saved.categoryId,
       },
     })
     expect(limited.status()).toBe(429)

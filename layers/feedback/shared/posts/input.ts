@@ -6,15 +6,12 @@ export type PostInput = {
   description: string
   desiredImprovement: string | null
   tagIds?: string[]
-  categoryId: string
 }
 
 export type PostFieldErrors = Partial<Record<keyof PostInput | 'form', string>>
 export function validatePostContent(
   input: unknown,
-):
-  | { success: true; data: Omit<PostInput, 'categoryId'> }
-  | { success: false; fieldErrors: PostFieldErrors } {
+): { success: true; data: PostInput } | { success: false; fieldErrors: PostFieldErrors } {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     return { success: false, fieldErrors: { form: 'Enter your feedback below.' } }
   const fields = input as Record<string, unknown>
@@ -63,24 +60,9 @@ export function validatePostContent(
   }
 }
 
-export function validatePostInput(
-  input: unknown,
-): { success: true; data: PostInput } | { success: false; fieldErrors: PostFieldErrors } {
-  if (!input || typeof input !== 'object' || Array.isArray(input))
-    return { success: false, fieldErrors: { form: 'Enter your feedback below.' } }
-  const { categoryId, ...content } = input as Record<string, unknown>
-  const parsed = validatePostContent(content)
-  const fieldErrors: PostFieldErrors = parsed.success ? {} : parsed.fieldErrors
-  if (!isUuid(categoryId)) fieldErrors.categoryId = 'Choose a category.'
-  if (!parsed.success || !isUuid(categoryId)) return { success: false, fieldErrors }
-  const { tagIds, ...contentData } = parsed.data
-  return {
-    success: true,
-    data: { ...contentData, categoryId, ...(tagIds !== undefined ? { tagIds } : {}) },
-  }
-}
+export const validatePostInput = validatePostContent
 
-export type PostEditInput = Omit<PostInput, 'categoryId'> & { version: number }
+export type PostEditInput = PostInput & { version: number }
 
 export function validatePostEditInput(input: unknown): Validation<PostEditInput> {
   const value = fields(input, ['title', 'description', 'desiredImprovement', 'version', 'tagIds'])

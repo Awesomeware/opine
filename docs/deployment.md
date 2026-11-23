@@ -133,7 +133,7 @@ Do not assume older application code works with a newer schema. If migration or 
 
 Monitor service restarts, readiness failures, database connections/storage, backup age and certificate expiry. Use `systemctl status opine` and `journalctl -u opine` for service diagnosis; restrict log access. Avoid putting credentials, cookies or full request bodies into proxy logs. The broader operational error-reporting audit remains in [TODO #10](TODO.md#10-complete-final-deployment-and-retention-checks).
 
-Restart the service after changing installation configuration. Use the documented [role commands](authentication.md#grant-the-first-administrator), [category commands](feedback.md#category-configuration) and Tags UI for routine administration. Account deletion/anonymization requires the separately tracked operator process in #10; do not improvise user deletion SQL that bypasses contribution-retention constraints.
+Restart the service after changing installation configuration. Use the documented [role commands](authentication.md#grant-the-first-administrator) and Tags UI for routine administration. Account deletion/anonymization requires the separately tracked operator process in #10; do not improvise user deletion SQL that bypasses contribution-retention constraints.
 
 ## Restoration evidence
 

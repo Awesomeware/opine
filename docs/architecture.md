@@ -36,12 +36,12 @@ Use the native generator rather than maintaining a parallel `new-layer.sh`. It r
 
 The feedback layer contains four capability groups. These establish ownership inside the existing layer; they are not separate Nuxt layers or services. Promote a capability to its own layer when its dependencies and public contract support that boundary, rather than to balance folder sizes.
 
-| Capability      | Owns                                                                                     |
-| --------------- | ---------------------------------------------------------------------------------------- |
-| `posts`         | Post creation, author editing, browsing, categories, tags, and post workflow persistence |
-| `discussion`    | Typed comments, comment editing, reactions, and the combined discussion feed             |
-| `review`        | Official publication, outcome display, review queue, and audited category corrections    |
-| `subscriptions` | Following, notification delivery, and private inbox/read state                           |
+| Capability      | Owns                                                                           |
+| --------------- | ------------------------------------------------------------------------------ |
+| `posts`         | Post creation, author editing, browsing, tags, and post workflow persistence   |
+| `discussion`    | Typed comments, comment editing, reactions, and the combined discussion feed   |
+| `review`        | Official publication, outcome display, review queue, and whole-post moderation |
+| `subscriptions` | Following, notification delivery, and private inbox/read state                 |
 
 ```text
 layers/feedback/
@@ -57,9 +57,9 @@ layers/feedback/
     api/errors.ts            Transport error decoding
   server/
     api/feedback/            Stable HTTP entrypoints
-    posts/                   Creation, editing, queries, tags, categories, workflow writes
+    posts/                   Creation, editing, queries, tags, workflow writes
     discussion/              Comments, reactions, combined feed
-    review/                  Publication, outcome, queue, category correction, guards
+    review/                  Publication, outcome, queue, guards
     subscriptions/           Following, notification fanout, inbox
     schema.ts                One schema for this collaborating domain
     write-repository.ts      Actor creation serialization and limits from existing rows
@@ -69,7 +69,7 @@ layers/feedback/
   shared/
     posts/                   Post/tag inputs and response contracts
     discussion/              Comment/reaction inputs, contribution types, feed contracts
-    review/                  Official/category inputs and response contracts
+    review/                  Official response inputs and response contracts
     subscriptions/           Follow/read inputs and inbox contracts
     input.ts                 Common validation primitives
     status.ts                Status values shared by posts, review and inbox
@@ -123,7 +123,6 @@ A business use case owns its transaction, including resource ownership checks, d
 
 - [Post creation](../layers/feedback/server/posts/creation.ts) calls `replacePostTags(transaction, ...)` and subscriptions' `followPost(transaction, ...)` before committing the new post.
 - [Official publication](../layers/feedback/server/review/publication.ts) receives a manager-authorized request and owns the workflow-version check, inserts the response, calls posts' `updatePostWorkflow(transaction, ...)`, and subscriptions' `notifyFollowers(transaction, ...)`. Notification failure rolls back the response, status, and notifications together.
-- [Category correction](../layers/feedback/server/review/category-correction.ts) owns the manager decision and audit; the post update participates through the same transaction-taking persistence function.
 
 These persistence helpers assume an authorized use case with the documented locks/version checks; HTTP endpoints must call the use case rather than bypassing it through a helper. Each use case opens an explicit database transaction. Common operations live in `write-repository.ts`: serialize creations by one actor and enforce limits using existing domain rows. These functions receive the transaction and do not run callbacks. Keep ownership checks, version checks and mutations visible in execution order. Unchanged edits return the current version without storing another record.
 
@@ -152,7 +151,7 @@ Authorization is request-scoped. Read and validate the complete request, then re
 
 Resource ownership remains part of the operation: author editing checks the resource owner, and private inbox operations restrict the recipient. Persistence helpers assume their caller has passed the HTTP authorization boundary or is a trusted operator. They do not parse sessions or decide role policy.
 
-Transactions commit dependent database changes and their event records together. There are no write receipts or request keys. Actor creation locks serialize cooldown and contribution-limit checks with insertion, while resource locks protect edits, publication ordering, categories, tags and post lock/archive decisions. Retain these data guarantees independently of the request-time authorization policy. See [authentication](authentication.md#administrator-role-management) and [feedback concurrency](feedback.md#persistence-and-concurrency).
+Transactions commit dependent database changes and their event records together. There are no write receipts or request keys. Actor creation locks serialize cooldown and contribution-limit checks with insertion, while resource locks protect edits, publication ordering, tags and post lock/archive decisions. Retain these data guarantees independently of the request-time authorization policy. See [authentication](authentication.md#administrator-role-management) and [feedback concurrency](feedback.md#persistence-and-concurrency).
 
 ## Database ownership and migrations
 

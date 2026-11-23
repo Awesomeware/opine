@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test'
 import { eq, inArray } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
-import { feedbackCategory, feedbackCategoryChange, feedbackPost } from '../../server/schema.ts'
-import { createCategory, createFeedbackPost } from '../fixtures.ts'
+import { feedbackTag, feedbackPost, feedbackPostTag } from '../../server/schema.ts'
+import { createTag, createFeedbackPost } from '../fixtures.ts'
 
 test.afterAll(closeDatabase)
 
@@ -12,31 +12,36 @@ test('review queue pagination uses applied filters and browser history restores 
 }) => {
   const manager = await createMember({ roles: ['community-manager'] })
   const administrator = await createMember({ roles: ['administrator'] })
-  const categoryA = await createCategory({ name: 'Queue combat' })
-  const categoryB = await createCategory({ name: 'Queue movement' })
+  const tagA = await createTag({ name: 'Queue combat' })
+  const tagB = await createTag({ name: 'Queue movement' })
   const database = getDatabase()
   try {
-    await database.insert(feedbackPost).values(
-      Array.from({ length: 21 }, (_, index) => ({
-        authorId: manager.user.id,
-        categoryId: categoryA.id,
-        title: `Combat queue item ${index + 1}`,
-        description: 'Queue regression fixture',
-        createdAt: new Date(Date.UTC(2020, 0, index + 1)),
-      })),
-    )
-    await createFeedbackPost({
+    const posts = await database
+      .insert(feedbackPost)
+      .values(
+        Array.from({ length: 21 }, (_, index) => ({
+          authorId: manager.user.id,
+          title: `Combat queue item ${index + 1}`,
+          description: 'Queue regression fixture',
+          createdAt: new Date(Date.UTC(2020, 0, index + 1)),
+        })),
+      )
+      .returning()
+    await database
+      .insert(feedbackPostTag)
+      .values(posts.map((post) => ({ postId: post.id, tagId: tagA.id })))
+    const other = await createFeedbackPost({
       authorId: manager.user.id,
-      categoryId: categoryB.id,
       title: 'Movement queue item',
       createdAt: new Date('2020-02-01'),
     })
+    await database.insert(feedbackPostTag).values({ postId: other.id, tagId: tagB.id })
     await page.context().addCookies([manager.cookie])
-    await page.goto(`/feedback/review?category=${categoryA.slug}&status=new`)
+    await page.goto(`/feedback/review?tagId=${tagA.id}&status=new`)
     const cards = page.locator('ol.feedback-list > li')
     await expect(cards).toHaveCount(20)
     await expect(cards.first()).toContainText('Combat queue item 1')
-    await page.getByLabel('Category', { exact: true }).selectOption(categoryB.slug)
+    await page.getByLabel('Tag', { exact: true }).selectOption(tagB.id)
     const moreItems = page.getByRole('button', { name: 'Load more review items', exact: true })
     await moreItems.focus()
     await moreItems.press('Enter')
@@ -46,17 +51,17 @@ test('review queue pagination uses applied filters and browser history restores 
     await expect(page.getByRole('link', { name: 'Movement queue item', exact: true })).toHaveCount(
       0,
     )
-    expect(new URL(page.url()).searchParams.get('category')).toBe(categoryA.slug)
+    expect(new URL(page.url()).searchParams.get('tagId')).toBe(tagA.id)
     await page.getByRole('button', { name: 'Apply queue filters', exact: true }).click()
     await expect(cards).toHaveCount(1)
     await expect(cards.first()).toContainText('Movement queue item')
-    expect(new URL(page.url()).searchParams.get('category')).toBe(categoryB.slug)
+    expect(new URL(page.url()).searchParams.get('tagId')).toBe(tagB.id)
     await page.goBack()
-    await expect(page.getByLabel('Category', { exact: true })).toHaveValue(categoryA.slug)
+    await expect(page.getByLabel('Tag', { exact: true })).toHaveValue(tagA.id)
     await expect(cards).toHaveCount(20)
     await expect(cards.first()).toContainText('Combat queue item 1')
     await page.goForward()
-    await expect(page.getByLabel('Category', { exact: true })).toHaveValue(categoryB.slug)
+    await expect(page.getByLabel('Tag', { exact: true })).toHaveValue(tagB.id)
     await expect(cards).toHaveCount(1)
     await expect(cards.first()).toContainText('Movement queue item')
     await page.context().clearCookies()
@@ -65,159 +70,30 @@ test('review queue pagination uses applied filters and browser history restores 
     await expect(page.getByRole('alert')).toContainText('Only community managers')
     await expect(cards).toHaveCount(0)
   } finally {
-    await database
-      .delete(feedbackPost)
-      .where(inArray(feedbackPost.categoryId, [categoryA.id, categoryB.id]))
-    await database
-      .delete(feedbackCategory)
-      .where(inArray(feedbackCategory.id, [categoryA.id, categoryB.id]))
+    await database.delete(feedbackPost).where(eq(feedbackPost.authorId, manager.user.id))
+    await database.delete(feedbackTag).where(inArray(feedbackTag.id, [tagA.id, tagB.id]))
     await manager.cleanup()
     await administrator.cleanup()
   }
 })
 
-test('a disabled category rejection preserves the correction form and permits a valid audited correction', async ({
-  page,
-}) => {
-  const manager = await createMember({
-    name: 'Category representative',
-    roles: ['community-manager'],
-  })
-  const original = await createCategory({ name: 'Original category' })
-  const disabled = await createCategory({ name: 'Soon disabled category' })
-  const valid = await createCategory({ name: 'Corrected category' })
-  const post = await createFeedbackPost({ authorId: manager.user.id, categoryId: original.id })
-  const database = getDatabase()
-  try {
-    await page.context().addCookies([manager.cookie])
-    await page.goto(`/feedback/${post.id}`)
-    await page.getByText('Correct category', { exact: true }).click()
-    const select = page.getByLabel('Corrected category', { exact: true })
-    await select.selectOption(disabled.id)
-    await database
-      .update(feedbackCategory)
-      .set({ isActive: false })
-      .where(eq(feedbackCategory.id, disabled.id))
-    const rejected = page.waitForResponse(
-      (response) =>
-        response.url().endsWith(`/posts/${post.id}/category`) &&
-        response.request().method() === 'PATCH',
-    )
-    await page.getByRole('button', { name: 'Save category correction', exact: true }).click()
-    expect((await rejected).status()).toBe(400)
-    await expect(select).toBeEnabled()
-    await expect(
-      page.getByRole('button', { name: 'Retry pending category correction', exact: true }),
-    ).toHaveCount(0)
-    await select.selectOption(valid.id)
-    await page.getByRole('button', { name: 'Save category correction', exact: true }).click()
-    await expect(page.locator('article > .eyebrow')).toHaveText(valid.name)
-    await expect(page.getByText('Category corrected.', { exact: true })).toBeVisible()
-    const rows = await database
-      .select()
-      .from(feedbackCategoryChange)
-      .where(eq(feedbackCategoryChange.postId, post.id))
-    expect(rows).toHaveLength(1)
-    expect(rows[0]).toMatchObject({
-      actorId: manager.user.id,
-      previousCategoryId: original.id,
-      categoryId: valid.id,
-    })
-    const [saved] = await database.select().from(feedbackPost).where(eq(feedbackPost.id, post.id))
-    expect(saved).toMatchObject({ categoryId: valid.id, version: 1, workflowVersion: 2 })
-    // Populate the next history page without issuing twenty unrelated category writes.
-    await database.insert(feedbackCategoryChange).values(
-      Array.from({ length: 20 }, () => ({
-        postId: post.id,
-        actorId: manager.user.id,
-        previousCategoryId: original.id,
-        categoryId: valid.id,
-      })),
-    )
-    await page.reload()
-    await page.getByText('Correct category', { exact: true }).click()
-    const history = page.locator('details.category-correction ol > li')
-    await expect(history).toHaveCount(20)
-    await expect(history.first()).toContainText('Original category → Corrected category')
-    const moreHistory = page.getByRole('button', { name: 'Load more category history' })
-    await moreHistory.focus()
-    await moreHistory.press('Enter')
-    await expect(history).toHaveCount(21)
-    await expect(history.nth(20)).toBeFocused()
-  } finally {
-    await database.delete(feedbackCategoryChange).where(eq(feedbackCategoryChange.postId, post.id))
-    await database.delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await database
-      .delete(feedbackCategory)
-      .where(inArray(feedbackCategory.id, [original.id, disabled.id, valid.id]))
-    await manager.cleanup()
-  }
-})
-
-test('review queue reports a missing category catalog and can retry it independently', async ({
+test('review queue reports a missing tag catalog and can retry it independently', async ({
   page,
 }) => {
   const manager = await createMember({ roles: ['community-manager'] })
-  const category = await createCategory({ name: 'Recoverable category' })
+  const tag = await createTag({ name: 'Recoverable tag' })
   try {
     await page.context().addCookies([manager.cookie])
-    await page.route('**/api/feedback/categories', (route) =>
-      route.fulfill({ status: 503, json: {} }),
-    )
+    await page.route('**/api/feedback/tags', (route) => route.fulfill({ status: 503, json: {} }))
     await page.goto('/feedback/review')
-    await expect(
-      page.getByRole('alert').filter({ hasText: 'Unable to load categories.' }),
-    ).toBeVisible()
-    await expect(page.getByLabel('Category', { exact: true })).toBeDisabled()
-    await page.unroute('**/api/feedback/categories')
-    await page.getByRole('button', { name: 'Retry categories', exact: true }).click()
-    await expect(page.getByLabel('Category', { exact: true })).toBeEnabled()
-    await page.getByLabel('Category', { exact: true }).selectOption(category.slug)
+    await expect(page.getByRole('alert').filter({ hasText: 'Unable to load tags.' })).toBeVisible()
+    await expect(page.getByLabel('Tag', { exact: true })).toBeDisabled()
+    await page.unroute('**/api/feedback/tags')
+    await page.getByRole('button', { name: 'Retry tags', exact: true }).click()
+    await expect(page.getByLabel('Tag', { exact: true })).toBeEnabled()
+    await page.getByLabel('Tag', { exact: true }).selectOption(tag.id)
   } finally {
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
-    await manager.cleanup()
-  }
-})
-
-test('a successful category correction keeps a failed history refresh visible without replaying the write', async ({
-  page,
-}) => {
-  const manager = await createMember({ roles: ['community-manager'] })
-  const original = await createCategory()
-  const replacement = await createCategory({ name: 'Correction with history outage' })
-  const post = await createFeedbackPost({ authorId: manager.user.id, categoryId: original.id })
-  const database = getDatabase()
-  let writes = 0
-  page.on('request', (request) => {
-    if (request.method() === 'PATCH' && request.url().endsWith(`/posts/${post.id}/category`))
-      writes++
-  })
-  try {
-    await page.context().addCookies([manager.cookie])
-    await page.goto(`/feedback/${post.id}`)
-    await page.getByText('Correct category', { exact: true }).click()
-    await page.getByLabel('Corrected category', { exact: true }).selectOption(replacement.id)
-    await page.route(`**/posts/${post.id}/category-history*`, (route) =>
-      route.fulfill({ status: 503, json: {} }),
-    )
-    await page.getByRole('button', { name: 'Save category correction', exact: true }).click()
-    await expect(page.getByText('Category corrected.', { exact: true })).toBeVisible()
-    await expect(
-      page.getByRole('alert').filter({ hasText: 'Unable to load category history.' }),
-    ).toBeVisible()
-    await expect(
-      page.getByRole('button', { name: 'Retry pending category correction', exact: true }),
-    ).toHaveCount(0)
-    await page.unroute(`**/posts/${post.id}/category-history*`)
-    await page.getByRole('button', { name: 'Retry category history', exact: true }).click()
-    await expect(page.locator('details.category-correction ol')).toContainText(replacement.name)
-    expect(writes).toBe(1)
-  } finally {
-    await database.delete(feedbackCategoryChange).where(eq(feedbackCategoryChange.postId, post.id))
-    await database.delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await database
-      .delete(feedbackCategory)
-      .where(inArray(feedbackCategory.id, [original.id, replacement.id]))
+    await getDatabase().delete(feedbackTag).where(eq(feedbackTag.id, tag.id))
     await manager.cleanup()
   }
 })

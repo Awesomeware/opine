@@ -1,8 +1,6 @@
-import { isUuid, fields, validVersion, validateBody, type Validation } from '../input.ts'
+import { fields, validVersion, validateBody, type Validation } from '../input.ts'
 import { isPostStatus, type PostStatus } from '../status.ts'
 export type OfficialResponseInput = { body: string; status?: PostStatus; version: number }
-
-export type CategoryCorrectionInput = { categoryId: string; version: number }
 
 export function validateOfficialResponseInput(input: unknown): Validation<OfficialResponseInput> {
   const value = fields(input, ['body', 'status', 'version'])
@@ -20,16 +18,4 @@ export function validateOfficialResponseInput(input: unknown): Validation<Offici
       ...(isPostStatus(value.status) ? { status: value.status } : {}),
     },
   }
-}
-
-export function validateCategoryCorrectionInput(
-  input: unknown,
-): Validation<CategoryCorrectionInput> {
-  const value = fields(input, ['categoryId', 'version'])
-  if (!value || !validVersion(value.version) || !isUuid(value.categoryId))
-    return {
-      success: false,
-      fieldErrors: { form: 'Choose a category and provide a valid workflow version.' },
-    }
-  return { success: true, data: { categoryId: value.categoryId, version: value.version } }
 }

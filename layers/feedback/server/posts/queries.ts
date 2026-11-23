@@ -3,7 +3,7 @@ import { getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { cursorCondition, defaultPageSize, paginateRows } from '../../../../server/pagination.ts'
 import type { ListPostsInput } from '../list-input.ts'
-import { feedbackCategory, feedbackPost } from '../schema.ts'
+import { feedbackPostTag, feedbackPost } from '../schema.ts'
 import { postTagsField } from './tags.ts'
 
 export const publicPostFields = {
@@ -14,7 +14,6 @@ export const publicPostFields = {
   status: feedbackPost.status,
   createdAt: feedbackPost.createdAt,
   author: { name: user.name },
-  category: { id: feedbackCategory.id, slug: feedbackCategory.slug, name: feedbackCategory.name },
 }
 
 export async function getPost(id: string, viewerId?: string) {
@@ -32,7 +31,6 @@ export async function getPost(id: string, viewerId?: string) {
     })
     .from(feedbackPost)
     .innerJoin(user, eq(user.id, feedbackPost.authorId))
-    .innerJoin(feedbackCategory, eq(feedbackCategory.id, feedbackPost.categoryId))
     .where(and(eq(feedbackPost.id, id), isNull(feedbackPost.archivedAt)))
     .limit(1)
   return post
@@ -40,7 +38,7 @@ export async function getPost(id: string, viewerId?: string) {
 
 export async function listPosts({
   q,
-  category,
+  tagId,
   status,
   cursor,
   limit = defaultPageSize,
@@ -51,14 +49,15 @@ export async function listPosts({
     .select({ ...publicPostFields, excerpt: sql<string>`left(${feedbackPost.description}, 240)` })
     .from(feedbackPost)
     .innerJoin(user, eq(user.id, feedbackPost.authorId))
-    .innerJoin(feedbackCategory, eq(feedbackCategory.id, feedbackPost.categoryId))
     .where(
       and(
         isNull(feedbackPost.archivedAt),
         pattern
           ? or(ilike(feedbackPost.title, pattern), ilike(feedbackPost.description, pattern))
           : undefined,
-        category ? eq(feedbackCategory.slug, category) : undefined,
+        tagId
+          ? sql`exists (select 1 from ${feedbackPostTag} where ${feedbackPostTag.postId} = ${feedbackPost.id} and ${feedbackPostTag.tagId} = ${tagId})`
+          : undefined,
         status ? eq(feedbackPost.status, status) : undefined,
         cursorCondition(feedbackPost, cursor, 'desc'),
       ),

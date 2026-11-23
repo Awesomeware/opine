@@ -1,19 +1,16 @@
+import { defaultFeedbackTags } from './tags.ts'
 import { eq, sql } from 'drizzle-orm'
 import assert from 'node:assert/strict'
-import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { after, afterEach, test } from 'node:test'
 import { Client } from 'pg'
-import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
 import { eventLog } from '../../../../server/events/schema.ts'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
-import { createCategory, createFeedbackPost } from '../../tests/fixtures.ts'
-import { feedbackCategory, feedbackFollow, feedbackPost } from '../schema.ts'
+import { createFeedbackPost } from '../../tests/fixtures.ts'
+import { feedbackFollow, feedbackPost, feedbackPostTag, feedbackTag } from '../schema.ts'
 import { FeedbackWriteError } from '../writes.ts'
-import { listCategories } from './categories.ts'
 import { createPost } from './creation.ts'
 import { editPost } from './editing.ts'
 import { getPost, listPosts } from './queries.ts'
@@ -25,7 +22,8 @@ after(closeDatabase)
 afterEach(async () => {
   const database = getDatabase()
   await database.delete(feedbackPost)
-  await database.delete(feedbackCategory)
+  await database.delete(feedbackTag)
+  await database.insert(feedbackTag).values(defaultFeedbackTags)
   await database.delete(eventLog)
   await database.delete(user)
 })
@@ -41,9 +39,7 @@ function foreignKeyViolation(error: unknown) {
 
 test('submission persists the author follow and exposes only public author information', async () => {
   const member = await createMember({ name: 'A Player' })
-  const category = await createCategory()
   const result = await createPost(member.user.id, {
-    categoryId: category.id,
     title: 'Clearer combat feedback',
     description: 'I cannot tell when a hit connects.',
     desiredImprovement: 'Show a hit indicator.',
@@ -79,7 +75,6 @@ test('submission persists the author follow and exposes only public author infor
       'version',
       'canEdit',
       'author',
-      'category',
     ].sort(),
   )
   const creationEvents = await getDatabase().select().from(eventLog)
@@ -104,7 +99,6 @@ test('submission persists the author follow and exposes only public author infor
 
 test('a failed automatic follow rolls back the whole submission', async () => {
   const member = await createMember()
-  const category = await createCategory()
   const database = getDatabase()
   await database.execute(
     sql`create function reject_test_follow() returns trigger language plpgsql as $$ begin raise exception 'Simulated follow failure'; end $$`,
@@ -116,7 +110,6 @@ test('a failed automatic follow rolls back the whole submission', async () => {
     try {
       await assert.rejects(
         createPost(member.user.id, {
-          categoryId: category.id,
           title: 'Atomic submission',
           description: 'A post must never survive without its initial author follow.',
           desiredImprovement: null,
@@ -132,7 +125,6 @@ test('a failed automatic follow rolls back the whole submission', async () => {
   }
   assert.ok(
     await createPost(member.user.id, {
-      categoryId: category.id,
       title: 'Submission after rollback',
       description: 'A failed write does not consume the cooldown.',
       desiredImprovement: null,
@@ -140,68 +132,9 @@ test('a failed automatic follow rolls back the whole submission', async () => {
   )
 })
 
-test('inactive categories cannot receive submissions and referenced authors and categories cannot be deleted', async () => {
-  const member = await createMember()
-  const active = await createCategory({ name: 'World', sortOrder: 2 })
-  const inactive = await createCategory({ name: 'Retired', isActive: false, sortOrder: 1 })
-  const input = {
-    title: 'A clearer map',
-    description: 'The map is hard to read.',
-    desiredImprovement: null,
-  }
-  assert.equal(await createPost(member.user.id, { ...input, categoryId: inactive.id }), null)
-  assert.equal(await createPost(member.user.id, { ...input, categoryId: randomUUID() }), null)
-  assert.equal((await getDatabase().select().from(feedbackPost)).length, 0)
-  assert.equal((await getDatabase().select().from(feedbackFollow)).length, 0)
-  const result = await createPost(member.user.id, { ...input, categoryId: active.id })
-  assert.ok(result)
-  await assert.rejects(
-    getDatabase().delete(user).where(eq(user.id, member.user.id)),
-    foreignKeyViolation,
-  )
-  await assert.rejects(
-    getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, active.id)),
-    foreignKeyViolation,
-  )
-  assert.ok(await getPost(result.id))
-  await getDatabase()
-    .update(feedbackCategory)
-    .set({ isActive: false })
-    .where(eq(feedbackCategory.id, active.id))
-  assert.equal(await createPost(member.user.id, { ...input, categoryId: active.id }), null)
-  assert.equal((await listPosts({ category: active.slug })).posts.length, 1)
-  const categories = await listCategories()
-  assert.ok(categories.some((category) => category.id === active.id))
-})
-
-test('search treats wildcard characters literally and combines category and status filters', async () => {
-  const member = await createMember()
-  const combat = await createCategory({ slug: 'combat' })
-  const world = await createCategory({ slug: 'world' })
-  const defaults = { authorId: member.user.id, categoryId: combat.id }
-  const match = await createFeedbackPost({ ...defaults, title: '100%_clear', status: 'planned' })
-  await createFeedbackPost({ ...defaults, title: '100XXclear', status: 'planned' })
-  await createFeedbackPost({ ...defaults, title: '100%_clear again', status: 'new' })
-  await createFeedbackPost({
-    ...defaults,
-    categoryId: world.id,
-    title: '100%_clear world',
-    status: 'planned',
-  })
-  const result = await listPosts({ q: '100%_clear', category: 'combat', status: 'planned' })
-  assert.deepEqual(
-    result.posts.map((post) => post.id),
-    [match.id],
-  )
-  assert.equal(result.nextCursor, null)
-  assert.equal((await listPosts({ q: 'hit connects', category: 'combat' })).posts.length, 3)
-  assert.equal((await listPosts({ q: "' OR true --" })).posts.length, 0)
-})
-
 test('newest pagination preserves ties and database timestamp precision without repeats or omissions', async () => {
   const member = await createMember()
-  const category = await createCategory()
-  const defaults = { authorId: member.user.id, categoryId: category.id }
+  const defaults = { authorId: member.user.id }
   const sameTime = new Date('2026-01-01T12:00:00.123Z')
   const posts = []
   for (let index = 1; index <= 5; index++) {
@@ -240,12 +173,10 @@ test('newest pagination preserves ties and database timestamp precision without 
 
 test('concurrent submissions cannot exceed the per-member allowance', async () => {
   const member = await createMember()
-  const category = await createCategory()
   const maximum = 1
   const results = await Promise.allSettled(
     Array.from({ length: maximum + 2 }, () =>
       createPost(member.user.id, {
-        categoryId: category.id,
         title: 'Rate-limited feedback',
         description: 'Concurrent requests must share the same submission allowance.',
         desiredImprovement: null,
@@ -263,7 +194,6 @@ test('concurrent submissions cannot exceed the per-member allowance', async () =
 
 test('post cooldown timestamps begin after waiting for the creation lock', async () => {
   const member = await createMember()
-  const category = await createCategory()
   const blocker = new Client({ connectionString: process.env.OPINE_TEST_DATABASE_URL })
   await blocker.connect()
   let pending: ReturnType<typeof createPost> | undefined
@@ -274,7 +204,6 @@ test('post cooldown timestamps begin after waiting for the creation lock', async
       member.user.id,
     ])
     pending = createPost(member.user.id, {
-      categoryId: category.id,
       title: 'Wait for the creation lock',
       description: 'The cooldown starts when this post is written.',
       desiredImprovement: null,
@@ -307,46 +236,13 @@ test('post cooldown timestamps begin after waiting for the creation lock', async
   }
 })
 
-test('operator category changes preserve references and disabling prevents new submissions', async () => {
-  const member = await createMember()
-  const category = await createCategory({ slug: 'combat' })
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
-  const execute = promisify(execFile)
-  const script = fileURLToPath(new URL('../../../../scripts/feedback-category.ts', import.meta.url))
-  const result = await execute(process.execPath, [
-    script,
-    'upsert',
-    'combat',
-    'Combat and abilities',
-    '3',
-  ])
-  assert.match(result.stdout, /Category saved/)
-  const updated = await getPost(post.id)
-  assert.equal(updated?.category.id, category.id)
-  assert.equal(updated?.category.name, 'Combat and abilities')
-  await execute(process.execPath, [script, 'disable', 'combat'])
-  assert.equal(
-    await createPost(member.user.id, {
-      categoryId: category.id,
-      title: 'Another post',
-      description: 'This category is no longer accepting submissions.',
-      desiredImprovement: null,
-    }),
-    null,
-  )
-  assert.ok(await getPost(post.id))
-  await assert.rejects(execute(process.execPath, [script, 'disable', 'missing']), { code: 1 })
-})
-
 function status(code: number) {
   return (error: unknown) => error instanceof FeedbackWriteError && error.statusCode === code
 }
 
 test('post cooldown rejects repeat submissions and expires from the stored timestamp', async () => {
   const author = await createMember()
-  const category = await createCategory()
   const input = {
-    categoryId: category.id,
     title: 'Improve navigation',
     description: 'Make paths easier to read.',
     desiredImprovement: null,
@@ -370,8 +266,7 @@ test('post cooldown rejects repeat submissions and expires from the stored times
 test('authors edit current post content only, unchanged saves do not mark edits, and stale writers conflict', async () => {
   const author = await createMember()
   const commenter = await createMember()
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: author.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: author.user.id })
   const original = {
     title: post.title,
     description: post.description,
@@ -398,7 +293,6 @@ test('authors edit current post content only, unchanged saves do not mark edits,
   const current = await getPost(post.id, author.user.id)
   assert.ok(current?.editedAt)
   assert.equal(current.title, input.title)
-  assert.equal(current.category.id, category.id)
   assert.equal(current.status, 'new')
   assert.equal(current.canEdit, true)
   assert.equal((await getPost(post.id, commenter.user.id))?.canEdit, false)
@@ -411,4 +305,48 @@ test('authors edit current post content only, unchanged saves do not mark edits,
   const rejected = outcomes.find((result) => result.status === 'rejected')
   assert.ok(rejected && status(409)(rejected.reason))
   assert.equal((await getPost(post.id))?.version, 3)
+})
+
+test('posts need no classification and referenced authors cannot be deleted', async () => {
+  const member = await createMember()
+  const post = await createFeedbackPost({ authorId: member.user.id })
+  assert.deepEqual((await getPost(post.id))?.tags, [])
+  await assert.rejects(
+    getDatabase().delete(user).where(eq(user.id, member.user.id)),
+    foreignKeyViolation,
+  )
+})
+
+test('search combines literal text, tag and status filters without duplicate posts', async () => {
+  const member = await createMember()
+  const database = getDatabase()
+  const [combat, gameplay] = await database
+    .insert(feedbackTag)
+    .values([{ name: 'Test combat' }, { name: 'Test gameplay' }])
+    .returning()
+  const defaults = { authorId: member.user.id }
+  const match = await createFeedbackPost({ ...defaults, title: '100%_clear', status: 'planned' })
+  const wildcard = await createFeedbackPost({ ...defaults, title: '100XXclear', status: 'planned' })
+  const newPost = await createFeedbackPost({
+    ...defaults,
+    title: '100%_clear again',
+    status: 'new',
+  })
+  await createFeedbackPost({ ...defaults, title: '100%_clear without tags', status: 'planned' })
+  await database
+    .insert(feedbackPostTag)
+    .values([
+      ...[match, wildcard, newPost].map((post) => ({ postId: post.id, tagId: combat!.id })),
+      { postId: match.id, tagId: gameplay!.id },
+    ])
+  const result = await listPosts({ q: '100%_clear', tagId: combat!.id, status: 'planned' })
+  assert.deepEqual(
+    result.posts.map((post) => post.id),
+    [match.id],
+  )
+  assert.equal(result.posts[0]!.tags.length, 2)
+  assert.equal(result.nextCursor, null)
+  assert.equal((await listPosts({ q: 'hit connects', tagId: combat!.id })).posts.length, 3)
+  assert.equal((await listPosts({ q: "' OR true --" })).posts.length, 0)
+  assert.equal((await listPosts({ tagId: randomUUID() })).posts.length, 0)
 })

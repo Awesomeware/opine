@@ -7,12 +7,12 @@ These describe release acceptance, not a claim that every journey is already imp
 ## Discover feedback
 
 - V1-J01: As a visitor, I can browse recent feedback and read posts, comments, and official responses without signing in.
-- V1-J02: As a visitor, I can search feedback and filter it by category or status before deciding whether to post.
+- V1-J02: As a visitor, I can search feedback and filter it by tag or status before deciding whether to post.
 - V1-J03: As a visitor, I can open a shared link to a post, comment, or official response and understand its context.
 
 ## Contribute to feedback
 
-- V1-J04: As a community member, I can sign in with Discord and submit a title, my feedback, one category, optional tags, and an optional suggested improvement without supplying bug-report metadata.
+- V1-J04: As a community member, I can sign in with Discord and submit a title, my feedback, optional tags, and an optional suggested improvement without supplying bug-report metadata.
 - V1-J05: As a community member, I can edit my own post text and tags or ordinary comment, with an Edited indicator and protection against conflicting edits, without retaining previous text.
 - V1-J06: As a community member, I can choose, change, or remove one Agree / Disagree reaction on a post, with separate counts and no effect on visibility or ranking.
 - V1-J07: As a community member, I can explicitly choose Context or example, Different view, Suggestion, or Question, see guidance for that choice, and add a flat contribution displaying its type.
@@ -26,9 +26,8 @@ These describe release acceptance, not a claim that every journey is already imp
 
 ## Manage and respond to feedback
 
-- V1-J12: As a community manager, I can work through New posts oldest first and filter the queue by category or status.
+- V1-J12: As a community manager, I can work through New posts oldest first and filter the queue by tag or status.
 - V1-J13: As a community manager, I can find posts where players have added comments since the latest official response, without personal read tracking or assignments.
-- V1-J14: As a community manager, I can correct a post's category with the actor, time, and previous category recorded in a category-change audit.
 - V1-J15: As a community manager, I can explicitly publish an official response that appears above the discussion, including a focused question when I need more examples. I can also participate through ordinary comments without an official badge.
 - V1-J16: As a community manager, I can change a post's status with an accompanying official explanation, revisit any outcome, and leave discussion open. Earlier responses and status changes remain accessible; a correction uses a new official response.
 
@@ -38,7 +37,7 @@ These describe release acceptance, not a claim that every journey is already imp
 - V1-J18: As a community manager, I can lock and unlock a feedback post to stop or resume edits, comments, reactions and official workflow changes.
 - V1-J19: As a community manager, I can archive a feedback post so it and its discussion disappear from application views, direct links, review queues and notifications. The data remains stored, but there is no unarchive UI.
 - V1-J20: As an administrator, I can grant and revoke privileged roles without automatically making my own contributions official.
-- V1-J21: As an administrator, I can configure the installation's name, categories, rules and community link through the [documented configuration mechanism](docs/community.md), with public rules available without signing in.
+- V1-J21: As an administrator, I can configure the installation's name, rules and community link through the [documented configuration mechanism](docs/community.md), with public rules available without signing in.
 
 - V1-J22: As an administrator, I can create, rename, disable, and re-enable tags. Disabled tags remain readable on existing posts, while authors choose which available tags describe their own feedback.
 

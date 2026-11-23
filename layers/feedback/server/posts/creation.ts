@@ -6,16 +6,12 @@ import { feedbackPost } from '../schema.ts'
 import { lockActorCreations } from '../write-repository.ts'
 import { followPost } from '../subscriptions/following.ts'
 import { FeedbackWriteError, positiveInteger, type FeedbackTransaction } from '../writes.ts'
-import { findActiveCategory } from './categories.ts'
 import { replacePostTags } from './tags.ts'
 
 // The caller supplies an authenticated internal user ID and validated input.
 export async function createPost(authorId: string, input: PostInput) {
   return getDatabase().transaction(async (transaction) => {
     await lockActorCreations(transaction, authorId)
-
-    const category = await findActiveCategory(transaction, input.categoryId)
-    if (!category) return null
 
     await enforcePostLimit(transaction, authorId)
 

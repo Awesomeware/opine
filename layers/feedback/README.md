@@ -1,6 +1,6 @@
 # Feedback feature
 
-This layer assembles four capability groups: `posts` (authoring, browsing, categories and tags), `discussion` (comments and reactions), `review` (official decisions, queue and whole-post moderation), and `subscriptions` (following and inbox). Its schema lives in `server/schema.ts`, aggregated by the root database schema. It consumes the shared database pool and auth's public identity/session entrypoints. The approved schema and local operations are described in [Feedback](../../docs/feedback.md).
+This layer assembles four capability groups: `posts` (authoring, browsing, tags), `discussion` (comments and reactions), `review` (official decisions, queue and whole-post moderation), and `subscriptions` (following and inbox). Its schema lives in `server/schema.ts`, aggregated by the root database schema. It consumes the shared database pool and auth's public identity/session entrypoints. The approved schema and local operations are described in [Feedback](../../docs/feedback.md).
 
 ## Browser workflows
 
@@ -10,10 +10,9 @@ Create request scopes during setup. Mount account/resource workflows with stable
 
 ## Public entrypoints
 
-- `GET /api/feedback/categories` lists categories in configured order, including inactive categories needed for browsing older feedback.
-- `GET /api/feedback/posts` lists public posts newest first. It accepts `q`, category slug, status, `limit` (1–50, default 20), and an opaque cursor. Search is a case-insensitive literal substring of the title or description, including literal `%` and `_` characters. Results contain an excerpt and public author name, without private account fields.
-- `GET /api/feedback/posts/:id` returns the public post, its category, and the author's current display name. Invalid or missing IDs return 404.
-- `POST /api/feedback/posts` requires a member session and the configured same-origin `Origin` header. It accepts only title, description, optional suggested improvement, category ID, and optional tag IDs. The server supplies author, status, identity, and timestamps. Success returns 201 with `{ id }`.
+- `GET /api/feedback/posts` lists public posts newest first. It accepts `q`, tag ID (`tagId`), status, `limit` (1–50, default 20), and an opaque cursor. Search is a case-insensitive literal substring of the title or description, including literal `%` and `_` characters. Results contain an excerpt and public author name, without private account fields.
+- `GET /api/feedback/posts/:id` returns the public post and the author's current display name. Invalid or missing IDs return 404.
+- `POST /api/feedback/posts` requires a member session and the configured same-origin `Origin` header. It accepts only title, description, optional suggested improvement, and optional tag IDs. The server supplies author, status, identity, and timestamps. Success returns 201 with `{ id }`.
 
 The `server/posts/` functions own post use cases. In particular, `createPost` expects an already-authenticated internal user ID and validated input; it must not be exposed directly to arbitrary client-supplied authors. Future features must preserve this boundary.
 
@@ -21,7 +20,7 @@ The `server/posts/` functions own post use cases. In particular, `createPost` ex
 
 Additional endpoints:
 
-- `PATCH /api/feedback/posts/:id` accepts title, description, optional desired improvement, optional tag IDs, and loaded version. Only the author may edit text and tags; category/status are forbidden.
+- `PATCH /api/feedback/posts/:id` accepts title, description, optional desired improvement, optional tag IDs, and loaded version. Only the author may edit text and tags; status is forbidden.
 - `GET /api/feedback/posts/:id/comments` accepts optional `type` (`context`, `different_view`, `suggestion`, `question`), an opaque cursor, and limit (1–50, default 20). Type filtering happens before chronological pagination. Omitting type includes legacy unclassified comments.
 - `GET /api/feedback/posts/:id/comments/:commentId` resolves a direct comment link without loading preceding pages.
 - `POST /api/feedback/posts/:id/comments` requires body text, at most 10,000 characters, and one of the four contribution types.
@@ -47,10 +46,9 @@ Cross-capability endpoints are implemented in `server/review/`, `server/discussi
 - `GET /api/feedback/posts/:id/discussion` merges comments and official responses chronologically. Optional `type` accepts the four ordinary types or `team`; omission selects All. It returns discriminated `entries` and `nextCursor`; both sources share one consistent snapshot and are bounded before merging. The older comments API still returns only comments.
 - `PUT /api/feedback/posts/:id/follow` accepts `{ following: boolean }` and sets the member's subscription explicitly.
 - `GET /api/feedback/notifications` is private to the session owner. It accepts `unread=true|false`, cursor, and limit; returns notifications and the owner's total `unreadCount`. `PATCH /api/feedback/notifications/:notificationId` accepts `{ read: true }` and cannot read another member's item.
-- `GET /api/feedback/review` requires community-manager access. It accepts category slug, status (default `new`, or `all`), `followUp=true|false`, cursor, and limit. Results are oldest-first. Follow-up requires an ordinary comment newer than the latest response, from an author who is not currently a community manager; unanswered posts are excluded.
-- `PATCH /api/feedback/posts/:id/category` requires community-manager access and `{ categoryId, version }`; only active destination categories are accepted. `GET /api/feedback/posts/:id/category-history` exposes the bounded operational audit to community managers.
+- `GET /api/feedback/review` requires community-manager access. It accepts tag ID (`tagId`), status (default `new`, or `all`), `followUp=true|false`, cursor, and limit. Results are oldest-first. Follow-up requires an ordinary comment newer than the latest response, from an author who is not currently a community manager; unanswered posts are excluded.
 
-`shared/review/input.ts` validates official response and category commands; `shared/subscriptions/input.ts` validates follow and read commands. All new lists default to 20 and cap HTTP page sizes at 50. Direct official links use `?response=<id>#response-<id>` and resolve independently of discussion filters.
+`shared/review/input.ts` validates official response commands; `shared/subscriptions/input.ts` validates follow and read commands. All new lists default to 20 and cap HTTP page sizes at 50. Direct official links use `?response=<id>#response-<id>` and resolve independently of discussion filters.
 
 All writes require a member session and the configured origin. Viewer-aware reads are `no-store`; public projections expose `canEdit` rather than user IDs. Input validators live in `shared/discussion/input.ts`; `shared/discussion/contribution-types.ts` owns type values, labels, and prompts. The page uses `?contribution=<type>` for its filter and a separate `comment` query parameter for a direct link. A linked contribution outside the selected filter is resolved independently and labelled accordingly. HTTP entrypoints use `server/http.ts`; post/comment editing use cases enforce ownership in their respective capability. `server/write-repository.ts` owns creation serialization and limits derived from existing rows; each use case owns its transaction explicitly.
 
@@ -58,9 +56,9 @@ All writes require a member session and the configured origin. Viewer-aware read
 
 - Posts expose `server/posts/workflow.ts` for post locking and workflow persistence. `updatePostWorkflow` requires the caller's transaction, post lock, and checked workflow version.
 - Subscriptions expose `followPost(transaction, postId, userId)` from `server/subscriptions/following.ts` and `notifyFollowers(transaction, postId, responseId, createdAt)` from `server/subscriptions/notifications.ts`. They participate in creation/publication rather than opening their own transaction.
-- Review owns publication, category-correction and whole-post moderation coordination. The HTTP boundary validates the request and requires the appropriate role before invoking review or tag operations; use cases do not recheck roles mid-write. Discussion owns the combined feed; cross-capability read projections may reference the shared schema explicitly.
+- Review owns publication and whole-post moderation coordination. The HTTP boundary validates the request and requires the appropriate role before invoking review or tag operations; use cases do not recheck roles mid-write. Discussion owns the combined feed; cross-capability read projections may reference the shared schema explicitly.
 
-These helpers are internal persistence contracts, not alternative HTTP commands. Protected read projections such as the review queue and category history likewise require authorization at their HTTP entrypoint. Keep their preconditions in the owning use case. See [multi-capability transactions](../../docs/architecture.md#operations-spanning-capabilities) for the canonical rules.
+These helpers are internal persistence contracts, not alternative HTTP commands. Protected read projections such as the review queue likewise require authorization at their HTTP entrypoint. Keep their preconditions in the owning use case. See [multi-capability transactions](../../docs/architecture.md#operations-spanning-capabilities) for the canonical rules.
 
 ## Domain rules
 

@@ -6,7 +6,6 @@ const input = {
   title: ' A better map ',
   description: ' I get lost. ',
   desiredImprovement: '  ',
-  categoryId: '00000000-0000-4000-8000-000000000001',
 }
 
 test('feedback input normalizes optional text and rejects malformed or forged fields', () => {

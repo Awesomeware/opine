@@ -2,27 +2,20 @@ import { expect, test, type Locator } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../server/db/index.ts'
 import { createMember } from '../../layers/auth/tests/fixtures.ts'
-import { createCategory, createFeedbackPost } from '../../layers/feedback/tests/fixtures.ts'
-import {
-  feedbackCategory,
-  feedbackComment,
-  feedbackPost,
-} from '../../layers/feedback/server/schema.ts'
+import { createFeedbackPost } from '../../layers/feedback/tests/fixtures.ts'
+import { feedbackComment, feedbackPost } from '../../layers/feedback/server/schema.ts'
 
 test.afterAll(closeDatabase)
 
 async function feedback(options: { manager?: boolean } = {}) {
   const member = await createMember({ roles: options.manager ? ['community-manager'] : [] })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   return {
     member,
-    category,
     post,
     async cleanup() {
       await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
       await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-      await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
       await member.cleanup()
     },
   }
@@ -76,18 +69,14 @@ test('invalid submission describes the field error, focuses its summary and reta
     await page.goto('/feedback/new')
     const title = page.getByRole('textbox', { name: 'Title', exact: true })
     const description = page.getByRole('textbox', { name: 'Feedback', exact: true })
-    const category = page.getByRole('combobox', { name: 'Category', exact: true })
-    for (const field of [title, description, category])
-      await expect(field).toHaveAttribute('required', '')
+    for (const field of [title, description]) await expect(field).toHaveAttribute('required', '')
     await description.fill('Keep this feedback while I correct the missing title.')
-    await category.selectOption(fixture.category.id)
     await activate(page.getByRole('button', { name: 'Submit feedback', exact: true }))
     await expect(page.getByRole('alert')).toBeFocused()
     await expect(page.getByRole('alert')).toHaveCSS('outline-style', 'solid')
     await expect(title).toHaveAttribute('aria-invalid', 'true')
     await expect(title).toHaveAccessibleDescription(/Enter a title/)
     await expect(description).toHaveValue('Keep this feedback while I correct the missing title.')
-    await expect(category).toHaveValue(fixture.category.id)
     await expect(description).not.toHaveAttribute('aria-invalid', 'true')
   } finally {
     await fixture.cleanup()

@@ -10,7 +10,7 @@ import {
 } from '../../../../server/pagination.ts'
 import { publicPostFields } from '../posts/queries.ts'
 import {
-  feedbackCategory,
+  feedbackPostTag,
   feedbackComment,
   feedbackOfficialResponse,
   feedbackPost,
@@ -18,11 +18,11 @@ import {
 
 export async function listReviewQueue({
   status = 'new',
-  category,
+  tagId,
   followUp,
   cursor,
   limit = defaultPageSize,
-}: Pagination & { status?: PostStatus | 'all'; category?: string; followUp?: boolean } = {}) {
+}: Pagination & { status?: PostStatus | 'all'; tagId?: string; followUp?: boolean } = {}) {
   const t = feedbackPost
   const rows = await getDatabase()
     .select({
@@ -31,12 +31,13 @@ export async function listReviewQueue({
     })
     .from(t)
     .innerJoin(user, eq(user.id, t.authorId))
-    .innerJoin(feedbackCategory, eq(feedbackCategory.id, t.categoryId))
     .where(
       and(
         isNull(t.archivedAt),
         status !== 'all' ? eq(t.status, status) : undefined,
-        category ? eq(feedbackCategory.slug, category) : undefined,
+        tagId
+          ? sql`exists (select 1 from ${feedbackPostTag} where ${feedbackPostTag.postId} = ${feedbackPost.id} and ${feedbackPostTag.tagId} = ${tagId})`
+          : undefined,
         cursorCondition(t, cursor, 'asc'),
         followUp
           ? sql`exists (select 1 from ${feedbackComment} c where c.post_id = ${t.id} and c.created_at > (select max(r.created_at) from ${feedbackOfficialResponse} r where r.post_id = ${t.id}) and not exists (select 1 from ${userRole} ur where ur.user_id = c.author_id and ur.role = 'community-manager'))`

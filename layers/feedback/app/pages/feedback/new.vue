@@ -11,10 +11,6 @@ const route = useRoute()
 const submission = useFeedbackSubmission()
 const {
   session,
-  categories,
-  categoriesPending,
-  categoriesError,
-  refresh,
   tagData,
   tagsPending,
   tagsError,
@@ -76,7 +72,7 @@ async function publish() {
     </div>
     <form v-else class="panel feedback-form" novalidate @submit.prevent="publish">
       <p class="field-help">
-        Title, feedback, and category are required. Suggested improvement and tags are optional.
+        Title and feedback are required. Suggested improvement and tags are optional.
       </p>
       <div class="field">
         <label for="post-title">Title</label>
@@ -131,33 +127,6 @@ async function publish() {
           {{ fieldErrors.desiredImprovement }}
         </p>
       </div>
-      <div class="field">
-        <label for="post-category">Category</label>
-        <p v-if="categoriesPending" role="status">Loading categories…</p>
-        <div v-else-if="categoriesError" role="alert">
-          <p>Unable to load categories.</p>
-          <Button type="button" @click="refresh()">Retry categories</Button>
-        </div>
-        <select
-          id="post-category"
-          v-model="form.categoryId"
-          required
-          :disabled="busy || categoriesPending || !!categoriesError"
-          :aria-invalid="!!fieldErrors.categoryId"
-          :aria-describedby="fieldErrors.categoryId ? 'category-error' : undefined"
-        >
-          <option disabled value="">Choose a category</option>
-          <option v-for="category in categories" :key="category.id" :value="category.id">
-            {{ category.name }}
-          </option>
-        </select>
-        <p v-if="fieldErrors.categoryId" id="category-error" class="field-error">
-          {{ fieldErrors.categoryId }}
-        </p>
-        <p v-if="!categoriesPending && !categoriesError && !categories.length" role="status">
-          No categories are available for new feedback yet.
-        </p>
-      </div>
       <div>
         <p v-if="tagsPending" role="status">Loading tags…</p>
         <p v-else-if="tagsError" role="alert">
@@ -177,12 +146,7 @@ async function publish() {
         />
       </div>
       <div class="form-actions">
-        <Button
-          type="submit"
-          variant="primary"
-          :busy="busy"
-          :disabled="busy || categoriesPending || !!categoriesError || !categories.length"
-        >
+        <Button type="submit" variant="primary" :busy="busy" :disabled="busy">
           {{ busy ? 'Submitting…' : 'Submit feedback' }}
         </Button>
         <NuxtLink to="/feedback">Back to feedback</NuxtLink>

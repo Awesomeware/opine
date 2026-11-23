@@ -1,3 +1,4 @@
+import { defaultFeedbackTags } from '../posts/tags.ts'
 import { eq, sql } from 'drizzle-orm'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
@@ -12,7 +13,7 @@ import {
 import { setUserRole } from '../../../auth/server/roles.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
-import { createCategory, createFeedbackPost } from '../../tests/fixtures.ts'
+import { createFeedbackPost } from '../../tests/fixtures.ts'
 import { createComment, editComment, getComment, listComments } from '../discussion/comments.ts'
 import { getReactions, setReaction } from '../discussion/reactions.ts'
 import { getPost, listPosts } from '../posts/queries.ts'
@@ -21,16 +22,15 @@ import { archivePost, setPostLocked } from './moderation.ts'
 import { listDiscussion } from '../discussion/feed.ts'
 import { editPost } from '../posts/editing.ts'
 import {
-  feedbackCategory,
-  feedbackCategoryChange,
   feedbackComment,
   feedbackNotification,
   feedbackOfficialResponse,
   feedbackPost,
+  feedbackTag,
+  feedbackPostTag,
 } from '../schema.ts'
 import { setFollowing } from '../subscriptions/following.ts'
 import { FeedbackWriteError } from '../writes.ts'
-import { correctCategory, listCategoryHistory } from './category-correction.ts'
 import { getOfficialResponse, getOutcome } from './outcome.ts'
 import { publishResponse } from './publication.ts'
 import { listReviewQueue } from './queue.ts'
@@ -43,10 +43,10 @@ afterEach(async () => {
   const database = getDatabase()
   await database.delete(feedbackNotification)
   await database.delete(feedbackOfficialResponse)
-  await database.delete(feedbackCategoryChange)
   await database.delete(feedbackComment)
   await database.delete(feedbackPost)
-  await database.delete(feedbackCategory)
+  await database.delete(feedbackTag)
+  await database.insert(feedbackTag).values(defaultFeedbackTags)
   await database.delete(eventLog)
   await database.delete(user)
 })
@@ -62,9 +62,8 @@ function status(code: number) {
 async function discussion() {
   const author = await createMember({ name: 'Post author' })
   const manager = await createMember({ name: 'Community manager', roles: ['community-manager'] })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: author.user.id, categoryId: category.id })
-  return { author, manager, category, post }
+  const post = await createFeedbackPost({ authorId: author.user.id })
+  return { author, manager, post }
 }
 
 // Keep the suite's container while exercising a real upgrade from the prior schema.
@@ -337,19 +336,20 @@ test('All merges ordinary comments and official responses with stable bounded pa
 })
 
 test('the review queue defaults to oldest New posts and follow-up excludes managers and unanswered posts', async () => {
-  const { author, manager, category, post } = await discussion()
+  const { author, manager, post } = await discussion()
   const database = getDatabase()
-  const otherCategory = await createCategory()
   const oldest = await createFeedbackPost({
     authorId: author.user.id,
-    categoryId: category.id,
+
     createdAt: new Date('2020-01-01'),
   })
   const second = await createFeedbackPost({
     authorId: author.user.id,
-    categoryId: otherCategory.id,
+
     createdAt: new Date('2020-01-02'),
   })
+  const [tag] = await database.insert(feedbackTag).values({ name: 'Queue tag' }).returning()
+  await database.insert(feedbackPostTag).values({ postId: second.id, tagId: tag!.id })
   const initial = await listReviewQueue({ limit: 1 })
   assert.deepEqual(
     initial.posts.map((row) => row.id),
@@ -365,7 +365,7 @@ test('the review queue defaults to oldest New posts and follow-up excludes manag
     [second.id],
   )
   assert.deepEqual(
-    (await listReviewQueue({ category: otherCategory.slug })).posts.map((row) => row.id),
+    (await listReviewQueue({ tagId: tag!.id })).posts.map((row) => row.id),
     [second.id],
   )
   await publishResponse(manager.user.id, oldest.id, {
@@ -419,75 +419,6 @@ test('the review queue defaults to oldest New posts and follow-up excludes manag
   )
   await publishResponse(manager.user.id, oldest.id, { body: 'Answer to follow-up', version: 2 })
   assert.equal((await listReviewQueue({ followUp: true, status: 'all' })).posts.length, 0)
-})
-
-test('category corrections are conflict-safe, audited once, and independent of author text edits', async () => {
-  const { manager, category, post } = await discussion()
-  const target = await createCategory()
-  const input = { categoryId: target.id, version: 1 }
-  const unchanged = { categoryId: category.id, version: 1 }
-  assert.deepEqual(await correctCategory(manager.user.id, post.id, unchanged), {
-    id: post.id,
-    version: 1,
-  })
-  const result = await correctCategory(manager.user.id, post.id, input)
-  assert.equal(result.version, 2)
-  await assert.rejects(correctCategory(manager.user.id, post.id, input), status(409))
-  await assert.rejects(correctCategory(manager.user.id, post.id, unchanged), status(409))
-  const audit = await getDatabase().select().from(feedbackCategoryChange)
-  assert.equal(audit.length, 1)
-  assert.equal(audit[0]!.previousCategoryId, category.id)
-  assert.equal(audit[0]!.categoryId, target.id)
-  assert.equal(audit[0]!.actorId, manager.user.id)
-  assert.equal((await getDatabase().select().from(feedbackPost))[0]!.version, 1)
-  await assert.rejects(
-    correctCategory(manager.user.id, post.id, { categoryId: category.id, version: 1 }),
-    status(409),
-  )
-  assert.equal((await listCategoryHistory(post.id)).changes.length, 1)
-  const inactive = await createCategory({ isActive: false })
-  await assert.rejects(
-    correctCategory(manager.user.id, post.id, { categoryId: inactive.id, version: 2 }),
-    status(400),
-  )
-  assert.equal((await getDatabase().select().from(feedbackNotification)).length, 0)
-})
-
-test('category history pages chronologically across timestamp ties without leaking another post', async () => {
-  const { manager, category, post } = await discussion()
-  const target = await createCategory({ name: 'Corrected category' })
-  const other = await createFeedbackPost({ authorId: manager.user.id, categoryId: category.id })
-  const ids = [1, 2, 3, 4, 5].map((id) => `00000000-0000-4000-8000-${String(id).padStart(12, '0')}`)
-  const times = [1, 1, 0, 2, 1]
-  await getDatabase()
-    .insert(feedbackCategoryChange)
-    .values(
-      ids.map((id, index) => ({
-        id,
-        postId: index === 4 ? other.id : post.id,
-        actorId: manager.user.id,
-        previousCategoryId: category.id,
-        categoryId: target.id,
-        createdAt: new Date(Date.UTC(2026, 0, 1, 0, times[index])),
-      })),
-    )
-
-  const first = await listCategoryHistory(post.id, { limit: 2 })
-  assert.deepEqual(
-    first.changes.map((change) => change.id),
-    [ids[2], ids[0]],
-  )
-  assert.ok(first.nextCursor)
-  const second = await listCategoryHistory(post.id, { limit: 2, cursor: cursor(first.nextCursor) })
-  assert.deepEqual(
-    second.changes.map((change) => change.id),
-    [ids[1], ids[3]],
-  )
-  assert.equal(second.nextCursor, null)
-  assert.deepEqual(
-    (await listCategoryHistory(other.id)).changes.map((change) => change.id),
-    [ids[4]],
-  )
 })
 
 test('discussion pages use one snapshot when publication commits between source reads', async () => {
@@ -578,10 +509,6 @@ test('locking makes contributions read-only, preserves following, and logs only 
     publishResponse(manager.user.id, post.id, { body: 'Official answer.', version: 1 }),
     status(423),
   )
-  await assert.rejects(
-    correctCategory(manager.user.id, post.id, { categoryId: post.categoryId, version: 1 }),
-    status(423),
-  )
   await setFollowing(author.user.id, post.id, true)
   await setFollowing(author.user.id, post.id, true)
   await setFollowing(author.user.id, post.id, false)
@@ -626,7 +553,6 @@ test('archiving hides every post projection and notification without deleting re
   await assert.rejects(listDiscussion(post.id, { type: 'team' }), status(404))
   await assert.rejects(getOutcome(post.id, manager.user.id), status(404))
   await assert.rejects(getReactions(post.id), status(404))
-  await assert.rejects(listCategoryHistory(post.id), status(404))
   assert.deepEqual(await listNotifications(author.user.id), {
     notifications: [],
     nextCursor: null,
@@ -660,10 +586,6 @@ test('archiving hides every post projection and notification without deleting re
   )
   await assert.rejects(
     publishResponse(manager.user.id, post.id, { body: 'Another answer.', version: 2 }),
-    status(404),
-  )
-  await assert.rejects(
-    correctCategory(manager.user.id, post.id, { categoryId: post.categoryId, version: 2 }),
     status(404),
   )
   assert.equal((await getDatabase().select().from(feedbackPost)).length, 1)

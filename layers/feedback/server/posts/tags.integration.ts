@@ -10,8 +10,7 @@ import {
 } from '../../../../tests/helpers/migration-database.ts'
 import { user, userRole } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
-import { createCategory } from '../../tests/fixtures.ts'
-import { feedbackCategory, feedbackPost, feedbackTag } from '../schema.ts'
+import { feedbackPost, feedbackTag } from '../schema.ts'
 import { FeedbackWriteError } from '../writes.ts'
 import { createPost } from './creation.ts'
 import { editPost } from './editing.ts'
@@ -22,7 +21,6 @@ assert.equal(process.env.DATABASE_URL, process.env.OPINE_TEST_DATABASE_URL)
 after(closeDatabase)
 afterEach(async () => {
   await getDatabase().delete(feedbackPost)
-  await getDatabase().delete(feedbackCategory)
   await getDatabase().delete(eventLog)
   await getDatabase().delete(user)
   await getDatabase().delete(feedbackTag)
@@ -34,12 +32,10 @@ async function setup() {
   const member = await createMember()
   const admin = await createMember()
   await getDatabase().insert(userRole).values({ userId: admin.user.id, role: 'administrator' })
-  const category = await createCategory()
   const input = {
     title: 'Tag feedback',
     description: 'Feedback body',
     desiredImprovement: null,
-    categoryId: category.id,
   }
   return { member, admin, input }
 }
@@ -159,7 +155,7 @@ test('tag migration leaves existing post content and versions untouched with no 
     )
     const before = (await isolated.query('select * from feedback_post')).rows
     await applyMigrations(isolated, 5, 6)
-    await applyMigrations(isolated, 8)
+    await applyMigrations(isolated, 8, 9)
     assert.deepEqual((await isolated.query('select * from feedback_post')).rows, before)
     assert.equal((await isolated.query('select * from feedback_post_tag')).rows.length, 0)
     const tags = (await isolated.query('select id, name, icon from feedback_tag order by id')).rows
@@ -214,7 +210,7 @@ test('icon migration preserves custom names, disabled tags, assignments and nami
     )
     const assignments = (await isolated.query('select * from feedback_post_tag order by tag_id'))
       .rows
-    await applyMigrations(isolated, 8)
+    await applyMigrations(isolated, 8, 9)
     assert.deepEqual(
       (await isolated.query('select * from feedback_post_tag order by tag_id')).rows,
       assignments,

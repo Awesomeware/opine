@@ -47,7 +47,7 @@ try {
       } else {
         await resetDatabase(confirmation!)
         console.log(
-          'All Opine data removed. General feedback is ready. Sign in again and reassign roles as needed.',
+          'All Opine data removed. Default tags are ready. Sign in again and reassign roles as needed.',
         )
         console.log('Run pnpm db:seed to add example feedback.')
       }

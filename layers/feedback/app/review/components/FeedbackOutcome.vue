@@ -9,8 +9,6 @@ import { useFeedbackFollowing } from '../../subscriptions/composables/useFeedbac
 const props = defineProps<{
   postId: string
   owner: string | null
-  categoryId: string
-  categoryName: string
   lockedAt: string | null
   focusModeration?: boolean
 }>()
@@ -53,18 +51,12 @@ async function publishResponse() {
     responseInput.value?.focus()
   }
 }
-
-function categorySaved() {
-  void load()
-  emit('published')
-}
 </script>
 <template>
   <section aria-label="Feedback overview" class="overview">
     <div class="overview-top">
       <div class="proposal"><slot name="proposal" /></div>
       <aside aria-label="Status and following" class="status-summary">
-        <strong class="category-name">{{ categoryName }}</strong>
         <p v-if="error" role="alert">
           {{ error }}
           <Button variant="quiet" @click="load">Retry outcome</Button>
@@ -193,13 +185,6 @@ function categorySaved() {
             </Button>
           </form>
         </details>
-        <FeedbackCategoryCorrection
-          :owner="owner"
-          :post-id="postId"
-          :category-id="categoryId"
-          :version="outcome.version"
-          @saved="categorySaved"
-        />
       </div>
     </template>
   </section>
@@ -219,11 +204,6 @@ function categorySaved() {
   padding-left: 1.5rem;
   font-size: 0.85rem;
   min-width: 0;
-}
-.category-name {
-  display: block;
-  margin-bottom: 1rem;
-  overflow-wrap: anywhere;
 }
 .status-summary h2 {
   font-family: var(--font-body);
@@ -294,9 +274,6 @@ summary {
     border-left: 0;
     border-top: 1px solid var(--color-border);
     padding: 1rem 0 0;
-  }
-  .category-name {
-    margin-bottom: 0.5rem;
   }
 }
 </style>

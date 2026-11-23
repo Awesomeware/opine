@@ -4,8 +4,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
 import { setUserRole } from '../../../auth/server/roles.ts'
-import { feedbackCategory, feedbackPost, feedbackTag } from '../../server/schema.ts'
-import { createCategory } from '../fixtures.ts'
+import { feedbackPost, feedbackTag } from '../../server/schema.ts'
 
 test.afterAll(closeDatabase)
 const headers = (cookie?: string) => ({
@@ -20,7 +19,6 @@ test('only administrators manage the optional tag catalog, while post ownership 
   const admin = await createMember({ roles: ['administrator'] })
   const member = await createMember()
   const manager = await createMember({ roles: ['community-manager'] })
-  const category = await createCategory()
   const names = [
     `Custom tag ${randomUUID().slice(0, 8)}`,
     `Renamed tag ${randomUUID().slice(0, 8)}`,
@@ -83,7 +81,6 @@ test('only administrators manage the optional tag catalog, while post ownership 
     const created = await request.post('/api/feedback/posts', {
       headers: headers(member.cookieHeader),
       data: {
-        categoryId: category.id,
         title: 'Tag ownership remains with the author',
         description: 'Categorizing this proposal is optional.',
         tagIds: [tag!.id],
@@ -125,7 +122,6 @@ test('only administrators manage the optional tag catalog, while post ownership 
     const disabled = await request.post('/api/feedback/posts', {
       headers: headers(manager.cookieHeader),
       data: {
-        categoryId: category.id,
         title: 'Cannot attach a disabled tag',
         description: 'A new proposal',
         tagIds: [tag!.id],
@@ -168,9 +164,10 @@ test('only administrators manage the optional tag catalog, while post ownership 
       [],
     )
   } finally {
-    await database.delete(feedbackPost).where(eq(feedbackPost.categoryId, category.id))
+    await database
+      .delete(feedbackPost)
+      .where(inArray(feedbackPost.authorId, [admin.user.id, member.user.id, manager.user.id]))
     await database.delete(feedbackTag).where(inArray(feedbackTag.name, names))
-    await database.delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     for (const actor of [admin, member, manager]) await actor.cleanup()
   }
 })
@@ -181,7 +178,6 @@ test('optional tags persist after an uncertain submission and author tag-only ed
 }) => {
   const author = await createMember()
   const admin = await createMember({ roles: ['administrator'] })
-  const category = await createCategory()
   const database = getDatabase()
   const names = [
     `Journey tag A ${randomUUID().slice(0, 8)}`,
@@ -202,7 +198,6 @@ test('optional tags persist after an uncertain submission and author tag-only ed
     const untagged = await request.post('/api/feedback/posts', {
       headers: headers(admin.cookieHeader),
       data: {
-        categoryId: category.id,
         title: 'Feedback without tags',
         description: 'No tags are needed.',
       },
@@ -220,7 +215,6 @@ test('optional tags persist after an uncertain submission and author tag-only ed
       .getByLabel('Title', { exact: true })
       .fill('Make navigation clearer with optional tags')
     await page.getByLabel('Feedback', { exact: true }).fill('The map labels are too small.')
-    await page.getByLabel('Category', { exact: true }).selectOption(category.id)
     for (const name of names) await picker.getByRole('checkbox', { name, exact: true }).check()
     await page.route('**/api/feedback/posts', async (route) => {
       if (route.request().method() !== 'POST') return route.continue()
@@ -291,9 +285,10 @@ test('optional tags persist after an uncertain submission and author tag-only ed
       ).status(),
     ).toBe(200)
   } finally {
-    await database.delete(feedbackPost).where(eq(feedbackPost.categoryId, category.id))
+    await database
+      .delete(feedbackPost)
+      .where(inArray(feedbackPost.authorId, [admin.user.id, author.user.id]))
     await database.delete(feedbackTag).where(inArray(feedbackTag.name, names))
-    await database.delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await author.cleanup()
     await admin.cleanup()
   }

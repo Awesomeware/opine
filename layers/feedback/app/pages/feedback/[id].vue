@@ -92,8 +92,6 @@ async function copyLink() {
       :locked-at="post.lockedAt"
       :focus-moderation="focusModeration"
       @moderation-focused="focusModeration = false"
-      :category-id="post.category.id"
-      :category-name="post.category.name"
       :post-id="post.id"
       :owner="owner"
       @published="refreshPublished"
@@ -102,7 +100,6 @@ async function copyLink() {
     >
       <template #proposal>
         <article class="proposal-article">
-          <p class="eyebrow">{{ post.category.name }}</p>
           <h1>{{ post.title }}</h1>
           <p v-if="post.lockedAt" role="status">Locked · Contributions and changes are paused.</p>
           <FeedbackTags :tags="post.tags" />
@@ -181,14 +178,6 @@ h1 {
   line-height: 1.12;
   margin: 0.5rem 0 0.75rem;
   max-width: 26ch;
-}
-.eyebrow {
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-  text-transform: none;
-  letter-spacing: 0;
-  margin: 0;
-  font-weight: 400;
 }
 .byline {
   display: flex;

@@ -1,19 +1,19 @@
 import { getReviewQueue, type ReviewFilters } from '../api/review'
-import { getCategories } from '../../posts/api/posts'
-import type { FeedbackCategory, FeedbackPostSummary } from '../../../shared/posts/contracts'
+import { getTags } from '../../posts/api/tags'
+import type { FeedbackTag, FeedbackPostSummary } from '../../../shared/posts/contracts'
 import { isPostStatus } from '../../../shared/status'
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRequestScope } from '../../composables/useRequestScope'
 import { feedbackFailure } from '../../api/errors'
 
 /**
- * Queue and category reads have separate lifetimes: an unavailable catalog must remain visible and retryable.
+ * Queue and tag reads have separate lifetimes: an unavailable catalog must remain visible and retryable.
  * Create within setup so disposal prevents late requests from updating local state.
  */
 export function useFeedbackReviewQueue() {
   const route = useRoute()
   const applied = computed<ReviewFilters>(() => ({
-    category: typeof route.query.category === 'string' ? route.query.category : '',
+    tagId: typeof route.query.tagId === 'string' ? route.query.tagId : '',
     status:
       isPostStatus(route.query.status) || route.query.status === 'all' ? route.query.status : 'new',
     followUp: route.query.followUp === 'true',
@@ -26,10 +26,10 @@ export function useFeedbackReviewQueue() {
   const error = ref('')
   const scope = useRequestScope()
 
-  const categories = ref<FeedbackCategory[]>([])
-  const categoryError = ref('')
-  const categoriesLoading = ref(false)
-  const categoryScope = useRequestScope()
+  const tags = ref<FeedbackTag[]>([])
+  const tagsError = ref('')
+  const tagsLoading = ref(false)
+  const tagsScope = useRequestScope()
 
   async function load(more = false) {
     if (more && loading.value) {
@@ -83,7 +83,7 @@ export function useFeedbackReviewQueue() {
   async function apply() {
     await navigateTo({
       query: {
-        category: filters.category || undefined,
+        tagId: filters.tagId || undefined,
         status: filters.status,
         followUp: filters.followUp ? 'true' : undefined,
       },
@@ -95,39 +95,39 @@ export function useFeedbackReviewQueue() {
     void load()
   })
 
-  async function loadCategories() {
-    const isCurrent = categoryScope.startRequest()
-    categoriesLoading.value = true
-    categoryError.value = ''
+  async function loadTags() {
+    const isCurrent = tagsScope.startRequest()
+    tagsLoading.value = true
+    tagsError.value = ''
 
     try {
-      const result = await getCategories()
+      const result = await getTags()
       if (isCurrent()) {
-        categories.value = result.categories
+        tags.value = result.tags
       }
     } catch {
       if (isCurrent()) {
-        categoryError.value = 'Unable to load categories.'
+        tagsError.value = 'Unable to load tags.'
       }
     } finally {
       if (isCurrent()) {
-        categoriesLoading.value = false
+        tagsLoading.value = false
       }
     }
   }
 
   onMounted(() => {
     void load()
-    void loadCategories()
+    void loadTags()
   })
 
   return {
     filters,
     posts,
-    categories,
-    categoryError,
-    categoriesLoading,
-    loadCategories,
+    tags,
+    tagsError,
+    tagsLoading,
+    loadTags,
     cursor,
     loading,
     loaded,

@@ -24,7 +24,6 @@ A non-NULL actor is the authenticated internal user responsible for the action. 
 | ----------------------------------------------- | --------------------------------------------------------------------- |
 | `post.created`, `post.edited`                   | Post identity, version and changed field names where relevant         |
 | `post.locked`, `post.unlocked`, `post.archived` | Post identity                                                         |
-| `post.category_changed`                         | Post identity and previous/replacement category IDs                   |
 | `comment.created`, `comment.edited`             | Post/comment identity, version and changed field names where relevant |
 | `official_response.published`                   | Post and response identity                                            |
 | `reaction.changed`                              | Post identity and previous/new reaction, including removal            |
@@ -32,6 +31,6 @@ A non-NULL actor is the authenticated internal user responsible for the action. 
 | `tag.created`, `tag.updated`                    | Tag identity, version and changed field names where relevant          |
 | `role.granted`, `role.revoked`                  | Target user identity and role                                         |
 
-Details are typed per event in [the server append operation](../server/events/repository.ts), constructed by trusted operations rather than accepted as arbitrary client payloads. Store IDs, versions, changed field names and small facts needed to explain the action. Do not store post/comment bodies, previous content, secrets, or complete requests. Existing category-correction records remain available through their CM-only history endpoint; the event log does not replace that projection.
+Details are typed per event in [the server append operation](../server/events/repository.ts), constructed by trusted operations rather than accepted as arbitrary client payloads. Store IDs, versions, changed field names and small facts needed to explain the action. Do not store post/comment bodies, previous content, secrets, or complete requests. Historical category-change events may remain in existing installations, but no new category events are emitted.
 
 Existing domain records are not retroactively reconstructed into events. Direct test fixtures and example-data seeding are not application user actions and do not create business events. Archiving preserves existing event records alongside the hidden content; application queries must not expose the log as a route around archive visibility. See [feedback moderation](feedback.md#locking-and-archiving), [transaction boundaries](architecture.md#operations-spanning-capabilities), and [retention](feedback.md#contribution-retention).

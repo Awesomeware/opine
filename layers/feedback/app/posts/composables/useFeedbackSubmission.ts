@@ -2,7 +2,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { authClient } from '../../../../auth/app/auth-client'
 import { startDiscordSignIn } from '../../../../auth/app/api/session'
 import { useRequestScope } from '../../composables/useRequestScope'
-import { getCategories, createPost } from '../api/posts'
+import { createPost } from '../api/posts'
 import { getTags } from '../api/tags'
 import { feedbackFailure } from '../../api/errors'
 import type { SubmissionForm } from '../utils/post-editor-input'
@@ -11,15 +11,6 @@ import { validatePostInput } from '../../../shared/posts/input'
 /** Owns the mounted form; ignores completion after disposal or a session identity change. */
 export function useFeedbackSubmission() {
   const session = authClient.useSession()
-  const {
-    data: categoryData,
-    pending: categoriesPending,
-    error: categoriesError,
-    refresh,
-  } = useAsyncData('submission-categories', getCategories)
-  const categories = computed(
-    () => categoryData.value?.categories.filter((category) => category.isActive) ?? [],
-  )
   const {
     data: tagData,
     pending: tagsPending,
@@ -30,7 +21,6 @@ export function useFeedbackSubmission() {
     title: '',
     description: '',
     desiredImprovement: '',
-    categoryId: '',
     tagIds: [],
   })
   const fieldErrors = ref<Partial<Record<keyof typeof form, string>>>({})
@@ -60,7 +50,6 @@ export function useFeedbackSubmission() {
         title: '',
         description: '',
         desiredImprovement: '',
-        categoryId: '',
         tagIds: [],
       })
       fieldErrors.value = {}
@@ -139,20 +128,8 @@ export function useFeedbackSubmission() {
             return
           }
         }
-        if (fieldErrors.value.categoryId) {
-          await refresh()
-          if (!isCurrent()) {
-            return
-          }
-          if (
-            !categoriesError.value &&
-            !categories.value.some((category) => category.id === form.categoryId)
-          ) {
-            form.categoryId = ''
-          }
-        }
       } else if (failure.status === 400) {
-        message.value = 'Check your selected tags and category before submitting again.'
+        message.value = 'Check your selected tags before submitting again.'
         fieldErrors.value.tagIds = 'Only active tags can be added. Remove any unavailable tags.'
         await refreshTags()
       } else if (failure.status === 401) {
@@ -181,10 +158,6 @@ export function useFeedbackSubmission() {
 
   return {
     session,
-    categories,
-    categoriesPending,
-    categoriesError,
-    refresh,
     tagData,
     tagsPending,
     tagsError,

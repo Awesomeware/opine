@@ -12,16 +12,6 @@ export default defineEventHandler(async (event) => {
     })
   const actorId = await feedbackActor(event)
   const post = await feedbackResponse(event, createPost(actorId, parsed.data))
-  if (!post)
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Choose an available category.',
-      data: {
-        fieldErrors: {
-          categoryId: 'This category is no longer available. Choose another category.',
-        },
-      },
-    })
   setResponseStatus(event, 201)
   return post
 })

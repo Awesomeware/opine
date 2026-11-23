@@ -16,26 +16,6 @@ import { user } from '../../auth/server/schema.ts'
 import { contributionTypes } from '../shared/discussion/contribution-types.ts'
 import { postStatuses } from '../shared/status.ts'
 
-export const feedbackCategory = pgTable(
-  'feedback_category',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    slug: text('slug').notNull().unique(),
-    name: text('name').notNull(),
-    sortOrder: integer('sort_order').notNull().default(0),
-    isActive: boolean('is_active').notNull().default(true),
-    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
-  },
-  (table) => [
-    check(
-      'feedback_category_slug_valid',
-      sql`${table.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$' and char_length(${table.slug}) <= 80`,
-    ),
-    check('feedback_category_name_valid', sql`char_length(btrim(${table.name})) between 1 and 80`),
-  ],
-)
-
 export const feedbackStatus = pgEnum('feedback_status', postStatuses)
 export const feedbackPost = pgTable(
   'feedback_post',
@@ -44,9 +24,6 @@ export const feedbackPost = pgTable(
     authorId: text('author_id')
       .notNull()
       .references(() => user.id, { onDelete: 'restrict' }),
-    categoryId: uuid('category_id')
-      .notNull()
-      .references(() => feedbackCategory.id, { onDelete: 'restrict' }),
     title: text('title').notNull(),
     description: text('description').notNull(),
     desiredImprovement: text('desired_improvement'),
@@ -63,11 +40,6 @@ export const feedbackPost = pgTable(
   (table) => [
     check('feedback_post_version_positive', sql`${table.version} > 0`),
     index('feedback_post_newest_idx').on(table.createdAt.desc(), table.id.desc()),
-    index('feedback_post_category_newest_idx').on(
-      table.categoryId,
-      table.createdAt.desc(),
-      table.id.desc(),
-    ),
     index('feedback_post_status_newest_idx').on(
       table.status,
       table.createdAt.desc(),
@@ -206,29 +178,6 @@ export const feedbackNotification = pgTable(
     index('feedback_notification_inbox_idx').on(table.userId, table.createdAt, table.id),
   ],
 )
-export const feedbackCategoryChange = pgTable(
-  'feedback_category_change',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    postId: uuid('post_id')
-      .notNull()
-      .references(() => feedbackPost.id, { onDelete: 'restrict' }),
-    actorId: text('actor_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'restrict' }),
-    previousCategoryId: uuid('previous_category_id')
-      .notNull()
-      .references(() => feedbackCategory.id, { onDelete: 'restrict' }),
-    categoryId: uuid('category_id')
-      .notNull()
-      .references(() => feedbackCategory.id, { onDelete: 'restrict' }),
-    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
-  },
-  (table) => [
-    index('feedback_category_change_chronological_idx').on(table.postId, table.createdAt, table.id),
-  ],
-)
-
 export const feedbackTag = pgTable(
   'feedback_tag',
   {

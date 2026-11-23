@@ -4,7 +4,7 @@ import { validateTagInput, validateTagEditInput } from './tag-input.ts'
 import { validatePostInput } from './input.ts'
 import { validatePostEditInput } from './input.ts'
 const id = 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA'
-const post = { title: 'Title', description: 'Feedback', categoryId: id }
+const post = { title: 'Title', description: 'Feedback' }
 test('tags validate names and explicit versions without admitting client authority', () => {
   assert.deepEqual(validateTagInput({ name: ' $$$ ' }), { success: true, data: { name: '$$$' } })
   for (const name of ['', ' ', 'x'.repeat(41), '\0'])

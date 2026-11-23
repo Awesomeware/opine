@@ -7,7 +7,7 @@ import { eq, getTableName, is, sql } from 'drizzle-orm'
 import { PgTable } from 'drizzle-orm/pg-core'
 import { Client } from 'pg'
 import { createMember } from '../../layers/auth/tests/fixtures.ts'
-import { createCategory, createFeedbackPost } from '../../layers/feedback/tests/fixtures.ts'
+import { createFeedbackPost } from '../../layers/feedback/tests/fixtures.ts'
 import { defaultFeedbackTags } from '../../layers/feedback/server/posts/tags.ts'
 import { examplePostIds, seedExampleData } from '../../layers/feedback/server/example-data.ts'
 import { getOutcome } from '../../layers/feedback/server/review/outcome.ts'
@@ -69,8 +69,7 @@ async function history() {
 test('concurrent example seeding is additive, repeatable, and presents real discussion outcomes', async () => {
   const database = getDatabase()
   const member = await createMember({ roles: ['administrator'] })
-  const category = await createCategory({ name: 'Keep this custom category' })
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   const existing = await contents()
   const results = await Promise.all(Array.from({ length: 3 }, () => seedExampleData()))
   assert.equal(
@@ -78,7 +77,7 @@ test('concurrent example seeding is additive, repeatable, and presents real disc
     3,
   )
   assert.equal((await database.select().from(schema.feedbackPost)).length, 4)
-  assert.equal((await database.select().from(schema.feedbackPostTag)).length, 5)
+  assert.equal((await database.select().from(schema.feedbackPostTag)).length, 8)
   const comments = await database.select().from(schema.feedbackComment)
   assert.deepEqual(new Set(comments.map((comment) => comment.type)), new Set(contributionTypes))
   const responses = await database.select().from(schema.feedbackOfficialResponse)
@@ -161,7 +160,7 @@ test('example tags respect disabled choices and preserve authors’ removed assi
     ).length,
     0,
   )
-  assert.equal((await database.select().from(schema.feedbackPostTag)).length, 3)
+  assert.equal((await database.select().from(schema.feedbackPostTag)).length, 6)
   await database
     .delete(schema.feedbackPostTag)
     .where(eq(schema.feedbackPostTag.postId, examplePostIds[2]))
@@ -222,7 +221,7 @@ test('reset requires the exact database name, clears all app data, and preserves
     const result = await cli(['reset', '--confirm', databaseName])
     assert.equal(result.code, 0, result.output)
     for (const table of tables) {
-      if (table === schema.feedbackCategory || table === schema.feedbackTag) continue
+      if (table === schema.feedbackTag) continue
       assert.equal((await database.select().from(table)).length, 0, getTableName(table))
     }
     const tags = await database.select().from(schema.feedbackTag).orderBy(schema.feedbackTag.id)
@@ -231,10 +230,6 @@ test('reset requires the exact database name, clears all app data, and preserves
       defaultFeedbackTags.map(({ id, name, icon }) => ({ id, name, icon })),
     )
     assert.ok(tags.every((tag) => tag.isActive && tag.version === 1))
-    const categories = await database.select().from(schema.feedbackCategory)
-    assert.equal(categories.length, 1)
-    assert.equal(categories[0]!.name, 'General feedback')
-    assert.equal(categories[0]!.isActive, true)
     assert.deepEqual(await history(), migrations)
     assert.deepEqual((await database.execute(sql`select * from opine_unrelated_data`)).rows, [
       { value: 'keep me' },

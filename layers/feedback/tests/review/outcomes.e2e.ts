@@ -4,13 +4,12 @@ import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
 import {
-  feedbackCategory,
   feedbackComment,
   feedbackOfficialResponse,
   feedbackNotification,
   feedbackPost,
 } from '../../server/schema.ts'
-import { createCategory, createFeedbackPost } from '../fixtures.ts'
+import { createFeedbackPost } from '../fixtures.ts'
 
 test.afterAll(closeDatabase)
 const headers = (cookie: string) => ({
@@ -25,7 +24,6 @@ test('a typed contribution receives an official outcome and followers can read i
   const author = await createMember({ name: 'Proposal author' })
   const follower = await createMember({ name: 'Interested player' })
   const cm = await createMember({ name: 'Community representative', roles: ['community-manager'] })
-  const category = await createCategory()
   let postId: string | undefined
   try {
     const created = await request.post('/api/feedback/posts', {
@@ -33,7 +31,6 @@ test('a typed contribution receives an official outcome and followers can read i
       data: {
         title: 'Make group invitations clearer',
         description: 'The invitation is too easy to miss.',
-        categoryId: category.id,
       },
     })
     expect(created.status()).toBe(201)
@@ -207,7 +204,6 @@ test('a typed contribution receives an official outcome and followers can read i
         .where(eq(feedbackOfficialResponse.postId, postId))
       await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, postId))
     }
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     for (const member of [author, follower, cm]) await member.cleanup()
   }
 })
@@ -218,8 +214,7 @@ test('official writes and private queues enforce roles, origin, ownership, and v
   const member = await createMember()
   const cm = await createMember({ roles: ['community-manager'] })
   const admin = await createMember({ roles: ['administrator'] })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   const base = `/api/feedback/posts/${post.id}`
   try {
     for (const cookie of [member.cookieHeader, admin.cookieHeader]) {
@@ -234,21 +229,12 @@ test('official writes and private queues enforce roles, origin, ownership, and v
           })
         ).status(),
       ).toBe(403)
-      expect(
-        (
-          await request.patch(`${base}/category`, {
-            headers: headers(cookie),
-            data: { categoryId: category.id, version: 1 },
-          })
-        ).status(),
-      ).toBe(403)
     }
     for (const url of ['/api/feedback/review', '/api/feedback/notifications'])
       expect((await request.get(url)).status()).toBe(401)
     const writes = [
       { method: 'POST', url: `${base}/responses`, data: { body: 'A response', version: 1 } },
       { method: 'PUT', url: `${base}/follow`, data: { following: true } },
-      { method: 'PATCH', url: `${base}/category`, data: { categoryId: category.id, version: 1 } },
     ]
     for (const write of writes) {
       expect(
@@ -346,7 +332,6 @@ test('official writes and private queues enforce roles, origin, ownership, and v
       .delete(feedbackOfficialResponse)
       .where(eq(feedbackOfficialResponse.postId, post.id))
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     for (const actor of [member, cm, admin]) await actor.cleanup()
   }
 })
@@ -357,8 +342,7 @@ test('official response uncertainty is resolved by reloading before a later conf
 }) => {
   const cm = await createMember({ roles: ['community-manager'] })
   const otherCm = await createMember({ roles: ['community-manager'] })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: cm.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: cm.user.id })
   const base = `/api/feedback/posts/${post.id}`
   try {
     await page.context().addCookies([cm.cookie])
@@ -430,7 +414,6 @@ test('official response uncertainty is resolved by reloading before a later conf
       .delete(feedbackOfficialResponse)
       .where(eq(feedbackOfficialResponse.postId, post.id))
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await cm.cleanup()
     await otherCm.cleanup()
   }
@@ -440,8 +423,7 @@ test('an authorized publication can finish after revocation but its retry must a
   request,
 }) => {
   const manager = await createMember({ roles: ['community-manager'] })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: manager.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: manager.user.id })
   const blocker = new Client({ connectionString: process.env.OPINE_TEST_DATABASE_URL })
   const observer = new Client({ connectionString: process.env.OPINE_TEST_DATABASE_URL })
   await blocker.connect()
@@ -485,7 +467,6 @@ test('an authorized publication can finish after revocation but its retry must a
       .delete(feedbackOfficialResponse)
       .where(eq(feedbackOfficialResponse.postId, post.id))
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await manager.cleanup()
   }
 })
@@ -496,8 +477,7 @@ test('community managers pause contributions, reopen them, and archive feedback 
 }) => {
   const author = await createMember()
   const manager = await createMember({ roles: ['community-manager'] })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: author.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: author.user.id })
   const base = `/api/feedback/posts/${post.id}`
 
   try {
@@ -554,7 +534,6 @@ test('community managers pause contributions, reopen them, and archive feedback 
     await expect(page.getByRole('heading', { name: 'Feedback not found' })).toBeVisible()
   } finally {
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await author.cleanup()
     await manager.cleanup()
   }
@@ -562,8 +541,7 @@ test('community managers pause contributions, reopen them, and archive feedback 
 
 test('unlocking restores author editing without requiring another post read', async ({ page }) => {
   const manager = await createMember({ roles: ['community-manager'] })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: manager.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: manager.user.id })
 
   try {
     await page.context().addCookies([manager.cookie])
@@ -583,15 +561,13 @@ test('unlocking restores author editing without requiring another post read', as
     await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeVisible()
   } finally {
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await manager.cleanup()
   }
 })
 
 test('loading the final notification page focuses its first new result', async ({ page }) => {
   const member = await createMember()
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   const database = getDatabase()
   try {
     const responses = await database
@@ -627,7 +603,6 @@ test('loading the final notification page focuses its first new result', async (
       .delete(feedbackOfficialResponse)
       .where(eq(feedbackOfficialResponse.postId, post.id))
     await database.delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await database.delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })

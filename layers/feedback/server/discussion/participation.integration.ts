@@ -8,8 +8,8 @@ import { eventLog } from '../../../../server/events/schema.ts'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
-import { createCategory, createFeedbackPost } from '../../tests/fixtures.ts'
-import { feedbackCategory, feedbackComment, feedbackPost, feedbackReaction } from '../schema.ts'
+import { createFeedbackPost } from '../../tests/fixtures.ts'
+import { feedbackComment, feedbackPost, feedbackReaction } from '../schema.ts'
 import { FeedbackWriteError } from '../writes.ts'
 import { createComment, editComment, getComment, listComments } from './comments.ts'
 import { getReactions, setReaction } from './reactions.ts'
@@ -23,7 +23,6 @@ afterEach(async () => {
   await database.delete(feedbackComment)
   await database.delete(feedbackReaction)
   await database.delete(feedbackPost)
-  await database.delete(feedbackCategory)
   await database.delete(eventLog)
   await database.delete(user)
 })
@@ -34,9 +33,8 @@ function status(code: number) {
 async function discussion() {
   const author = await createMember({ name: 'Post author' })
   const commenter = await createMember({ name: 'Comment author' })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: author.user.id, categoryId: category.id })
-  return { author, commenter, category, post }
+  const post = await createFeedbackPost({ authorId: author.user.id })
+  return { author, commenter, post }
 }
 
 test('comment ownership keeps contributions when an account is deleted and projections keep credentials private', async () => {

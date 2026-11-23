@@ -77,7 +77,7 @@ test('moderation migration preserves existing content and starts with an empty e
       "insert into feedback_post (author_id, category_id, title, description) select 'moderation-upgrade', id, 'Existing post', 'Keep this content' from feedback_category limit 1 returning *",
     )
 
-    await applyMigrations(database, 7)
+    await applyMigrations(database, 7, 8)
 
     assert.deepEqual((await database.query('select * from feedback_post')).rows, [
       { ...post, locked_at: null, archived_at: null },
@@ -112,4 +112,44 @@ test('committed migrations can be reapplied without changing history or stored d
   } finally {
     await getDatabase().execute(sql`drop table opine_test_persistence`)
   }
+})
+
+test('removing categories preserves posts, assigned tags and business events', async () => {
+  await withMigrationDatabase(async (database) => {
+    await applyMigrations(database, 0, 9)
+    await database.query(
+      "insert into auth_user (id, name, email) values ('category-upgrade', 'Author', 'category@example.test')",
+    )
+    const {
+      rows: [post],
+    } = await database.query(
+      "insert into feedback_post (author_id, category_id, title, description) select 'category-upgrade', id, 'Tagged post', 'Keep this content' from feedback_category limit 1 returning *",
+    )
+    await database.query(
+      "insert into feedback_post_tag select $1, id from feedback_tag where name in ('Gameplay', 'UI')",
+      [post.id],
+    )
+    await database.query(
+      "insert into event_log (event_type, actor_id, details) values ('post.created', 'category-upgrade', $1)",
+      [{ postId: post.id }],
+    )
+    const tags = (await database.query('select * from feedback_post_tag order by tag_id')).rows
+    const events = (await database.query('select * from event_log')).rows
+    await applyMigrations(database, 9)
+    const { category_id: _categoryId, ...expected } = post
+    assert.deepEqual((await database.query('select * from feedback_post')).rows, [expected])
+    assert.deepEqual(
+      (await database.query('select * from feedback_post_tag order by tag_id')).rows,
+      tags,
+    )
+    assert.deepEqual((await database.query('select * from event_log')).rows, events)
+    assert.deepEqual(
+      (
+        await database.query(
+          "select to_regclass('feedback_category') as category, to_regclass('feedback_category_change') as history",
+        )
+      ).rows,
+      [{ category: null, history: null }],
+    )
+  })
 })

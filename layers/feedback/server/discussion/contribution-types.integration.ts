@@ -9,8 +9,8 @@ import {
 } from '../../../../tests/helpers/migration-database.ts'
 import { user } from '../../../auth/server/schema.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
-import { createCategory, createFeedbackPost } from '../../tests/fixtures.ts'
-import { feedbackCategory, feedbackComment, feedbackPost } from '../schema.ts'
+import { createFeedbackPost } from '../../tests/fixtures.ts'
+import { feedbackComment, feedbackPost } from '../schema.ts'
 import { FeedbackWriteError } from '../writes.ts'
 import { createComment, editComment, getComment, listComments } from './comments.ts'
 
@@ -23,15 +23,13 @@ afterEach(async () => {
   const database = getDatabase()
   await database.delete(feedbackComment)
   await database.delete(feedbackPost)
-  await database.delete(feedbackCategory)
   await database.delete(eventLog)
   await database.delete(user)
 })
 
 async function discussion() {
   const member = await createMember()
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   return { member, post }
 }
 

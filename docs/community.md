@@ -62,7 +62,6 @@ Public community settings complement the existing configuration paths:
 - [Local setup and database migrations](../README.md#local-development): Node/pnpm, PostgreSQL, `DATABASE_URL` and migration commands.
 - [Discord and authentication secrets](authentication.md#configure-discord): application origin, callback URL, `BETTER_AUTH_SECRET`, `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET`. These remain server-only.
 - [First administrator](authentication.md#grant-the-first-administrator) and [role management](authentication.md#administrator-role-management): `pnpm auth:role grant|revoke <user-id> <role>` for operators, or the authenticated administrator API. Administrator and community-manager permissions are independent.
-- [Categories](feedback.md#category-configuration): `pnpm feedback:category upsert|enable|disable ...` controls names, ordering and availability.
 - [Tags](feedback.md#tags): administrators use **Tags** in the application navigation to create, rename, disable and re-enable the available tags.
 - [Posting limits](feedback.md#posting-limits) and [sign-in limits](authentication.md#sign-in-rate-limits): server-only environment settings tune creation and authentication limits.
 

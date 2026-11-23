@@ -30,7 +30,7 @@ export async function updatePostWorkflow(
   transaction: FeedbackTransaction,
   postId: string,
   version: number,
-  change: { status: PostStatus; categoryId?: never } | { categoryId: string; status?: never },
+  change: { status: PostStatus },
 ) {
   await transaction
     .update(feedbackPost)

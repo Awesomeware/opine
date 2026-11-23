@@ -24,7 +24,7 @@ The core feedback loop and steps 1–9 are complete locally; see the [release ac
 
 ## 3. Build the first complete feedback flow
 
-- [x] Add categories and posts.
+- [x] Add posts; tags now provide topic classification.
 - [x] Implement the public feedback list and detail page.
 - [x] Implement the authenticated submission form.
 - [x] Establish the initial screens; the [approved visual direction](design/README.md) applied in #5a is now authoritative.
@@ -53,8 +53,7 @@ The participation foundation and structured contributions are implemented.
 
 ## 5. Make the team response and outcome explicit
 
-- [x] Add the oldest-first review queue, category/status filters, and member follow-up filtering.
-- [x] Add community-manager category corrections with a separate audit record.
+- [x] Add the oldest-first review queue, tag/status filters, and member follow-up filtering.
 - [x] Add explicit official responses, distinct from ordinary typed contributions even when authored by a CM.
 - [x] Present the proposal, a prominent status and latest official-response panel, then community contributions; show clearly when feedback is awaiting initial review or has no official response.
 - [x] Add Official responses to the discussion filters and include official responses in All; keep the featured response and current status visible regardless of filter.
@@ -86,7 +85,7 @@ Discussion filters organize one flat discussion. See [deferred work](#deferred-a
 
 Initial moderation is limited to CM lock/unlock and archive actions on whole feedback posts. The schema adds two nullable timestamps on `feedback_post`: `locked_at` and `archived_at`, plus an internal [event log](events.md) shared by business operations.
 
-- [x] Add CM lock/unlock controls and a visible Locked indicator. Locked posts remain readable; block post/comment edits, new comments, reaction changes, official publication/status changes and category corrections until unlocked. Following/unfollowing and reading notifications remain available for locked posts.
+- [x] Add CM lock/unlock controls and a visible Locked indicator. Locked posts remain readable; block post/comment edits, new comments, reaction changes, official publication/status changes until unlocked. Following/unfollowing and reading notifications remain available for locked posts.
 - [x] Add a CM archive action that sets `archived_at`, retaining the stored post and its related records. Archiving also makes all related content inaccessible through the application.
 - [x] Exclude archived posts from public lists/search, direct links, discussion/comment/response reads, outcome/reaction reads, CM review queues, notifications and unread counts. Direct links return the usual unavailable/not-found result, including for CMs. Do not add an archive browser or unarchive UI.
 - [x] Reject application writes to archived posts and their content, and prevent official-response notification fanout for archived posts. Lock/unlock/archive actions themselves do not notify followers.
@@ -98,11 +97,11 @@ Reports, individual comment/response hiding, account suspension, moderation reas
 
 ## 7. Complete community configuration
 
-Completes V1-F28. [Community configuration](community.md) documents installation files for public settings alongside existing category, privileged-role and tag management.
+Completes V1-F28. [Community configuration](community.md) documents installation files for public settings alongside existing privileged-role and tag management.
 
 - [x] Provide documented JSON configuration for the public name and community link, and a Markdown file for community rules.
 - [x] Surface that configuration in the relevant public views. Moderation-review contact and appeals UI are deferred.
-- [x] Document the complete installation configuration alongside the existing category, role and tag commands/UI. A full settings or branding editor is not required.
+- [x] Document the complete installation configuration alongside the existing role and tag commands/UI. A full settings or branding editor is not required.
 
 ## 8. Complete deployment and recovery
 
@@ -133,6 +132,12 @@ Required before a public pilot. Completes the Render deployment setup, deployed 
 
 - [x] License Opine under [MIT](../LICENSE), preserving third-party license notices.
 
+## Topic simplification
+
+- [x] Remove categories, category correction/history, and category configuration.
+- [x] Use author-selected tags for topics and public/review-queue filtering.
+- [x] Generate examples with varied tag combinations. Reset/reseed is an explicit operator action, never part of deployment.
+
 ## Planned follow-up: Updated indicator
 
 - [ ] Show **Updated** only for signed-in users who have opened that post before, when new comments, official responses or status changes arrive afterward.
@@ -144,7 +149,7 @@ Required before a public pilot. Completes the Render deployment setup, deployed 
 The canonical product exclusions are in [Explicitly deferred](../requirements.md#explicitly-deferred). They are possible later additions, not release prerequisites or a committed roadmap:
 
 - Summaries, curated highlights, curator roles, nested replies and separate threads.
-- Tag filtering, duplicate suggestions/merging, related feedback, popularity rankings and advanced queue tools.
+- Duplicate suggestions/merging, related feedback, popularity rankings and advanced queue tools.
 - Reports/private report queues, individual contribution hiding/restoration, account suspensions, moderation reasons/action-history UI, appeals/review contact and an unarchive UI.
 - Additional identity providers, Discord bots/imports/cross-posting, and email/push/Discord notifications.
 - Attachments, rich text, profile/branding editors, application-level exports and multi-community hosting.

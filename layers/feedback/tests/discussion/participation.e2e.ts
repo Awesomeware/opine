@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { closeDatabase, getDatabase } from '../../../../server/db/index.ts'
 import { createMember } from '../../../auth/tests/fixtures.ts'
-import { feedbackCategory, feedbackComment, feedbackPost } from '../../server/schema.ts'
-import { createCategory, createFeedbackPost } from '../fixtures.ts'
+import { feedbackComment, feedbackPost } from '../../server/schema.ts'
+import { createFeedbackPost } from '../fixtures.ts'
 
 test.afterAll(closeDatabase)
 
@@ -24,8 +24,7 @@ async function holdResponse(page: Page, path: string, method: string) {
 async function participation() {
   const author = await createMember({ name: 'Post author' })
   const member = await createMember({ name: 'Another member' })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: author.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: author.user.id })
   const base = `/api/feedback/posts/${post.id}`
   const headers = (cookie = member.cookieHeader) => ({
     origin: process.env.BETTER_AUTH_URL!,
@@ -40,7 +39,6 @@ async function participation() {
     cleanup: async () => {
       await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
       await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-      await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
       await member.cleanup()
       await author.cleanup()
     },
@@ -112,14 +110,6 @@ test('participation endpoints reject unauthenticated, cross-origin, and invalid 
       version: 1,
     }
     expect((await request.patch(base, { headers: headers(), data: postEdit })).status()).toBe(403)
-    expect(
-      (
-        await request.patch(base, {
-          headers: headers(author.cookieHeader),
-          data: { ...postEdit, categoryId: post.categoryId },
-        })
-      ).status(),
-    ).toBe(400)
     expect(
       (
         await request.patch(base, {
@@ -284,7 +274,6 @@ test('a lost post response reports uncertainty and the member finds the saved po
   page,
 }) => {
   const member = await createMember()
-  const category = await createCategory()
   let writes = 0
   let release!: () => void
   const gate = new Promise<void>((resolve) => {
@@ -299,7 +288,6 @@ test('a lost post response reports uncertainty and the member finds the saved po
     await page
       .getByLabel('Feedback', { exact: true })
       .fill('I want a reliable way to share feedback.')
-    await page.getByLabel('Category', { exact: true }).selectOption(category.id)
     await page.route('**/api/feedback/posts', async (route) => {
       if (route.request().method() !== 'POST') return route.continue()
       writes++
@@ -310,7 +298,6 @@ test('a lost post response reports uncertainty and the member finds the saved po
     await page.getByRole('button', { name: 'Submit feedback', exact: true }).click()
     await expect(page.getByLabel('Title', { exact: true })).not.toBeEditable()
     await expect(page.getByLabel('Feedback', { exact: true })).not.toBeEditable()
-    await expect(page.getByLabel('Category', { exact: true })).toBeDisabled()
     release()
     await expect(page.getByRole('button', { name: 'Submit feedback', exact: true })).toBeEnabled()
     await expect(page.locator('[role="alert"]')).toBeVisible()
@@ -338,7 +325,6 @@ test('a lost post response reports uncertainty and the member finds the saved po
   } finally {
     release()
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.authorId, member.user.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })
@@ -377,8 +363,7 @@ test('an uncertain comment submission is inspected after reload without automati
 test('members page through discussion and change or remove their reaction', async ({ page }) => {
   const member = await createMember({ name: 'Mira' })
   const other = await createMember({ name: 'Jules' })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   try {
     await getDatabase()
       .insert(feedbackComment)
@@ -421,7 +406,6 @@ test('members page through discussion and change or remove their reaction', asyn
   } finally {
     await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await other.cleanup()
     await member.cleanup()
   }
@@ -432,8 +416,7 @@ test('members submit and edit comments, then review conflicting post edits', asy
   request,
 }, testInfo) => {
   const member = await createMember({ name: 'Mira' })
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   const base = `/api/feedback/posts/${post.id}`
   const pendingResponses: (() => void)[] = []
   const originalComment =
@@ -531,7 +514,6 @@ test('members submit and edit comments, then review conflicting post edits', asy
     pendingResponses.forEach((release) => release())
     await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })
@@ -540,8 +522,7 @@ test('a lost reaction response refreshes the saved choice without replay after r
   page,
 }) => {
   const member = await createMember()
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   const path = `/api/feedback/posts/${post.id}/reactions`
   let writes = 0
   page.on('request', (request) => {
@@ -572,7 +553,6 @@ test('a lost reaction response refreshes the saved choice without replay after r
     expect(writes).toBe(1)
   } finally {
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })
@@ -581,8 +561,7 @@ test('a rejected comment type is rendered once with one accessible error identif
   page,
 }) => {
   const member = await createMember()
-  const category = await createCategory()
-  const post = await createFeedbackPost({ authorId: member.user.id, categoryId: category.id })
+  const post = await createFeedbackPost({ authorId: member.user.id })
   const [comment] = await getDatabase()
     .insert(feedbackComment)
     .values({
@@ -618,7 +597,6 @@ test('a rejected comment type is rendered once with one accessible error identif
   } finally {
     await getDatabase().delete(feedbackComment).where(eq(feedbackComment.postId, post.id))
     await getDatabase().delete(feedbackPost).where(eq(feedbackPost.id, post.id))
-    await getDatabase().delete(feedbackCategory).where(eq(feedbackCategory.id, category.id))
     await member.cleanup()
   }
 })

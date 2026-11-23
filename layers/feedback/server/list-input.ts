@@ -3,11 +3,12 @@ import {
   type ContributionType,
 } from '../shared/discussion/contribution-types.ts'
 import { parsePaginationInput, type PageCursor } from '../../../server/pagination.ts'
+import { isUuid } from '../shared/input.ts'
 import { isPostStatus, type PostStatus } from '../shared/status.ts'
 
 export type ListPostsInput = {
   q?: string
-  category?: string
+  tagId?: string
   status?: PostStatus
   cursor?: PageCursor
   limit: number
@@ -18,19 +19,16 @@ export function parseListInput(
 ): { success: true; data: ListPostsInput } | { success: false; message: string } {
   for (const key of Object.keys(query)) {
     if (
-      !['q', 'category', 'status', 'cursor', 'limit'].includes(key) ||
+      !['q', 'tagId', 'status', 'cursor', 'limit'].includes(key) ||
       typeof query[key] !== 'string'
     ) {
       return { success: false, message: 'Invalid feedback filters.' }
     }
   }
   const q = typeof query.q === 'string' ? query.q.trim() : undefined
-  const category = typeof query.category === 'string' ? query.category : undefined
-  if (
-    (q && (q.length > 200 || q.includes('\0'))) ||
-    (category && (category.length > 80 || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(category)))
-  ) {
-    return { success: false, message: 'Invalid search or category.' }
+  const tagId = typeof query.tagId === 'string' ? query.tagId : undefined
+  if ((q && (q.length > 200 || q.includes('\0'))) || (tagId && !isUuid(tagId))) {
+    return { success: false, message: 'Invalid search or tag.' }
   }
   const status = query.status || undefined
   if (status !== undefined && !isPostStatus(status))
@@ -42,7 +40,7 @@ export function parseListInput(
   return parsed.success
     ? {
         success: true,
-        data: { ...parsed.data, q: q || undefined, category: category || undefined, status },
+        data: { ...parsed.data, q: q || undefined, tagId: tagId || undefined, status },
       }
     : parsed
 }
@@ -83,7 +81,7 @@ export function parseDiscussionListInput(query: Record<string, unknown>) {
 export function parseReviewInput(query: Record<string, unknown>) {
   if (
     Object.keys(query).some(
-      (key) => !['category', 'status', 'followUp', 'cursor', 'limit'].includes(key),
+      (key) => !['tagId', 'status', 'followUp', 'cursor', 'limit'].includes(key),
     ) ||
     (query.followUp !== undefined && query.followUp !== 'true' && query.followUp !== 'false')
   )

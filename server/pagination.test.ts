@@ -38,7 +38,7 @@ test('pagination defaults and strict query validation stay consistent for every 
     { limit: ['20'] },
     { cursor: ['invalid'] },
     { cursor: 'not-a-cursor' },
-    { category: 'general' },
+    { tagId: '00000000-0000-4000-8000-000000000001' },
     { type: 'question' },
     { q: 'text' },
   ]) {

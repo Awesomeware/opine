@@ -1,7 +1,7 @@
-import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { validateCategoryCorrectionInput, validateOfficialResponseInput } from './input.ts'
+import { validateOfficialResponseInput } from './input.ts'
 
 test('official responses require a meaningful explanation and an explicit valid workflow version', () => {
   assert.deepEqual(
@@ -31,18 +31,4 @@ test('official responses require a meaningful explanation and an explicit valid 
     { body: 'Valid', version: 1, authorId: randomUUID() },
   ])
     assert.equal(validateOfficialResponseInput(input).success, false)
-})
-
-test('category corrections accept only explicit authorized input shapes', () => {
-  const categoryId = randomUUID()
-  assert.deepEqual(validateCategoryCorrectionInput({ categoryId, version: 1 }), {
-    success: true,
-    data: { categoryId, version: 1 },
-  })
-  for (const input of [
-    { categoryId: 'invalid', version: 1 },
-    { categoryId, version: -1 },
-    { categoryId, version: 1, status: 'planned' },
-  ])
-    assert.equal(validateCategoryCorrectionInput(input).success, false)
 })

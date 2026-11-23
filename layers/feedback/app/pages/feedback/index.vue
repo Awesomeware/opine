@@ -4,7 +4,7 @@ import FeedbackPostRow from '../../posts/components/FeedbackPostRow.vue'
 import { useRequestScope } from '../../composables/useRequestScope'
 import { statusLabels, postStatuses } from '../../../shared/status'
 import type {
-  FeedbackCategory,
+  FeedbackTag,
   FeedbackPage,
   FeedbackPostSummary,
 } from '../../../shared/posts/contracts'
@@ -14,7 +14,7 @@ useHead({ title: 'Community feedback · Opine' })
 const route = useRoute()
 const query = computed(() => ({
   q: typeof route.query.q === 'string' ? route.query.q : '',
-  category: typeof route.query.category === 'string' ? route.query.category : '',
+  tagId: typeof route.query.tagId === 'string' ? route.query.tagId : '',
   status: typeof route.query.status === 'string' ? route.query.status : '',
   limit: 20,
 }))
@@ -22,15 +22,13 @@ const query = computed(() => ({
 // Draft filter controls become active only when applied to the URL.
 const filters = reactive({
   q: query.value.q,
-  category: query.value.category,
+  tagId: query.value.tagId,
   status: query.value.status,
 })
 
 watch(query, (value) => Object.assign(filters, value))
 
-const { data: categories, error: categoriesError } = useFetch<{ categories: FeedbackCategory[] }>(
-  '/api/feedback/categories',
-)
+const { data: tags, error: tagsError } = useFetch<{ tags: FeedbackTag[] }>('/api/feedback/tags')
 const { data, pending, error, refresh } = useFetch<FeedbackPage>('/api/feedback/posts', { query })
 
 const pagination = useRequestScope()
@@ -65,7 +63,7 @@ async function applyFilters() {
     path: '/feedback',
     query: {
       ...(filters.q.trim() ? { q: filters.q.trim() } : {}),
-      ...(filters.category ? { category: filters.category } : {}),
+      ...(filters.tagId ? { tagId: filters.tagId } : {}),
       ...(filters.status ? { status: filters.status } : {}),
     },
   })
@@ -125,15 +123,11 @@ async function loadMore() {
         <input id="search" v-model="filters.q" type="search" placeholder="Find feedback…" />
       </div>
       <div class="field">
-        <label for="category-filter">Category</label>
-        <select id="category-filter" v-model="filters.category">
-          <option value="">All categories</option>
-          <option
-            v-for="category in categories?.categories"
-            :key="category.id"
-            :value="category.slug"
-          >
-            {{ category.name }}
+        <label for="tag-filter">Tag</label>
+        <select id="tag-filter" v-model="filters.tagId">
+          <option value="">All tags</option>
+          <option v-for="tag in tags?.tags" :key="tag.id" :value="tag.id">
+            {{ tag.name }}
           </option>
         </select>
       </div>
@@ -148,9 +142,7 @@ async function loadMore() {
       </div>
       <Button type="submit">Apply filters</Button>
     </form>
-    <p v-if="categoriesError" role="alert">
-      Categories could not be loaded. You can still search feedback.
-    </p>
+    <p v-if="tagsError" role="alert">Tags could not be loaded. You can still search feedback.</p>
     <p class="list-caption">Newest feedback first</p>
     <p v-if="pending" role="status">Loading feedback…</p>
     <Notice v-else-if="error" as="div" role="alert">
