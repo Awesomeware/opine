@@ -6,9 +6,24 @@ import type { TagEditInput, TagInput } from '../../shared/posts/tag-input.ts'
 import { feedbackPost, feedbackPostTag, feedbackTag } from '../schema.ts'
 import { FeedbackWriteError, type FeedbackTransaction } from '../writes.ts'
 
-export const defaultFeedbackTags = ['Gameplay', 'UI', 'Class-specific', 'Combat', '$$$'].map(
-  (name, index) => ({ id: `10000000-0000-4000-8000-00000000000${index + 1}`, name }),
-)
+export const defaultFeedbackTags = [
+  { name: 'Gameplay', icon: '🕹️' },
+  { name: 'UI', icon: '💻' },
+  { name: 'Class Specific', icon: '🧙' },
+  { name: 'Combat', icon: '⚔️' },
+  { name: 'Marketplace', icon: '🛍️' },
+  { name: 'Items', icon: '🏹' },
+  { name: 'Zones', icon: '🗺️' },
+  { name: 'Visuals', icon: '👁️' },
+  { name: 'Audio', icon: '🔊' },
+  { name: 'Events', icon: '🎉' },
+  { name: 'Spells/Abilities', icon: '🪄' },
+  { name: 'Quests', icon: '📜' },
+  { name: 'Other', icon: '👉' },
+].map((tag, index) => ({
+  id: `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+  ...tag,
+}))
 export function listTags() {
   return getDatabase()
     .select()
@@ -18,7 +33,7 @@ export function listTags() {
 // Correlated aggregation is part of the post SELECT, preserving a single text/tag snapshot.
 export const postTagsField = sql<
   FeedbackTag[]
->`coalesce((select jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name, 'isActive', t.is_active, 'version', t.version) order by lower(t.name), t.id) from feedback_post_tag pt join feedback_tag t on t.id = pt.tag_id where pt.post_id = ${feedbackPost.id}), '[]'::jsonb)`
+>`coalesce((select jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name, 'icon', t.icon, 'isActive', t.is_active, 'version', t.version) order by lower(t.name), t.id) from feedback_post_tag pt join feedback_tag t on t.id = pt.tag_id where pt.post_id = ${feedbackPost.id}), '[]'::jsonb)`
 function rethrowTagConflict(error: unknown): never {
   const cause = error instanceof Error && 'cause' in error ? error.cause : error
   if (cause && typeof cause === 'object' && 'code' in cause && cause.code === '23505') {
@@ -61,16 +76,25 @@ export async function updateTag(tagId: string, input: TagEditInput, actorId: str
           'This tag has changed. Review the latest version before saving.',
         )
       }
-      if (tag.name === input.name && tag.isActive === input.isActive) {
+      const changes = {
+        name: input.name,
+        isActive: input.isActive,
+        icon: input.icon === undefined ? tag.icon : input.icon,
+      }
+      if (
+        tag.name === changes.name &&
+        tag.isActive === changes.isActive &&
+        tag.icon === changes.icon
+      ) {
         return { id: tag.id, version: tag.version }
       }
       const [updated] = await transaction
         .update(feedbackTag)
-        .set({ name: input.name, isActive: input.isActive, version: tag.version + 1 })
+        .set({ ...changes, version: tag.version + 1 })
         .where(eq(feedbackTag.id, tagId))
         .returning({ id: feedbackTag.id, version: feedbackTag.version })
-      const changedFields = (['name', 'isActive'] as const).filter(
-        (field) => tag[field] !== input[field],
+      const changedFields = (['name', 'isActive', 'icon'] as const).filter(
+        (field) => tag[field] !== changes[field],
       )
       await appendEvent(transaction, {
         type: 'tag.updated',

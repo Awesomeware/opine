@@ -46,7 +46,9 @@ async function setup() {
 test('migration seeds optional defaults and tag administration enforces names and versions', async () => {
   const tags = await listTags()
   for (const tag of defaultFeedbackTags)
-    assert.ok(tags.some((row) => row.id === tag.id && row.name === tag.name))
+    assert.ok(
+      tags.some((row) => row.id === tag.id && row.name === tag.name && row.icon === tag.icon),
+    )
   const admin = await createMember({ roles: ['administrator'] })
   const created = await createTag({ name: 'New' }, admin.user.id)
   await assert.rejects(createTag({ name: 'New' }, null), status(409))
@@ -157,9 +159,76 @@ test('tag migration leaves existing post content and versions untouched with no 
     )
     const before = (await isolated.query('select * from feedback_post')).rows
     await applyMigrations(isolated, 5, 6)
+    await applyMigrations(isolated, 8)
     assert.deepEqual((await isolated.query('select * from feedback_post')).rows, before)
     assert.equal((await isolated.query('select * from feedback_post_tag')).rows.length, 0)
-    const tags = (await isolated.query('select id, name from feedback_tag order by id')).rows
+    const tags = (await isolated.query('select id, name, icon from feedback_tag order by id')).rows
     assert.deepEqual(tags, defaultFeedbackTags)
+  })
+})
+
+test('icon changes preserve omission, update projections and emit only actual changes', async () => {
+  const { member, input } = await setup()
+  const tag = await createTag({ name: 'Icon tag', icon: '🕹️' }, null)
+  const plain = await createTag({ name: 'Plain tag' }, null)
+  assert.equal((await listTags()).find((row) => row.id === plain.id)!.icon, null)
+  const post = await createPost(member.user.id, { ...input, tagIds: [tag.id] })
+  assert.equal((await getPost(post!.id))!.tags[0]!.icon, '🕹️')
+  assert.equal((await listPosts()).posts.find((row) => row.id === post!.id)!.tags[0]!.icon, '🕹️')
+  const unchanged = { name: 'Icon tag', isActive: true, version: 1 }
+  assert.deepEqual(await updateTag(tag.id, unchanged, null), tag)
+  assert.deepEqual(await updateTag(tag.id, { ...unchanged, icon: '🕹️' }, null), tag)
+  const updated = await updateTag(tag.id, { ...unchanged, icon: '💻' }, null)
+  assert.equal(updated.version, 2)
+  assert.equal((await getPost(post!.id))!.tags[0]!.icon, '💻')
+  await updateTag(tag.id, { ...unchanged, version: 2, icon: null }, null)
+  assert.equal((await getPost(post!.id))!.tags[0]!.icon, null)
+  const events = await getDatabase()
+    .select()
+    .from(eventLog)
+    .where(eq(eventLog.eventType, 'tag.updated'))
+  assert.equal(events.length, 2)
+  assert.ok(events.every((event) => JSON.stringify(event.details.changedFields) === '["icon"]'))
+})
+
+test('icon migration preserves custom names, disabled tags, assignments and naming conflicts', async () => {
+  await withMigrationDatabase(async (isolated) => {
+    await applyMigrations(isolated, 0, 8)
+    await isolated.query(
+      "update feedback_tag set name = 'Custom gameplay', is_active = false where name = 'Gameplay'",
+    )
+    await isolated.query("update feedback_tag set is_active = false where name = 'UI'")
+    await isolated.query("insert into feedback_tag (name) values ('Marketplace'), ('Items')")
+    const actorId = randomUUID()
+    await isolated.query('insert into auth_user (id, name, email) values ($1, $2, $3)', [
+      actorId,
+      'Existing',
+      'icons@example.test',
+    ])
+    await isolated.query(
+      "insert into feedback_post (author_id, category_id, title, description) select $1, id, 'Existing', 'Body' from feedback_category limit 1",
+      [actorId],
+    )
+    await isolated.query(
+      "insert into feedback_post_tag select p.id, t.id from feedback_post p cross join feedback_tag t where t.name in ('$$$', 'Class-specific')",
+    )
+    const assignments = (await isolated.query('select * from feedback_post_tag order by tag_id'))
+      .rows
+    await applyMigrations(isolated, 8)
+    assert.deepEqual(
+      (await isolated.query('select * from feedback_post_tag order by tag_id')).rows,
+      assignments,
+    )
+    const tags = (await isolated.query('select * from feedback_tag')).rows
+    const custom = tags.find((tag) => tag.name === 'Custom gameplay')!
+    assert.equal(custom.icon, null)
+    assert.equal(custom.is_active, false)
+    assert.equal(tags.find((tag) => tag.name === 'UI')!.is_active, false)
+    assert.equal(tags.find((tag) => tag.name === 'UI')!.icon, '💻')
+    assert.equal(tags.find((tag) => tag.name === '$$$')!.icon, '🛍️')
+    assert.equal(tags.find((tag) => tag.name === 'Marketplace')!.icon, null)
+    assert.equal(tags.find((tag) => tag.name === 'Class Specific')!.id, defaultFeedbackTags[2]!.id)
+    assert.equal(tags.filter((tag) => tag.name === 'Items').length, 1)
+    assert.equal(tags.find((tag) => tag.name === 'Items')!.icon, null)
   })
 })

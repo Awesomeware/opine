@@ -14,6 +14,7 @@ export function useFeedbackTagEditor(
 ) {
   const form = reactive({
     name: props.tag.name,
+    icon: props.tag.icon ?? '',
     isActive: props.tag.isActive,
     version: props.tag.version,
   })
@@ -34,7 +35,7 @@ export function useFeedbackTagEditor(
       return
     }
 
-    const body = { ...form, name: form.name.trim() }
+    const body = { ...form, name: form.name.trim(), icon: form.icon.trim() || null }
 
     if (!body.name || body.name.length > 40) {
       message.value = 'Enter a tag name between 1 and 40 characters.'
@@ -50,7 +51,7 @@ export function useFeedbackTagEditor(
         return
       }
 
-      Object.assign(form, { ...body, version: saved.version })
+      Object.assign(form, { ...body, icon: body.icon ?? '', version: saved.version })
       message.value = 'Tag saved.'
 
       onSaved()

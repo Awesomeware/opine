@@ -234,6 +234,7 @@ export const feedbackTag = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
+    icon: text('icon'),
     isActive: boolean('is_active').notNull().default(true),
     version: integer('version').notNull().default(1),
   },

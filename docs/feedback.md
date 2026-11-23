@@ -68,15 +68,17 @@ Inactive categories remain visible on old posts and in browsing filters. They ca
 
 ## Tags
 
-Administrators can open **Tags** in the main navigation (`/feedback/tags`) to create, rename, disable, or re-enable tags. Community-manager access alone does not grant this permission. Names are trimmed, 1–40 characters, and unique without regard to case. Renaming updates the label wherever the tag appears; concurrent management changes require reviewing the latest version before saving.
+Administrators can open **Tags** in the main navigation (`/feedback/tags`) to create, rename, disable, or re-enable tags. Community-manager access alone does not grant this permission. Names are trimmed, 1–40 characters, and unique without regard to case. An optional plain-text icon (usually an emoji, up to 16 UTF-16 code units) accompanies the name. Icons are decorative; the name remains the accessible label. Renaming updates the label wherever the tag appears; concurrent management changes require reviewing the latest version before saving.
 
-Migrations install **Gameplay**, **UI**, **Class-specific**, **Combat**, and **$$$** (money/cash shop). Existing feedback starts with no tags. Tags supplement the required category; authors select zero or more on submission and can change the selection through **Edit feedback**. Selected tags appear on list rows and the proposal. Tag filtering is deferred.
+Migrations install the EQ: Legends Discord tag vocabulary: **🕹️ Gameplay**, **⚔️ Combat**, **🏹 Items**, **🗺️ Zones**, **🧙 Class Specific**, **👁️ Visuals**, **🔊 Audio**, **🎉 Events**, **💻 UI**, **🪄 Spells/Abilities**, **📜 Quests**, **👉 Other**, and **🛍️ Marketplace**. Existing feedback starts with no tags. Tags supplement the required category; authors select zero or more on submission and can change the selection through **Edit feedback**. Selected tags appear as subdued chips beneath list-row titles and on the proposal. Tag filtering is deferred.
 
 Disabled tags remain on existing posts but cannot be newly assigned. An author may keep or remove a disabled tag already attached to their post. Disabling and renaming do not mark the post as edited; changing its assignments does. There is no tag deletion action and no administrator override of author selections.
 
 The post, tags, and initial author follow commit together. Post edits use one version and transaction for text and tags. Omitted `tagIds` preserves assignments on edit and means none on creation; explicit `[]` clears them. Tag IDs are normalized as a set, with a 100-ID request bound. This is a safety bound, not a required selection count.
 
-Reset restores the five initial tags. Example seeding adds tags only to newly inserted example posts and respects disabled tags; repeating it does not replenish tags removed from existing examples.
+The upgrade preserves existing tag IDs and post assignments, renames untouched Class-specific and $$$ defaults, and retains custom names and availability. If a target name already exists, the legacy name remains; new defaults never overwrite conflicting names or IDs. Icons are added only to defaults still bearing their original names. An omitted icon preserves it on edit; blank or null clears it.
+
+Reset restores the thirteen initial tags. Example seeding adds tags only to newly inserted example posts and respects disabled tags; repeating it does not replenish tags removed from existing examples.
 
 ## Tables
 

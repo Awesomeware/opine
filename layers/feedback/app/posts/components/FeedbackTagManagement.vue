@@ -3,7 +3,7 @@ import { useFeedbackTagManagement } from '../composables/useFeedbackTagManagemen
 
 const props = defineProps<{ owner: string }>()
 
-const { tags, ready, allowed, loading, error, createError, name, busy, load, create } =
+const { tags, ready, allowed, loading, error, createError, name, icon, busy, load, create } =
   useFeedbackTagManagement(props)
 </script>
 <template>
@@ -30,6 +30,17 @@ const { tags, ready, allowed, loading, error, createError, name, busy, load, cre
           :readonly="busy"
           :aria-describedby="createError ? 'new-tag-error' : undefined"
         />
+      </div>
+      <div class="field">
+        <label for="new-tag-icon">New tag icon (optional)</label>
+        <input
+          id="new-tag-icon"
+          v-model="icon"
+          maxlength="16"
+          :readonly="busy"
+          :aria-describedby="`new-tag-icon-help${createError ? ' new-tag-error' : ''}`"
+        />
+        <p id="new-tag-icon-help" class="help">Use an emoji, or leave blank for no icon.</p>
       </div>
       <UiButton type="submit" :busy="busy" variant="primary">Create tag</UiButton>
     </form>

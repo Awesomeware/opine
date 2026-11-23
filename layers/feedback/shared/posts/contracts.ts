@@ -1,7 +1,13 @@
 import type { PostStatus } from '../status.ts'
 
 export type FeedbackCategory = { id: string; slug: string; name: string; isActive: boolean }
-export type FeedbackTag = { id: string; name: string; isActive: boolean; version: number }
+export type FeedbackTag = {
+  id: string
+  name: string
+  icon: string | null
+  isActive: boolean
+  version: number
+}
 export type FeedbackPostSummary = {
   tags: FeedbackTag[]
   id: string

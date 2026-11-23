@@ -5,8 +5,8 @@ const meta = {
   component: FeedbackTags,
   args: {
     tags: [
-      { id: 'gameplay', name: 'Gameplay', isActive: true, version: 1 },
-      { id: 'ui', name: 'UI', isActive: true, version: 1 },
+      { id: 'gameplay', name: 'Gameplay', icon: '🕹️', isActive: true, version: 1 },
+      { id: 'ui', name: 'UI', icon: null, isActive: true, version: 1 },
     ],
   },
 } satisfies Meta<typeof FeedbackTags>

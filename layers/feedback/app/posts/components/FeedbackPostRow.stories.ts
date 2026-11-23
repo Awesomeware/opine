@@ -6,7 +6,7 @@ const meta = {
   args: {
     post: {
       id: 'example-grouping',
-      tags: [{ id: 'gameplay', name: 'Gameplay', isActive: true, version: 1 }],
+      tags: [{ id: 'gameplay', name: 'Gameplay', icon: '🕹️', isActive: true, version: 1 }],
       title: 'Finding a group takes most of my evening',
       excerpt: 'Forty minutes organising a group, barely an hour left to play.',
       lockedAt: null,

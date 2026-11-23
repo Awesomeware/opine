@@ -76,8 +76,8 @@ Discussion filters organize one flat discussion. See [deferred work](#deferred-a
 
 ## 5b. Add author-selected tags
 
-- [x] Add admin-defined tags and optional post assignments, with the five initial tags.
-- [x] Let administrators create, rename, disable, and re-enable tags.
+- [x] Add admin-defined tags and optional post assignments, with the thirteen EQ: Legends tags and optional decorative icons.
+- [x] Let administrators create, rename, set or clear icons, disable, and re-enable tags.
 - [x] Let authors select tags on creation and edit, with conflict protection and clear handling of uncertain responses; form state is not persisted.
 - [x] Display tags in feedback rows and detail views using the existing visual direction.
 - [x] Verify authorization, migrations, reset/seed behavior, isolated controls, and full journeys.
@@ -132,6 +132,12 @@ Required before a public pilot. Completes the Render deployment setup, deployed 
 ## Before publishing the repository
 
 - [x] License Opine under [MIT](../LICENSE), preserving third-party license notices.
+
+## Planned follow-up: Updated indicator
+
+- [ ] Show **Updated** only for signed-in users who have opened that post before, when new comments, official responses or status changes arrive afterward.
+- [ ] Opening the post catches up. Never-opened posts have no badge. Post/comment edits and reactions do not trigger it.
+- [ ] Keep this separate from follower notification unread state. Read tracking is not implemented yet and is not a pilot release prerequisite.
 
 ## Deferred and outside the current release
 

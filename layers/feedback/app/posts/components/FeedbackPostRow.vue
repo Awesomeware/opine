@@ -12,8 +12,8 @@ defineProps<{ post: FeedbackPostSummary }>()
       <h2>
         <slot name="title"><a :href="`/feedback/${post.id}`">{{ post.title }}</a></slot>
       </h2>
-      <p class="row-excerpt">{{ post.excerpt }}</p>
       <FeedbackTags :tags="post.tags" />
+      <p class="row-excerpt">{{ post.excerpt }}</p>
       <p class="row-byline">
         <span v-if="post.lockedAt">Locked ·</span>
         <span>{{ post.category.name }}</span>

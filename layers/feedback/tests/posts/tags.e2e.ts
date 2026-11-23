@@ -30,7 +30,7 @@ test('only administrators manage the optional tag catalog, while post ownership 
     const catalog = await request.get('/api/feedback/tags')
     expect(catalog.ok()).toBe(true)
     expect((await catalog.json()).tags.map((tag: { name: string }) => tag.name)).toEqual(
-      expect.arrayContaining(['Gameplay', 'UI', 'Class-specific', 'Combat', '$$$']),
+      expect.arrayContaining(['Gameplay', 'UI', 'Class Specific', 'Combat', 'Marketplace']),
     )
     for (const [cookie, expected] of [
       [undefined, 401],
@@ -58,11 +58,14 @@ test('only administrators manage the optional tag catalog, while post ownership 
     await page.goto('/feedback/tags')
     await expect(page.getByRole('heading', { name: 'Manage tags', exact: true })).toBeVisible()
     await page.getByLabel('New tag name', { exact: true }).fill(names[0]!)
+    await page.getByLabel('New tag icon (optional)', { exact: true }).fill('🧭')
     await page.getByRole('button', { name: 'Create tag', exact: true }).click()
     const row = page.getByRole('region', { name: `${names[0]} tag`, exact: true })
     await expect(row).toBeVisible()
     const [tag] = await database.select().from(feedbackTag).where(eq(feedbackTag.name, names[0]!))
     expect(tag).toBeDefined()
+    expect(tag!.icon).toBe('🧭')
+    await expect(row.locator('.tag-name [aria-hidden="true"]')).toHaveText('🧭')
     for (const [cookie, expected] of [
       [undefined, 401],
       [member.cookieHeader, 403],
@@ -102,14 +105,23 @@ test('only administrators manage the optional tag catalog, while post ownership 
         })
       ).status(),
     ).toBe(403)
+    await row.getByLabel('Tag icon (optional)', { exact: true }).fill('🌿')
     await row.getByLabel('Tag name', { exact: true }).fill(names[1]!)
     await row.getByLabel('Available for new selections', { exact: true }).uncheck()
     await row.getByRole('button', { name: 'Save tag', exact: true }).click()
     await expect(page.getByRole('region', { name: `${names[1]} tag`, exact: true })).toBeVisible()
     const post = (await (await request.get(`/api/feedback/posts/${postId}`)).json()).post
     expect(post.tags).toEqual([
-      expect.objectContaining({ id: tag!.id, name: names[1], isActive: false }),
+      expect.objectContaining({ id: tag!.id, name: names[1], icon: '🌿', isActive: false }),
     ])
+    const renamedRow = page.getByRole('region', { name: `${names[1]} tag`, exact: true })
+    await expect(renamedRow.locator('.tag-name [aria-hidden="true"]')).toHaveText('🌿')
+    await renamedRow.getByLabel('Tag icon (optional)', { exact: true }).fill('')
+    await renamedRow.getByRole('button', { name: 'Save tag', exact: true }).click()
+    await expect(renamedRow.locator('.tag-name [aria-hidden="true"]')).toHaveCount(0)
+    expect(
+      (await (await request.get(`/api/feedback/posts/${postId}`)).json()).post.tags[0].icon,
+    ).toBeNull()
     const disabled = await request.post('/api/feedback/posts', {
       headers: headers(manager.cookieHeader),
       data: {
@@ -181,7 +193,7 @@ test('optional tags persist after an uncertain submission and author tag-only ed
         (
           await request.post('/api/feedback/tags', {
             headers: headers(admin.cookieHeader),
-            data: { name },
+            data: { name, icon: '🧭' },
           })
         ).status(),
       ).toBe(201)
@@ -221,7 +233,19 @@ test('optional tags persist after an uncertain submission and author tag-only ed
     )
     await page.unroute('**/api/feedback/posts')
     await page.goto('/feedback')
-    await page
+    const postRow = page.getByRole('article').filter({
+      has: page.getByRole('link', {
+        name: 'Make navigation clearer with optional tags',
+        exact: true,
+      }),
+    })
+    await expect(
+      postRow.getByRole('list', { name: 'Tags', exact: true }).locator('[aria-hidden="true"]'),
+    ).toHaveText(['🧭', '🧭'])
+    await expect(postRow.locator('h2 + ul[aria-label="Tags"] + .row-excerpt')).toHaveText(
+      'The map labels are too small.',
+    )
+    await postRow
       .getByRole('link', { name: 'Make navigation clearer with optional tags', exact: true })
       .click()
     await page.waitForURL(/\/feedback\/[0-9a-f-]{36}$/)

@@ -29,6 +29,10 @@ async function acceptConflict() {
 </script>
 <template>
   <section :aria-label="`${tag.name} tag`" class="tag-row">
+    <p class="tag-name">
+      <span v-if="tag.icon" aria-hidden="true">{{ tag.icon }}</span>
+      {{ tag.name }}
+    </p>
     <form @submit.prevent="save">
       <div class="field">
         <label :for="`tag-${tag.id}`">Tag name</label>
@@ -41,6 +45,19 @@ async function acceptConflict() {
           required
           :readonly="busy || refreshing || !!refreshError"
         />
+      </div>
+      <div class="field">
+        <label :for="`tag-${tag.id}-icon`">Tag icon (optional)</label>
+        <input
+          :id="`tag-${tag.id}-icon`"
+          v-model="form.icon"
+          maxlength="16"
+          :aria-describedby="`tag-${tag.id}-icon-help${message ? ` tag-${tag.id}-message` : ''}`"
+          :readonly="busy || refreshing || !!refreshError"
+        />
+        <p :id="`tag-${tag.id}-icon-help`" class="help">
+          Use an emoji, or clear to remove the icon.
+        </p>
       </div>
       <label class="available">
         <input
@@ -62,7 +79,12 @@ async function acceptConflict() {
     <div v-if="conflict">
       <UiButton type="button" :busy="refreshing" @click="loadLatest">Load latest tag</UiButton>
       <div v-if="latest">
-        <p>Latest: {{ latest.name }} — {{ latest.isActive ? 'Available' : 'Inactive' }}</p>
+        <p>
+          Latest:
+          <span v-if="latest.icon" aria-hidden="true">{{ latest.icon }}</span>
+          {{ latest.name }} — {{ latest.isActive ? 'Available' : 'Inactive' }}
+        </p>
+        <p v-if="!latest.icon">No icon.</p>
         <UiButton type="button" :disabled="refreshing" @click="acceptConflict">
           I’ve reviewed the latest tag
         </UiButton>
@@ -74,6 +96,12 @@ async function acceptConflict() {
 .tag-row {
   padding: 20px 0;
   border-bottom: 1px solid var(--color-border);
+}
+.tag-name {
+  margin: 0 0 12px;
+}
+.help {
+  color: var(--color-text-muted);
 }
 form {
   display: flex;

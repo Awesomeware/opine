@@ -75,7 +75,7 @@ const examples: {
     ],
   },
   {
-    tagNames: ['UI', 'Class-specific'],
+    tagNames: ['UI', 'Class Specific'],
     title: '[Example] Make ability origins clear in three-class builds',
     description:
       'Fictional EQ: Legends feedback: a character can combine up to three active classes. When planning a build, I would like to quickly understand which class contributes each spell or ability.',

@@ -19,6 +19,7 @@ export function useFeedbackTagManagement(props: { owner: string }) {
 
   const createError = ref('')
   const name = ref('')
+  const icon = ref('')
   const busy = ref(false)
 
   async function load() {
@@ -58,7 +59,7 @@ export function useFeedbackTagManagement(props: { owner: string }) {
       return
     }
 
-    const body = { name: name.value.trim() }
+    const body = { name: name.value.trim(), icon: icon.value.trim() || null }
 
     if (!body.name || body.name.length > 40) {
       createError.value = 'Enter a tag name between 1 and 40 characters.'
@@ -75,6 +76,7 @@ export function useFeedbackTagManagement(props: { owner: string }) {
       }
 
       name.value = ''
+      icon.value = ''
       await load()
     } catch (failure) {
       if (scope.isActive()) {
@@ -100,6 +102,7 @@ export function useFeedbackTagManagement(props: { owner: string }) {
     error,
     createError,
     name,
+    icon,
     busy,
     load,
     create,

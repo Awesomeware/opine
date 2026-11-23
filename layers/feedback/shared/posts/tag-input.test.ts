@@ -28,3 +28,28 @@ test('tag selection normalizes sets while preserving omitted legacy create and e
     assert.equal(validatePostInput({ ...post, tagIds }).success, false)
   assert.equal(validatePostInput({ ...post, tagIds: [] }).success, true)
 })
+
+test('tag icons trim, clear explicitly, preserve omission and reject invalid short text', () => {
+  for (const icon of [' 🕹️ ', '👩‍💻', 'a'.repeat(16)]) {
+    assert.deepEqual(validateTagInput({ name: 'Tag', icon }), {
+      success: true,
+      data: { name: 'Tag', icon: icon.trim() },
+    })
+  }
+  for (const icon of ['', ' ', null]) {
+    assert.deepEqual(validateTagEditInput({ name: 'Tag', icon, isActive: true, version: 1 }), {
+      success: true,
+      data: { name: 'Tag', icon: null, isActive: true, version: 1 },
+    })
+  }
+  assert.deepEqual(validateTagEditInput({ name: 'Tag', isActive: true, version: 1 }), {
+    success: true,
+    data: { name: 'Tag', isActive: true, version: 1 },
+  })
+  for (const icon of [42, {}, [], 'a'.repeat(17), 'x\0', 'x\ny']) {
+    assert.deepEqual(validateTagInput({ name: 'Tag', icon }), {
+      success: false,
+      fieldErrors: { icon: 'Use up to 16 characters for the tag icon.' },
+    })
+  }
+})

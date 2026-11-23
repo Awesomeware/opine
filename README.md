@@ -114,13 +114,13 @@ pnpm db:reset --confirm opine
 pnpm db:seed
 ```
 
-**Reset permanently removes all Opine data, including users, sessions, roles, feedback, follows, notifications, and configured categories and tags.** It restores the General feedback category and the five initial tags, retaining the migrated schema and migration history. Sign in again and reassign administrator/community-manager roles after resetting. Reload open pages after resetting; form input is kept only in memory.
+**Reset permanently removes all Opine data, including users, sessions, roles, feedback, follows, notifications, and configured categories and tags.** It restores the General feedback category and the [thirteen initial tags](docs/feedback.md#tags), retaining the migrated schema and migration history. Sign in again and reassign administrator/community-manager roles after resetting. Reload open pages after resetting; form input is kept only in memory.
 
 Both commands read `.env`; an exported `DATABASE_URL` takes precedence. Check its target before resetting. The confirmation must match the connected database name. Omitting confirmation prints usage and makes no changes. Unrelated tables are left alone; unexpected foreign keys into Opine tables cause reset to fail atomically.
 
 ## Database migrations
 
-Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The committed migrations create authentication, session, rate-limit, role, category, tag, post-tag, post, follow, comment, reaction, official-response, notification, and category-audit tables. A fresh installation starts with a General feedback category and Gameplay, UI, Class-specific, Combat, and $$$ tags. Existing posts gain no tags automatically. The contribution-type migration preserves older comments as Unspecified instead of guessing their classification. Migration `0006_remove_write_receipts.sql` removes obsolete retry bookkeeping while retaining feedback content. Later features extend this history.
+Drizzle Kit reads `.env` through `drizzle.config.ts`; an exported `DATABASE_URL` takes precedence. The server and migration commands use the same URL. The committed migrations create authentication, session, rate-limit, role, category, tag, post-tag, post, follow, comment, reaction, official-response, notification, and category-audit tables. A fresh installation starts with a General feedback category and the [EQ: Legends tag defaults](docs/feedback.md#tags). Existing posts gain no tags automatically. The contribution-type migration preserves older comments as Unspecified instead of guessing their classification. Migration `0006_remove_write_receipts.sql` removes obsolete retry bookkeeping while retaining feedback content. Later features extend this history.
 
 Follow [Creating and undoing migrations](docs/migrations.md) for schema changes, custom SQL, review and testing. The normal sequence is `pnpm db:generate --name=describe_the_change`, review, `pnpm db:check`, then `pnpm db:migrate`.
 

@@ -207,7 +207,13 @@ test('public tags render as descriptive labels rather than interactive filters',
 }) => {
   await page.goto(story('feedback-tags--default'))
   const tags = page.getByRole('list', { name: 'Tags', exact: true })
-  await expect(tags.getByRole('listitem')).toHaveText(['Gameplay', 'UI'])
+  await expect(tags.getByRole('listitem')).toHaveText(['🕹️Gameplay', 'UI'])
+  await expect(tags.locator('[aria-hidden="true"]')).toHaveText('🕹️')
+  await expect(tags).toMatchAriaSnapshot(`
+    - list "Tags":
+      - listitem: Gameplay
+      - listitem: UI
+  `)
   await expect(tags.getByRole('button')).toHaveCount(0)
   await expect(tags.getByRole('link')).toHaveCount(0)
 })
@@ -338,4 +344,17 @@ test('semantic theme colors retain readable text and distinguish controls and fo
   for (const { pair, ratio, minimum } of contrasts) {
     expect(ratio, `${pair}: ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(minimum)
   }
+})
+
+test('post rows place optional tag icons and names between the title and excerpt', async ({
+  page,
+}) => {
+  await page.goto(story('feedback-postrow--default'))
+  const row = page.getByRole('article')
+  const tags = row.getByRole('list', { name: 'Tags', exact: true })
+  await expect(tags.locator('[aria-hidden="true"]')).toHaveText('🕹️')
+  await expect(tags.getByRole('listitem')).toContainText('Gameplay')
+  await expect(row.locator('h2 + ul[aria-label="Tags"] + .row-excerpt')).toHaveText(
+    'Forty minutes organising a group, barely an hour left to play.',
+  )
 })

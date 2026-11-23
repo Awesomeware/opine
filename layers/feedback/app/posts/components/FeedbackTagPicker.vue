@@ -38,6 +38,7 @@ const unknownIds = computed(() =>
           v-model="model"
           :aria-invalid="!!error"
         />
+        <span v-if="tag.icon" aria-hidden="true">{{ tag.icon }}</span>
         {{ tag.name }}
         <span v-if="!tag.isActive">(inactive)</span>
       </label>

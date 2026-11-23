@@ -2,9 +2,9 @@ import { ref } from 'vue'
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import FeedbackTagPicker from './FeedbackTagPicker.vue'
 const tags = [
-  { id: 'gameplay', name: 'Gameplay', isActive: true, version: 1 },
-  { id: 'ui', name: 'UI', isActive: true, version: 1 },
-  { id: 'old', name: 'Older tag', isActive: false, version: 2 },
+  { id: 'gameplay', name: 'Gameplay', icon: '🕹️', isActive: true, version: 1 },
+  { id: 'ui', name: 'UI', icon: null, isActive: true, version: 1 },
+  { id: 'old', name: 'Older tag', icon: null, isActive: false, version: 2 },
 ]
 const meta = {
   title: 'Feedback/TagPicker',

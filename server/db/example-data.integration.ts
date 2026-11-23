@@ -227,8 +227,8 @@ test('reset requires the exact database name, clears all app data, and preserves
     }
     const tags = await database.select().from(schema.feedbackTag).orderBy(schema.feedbackTag.id)
     assert.deepEqual(
-      tags.map(({ id, name }) => ({ id, name })),
-      defaultFeedbackTags.map(({ id, name }) => ({ id, name })),
+      tags.map(({ id, name, icon }) => ({ id, name, icon })),
+      defaultFeedbackTags.map(({ id, name, icon }) => ({ id, name, icon })),
     )
     assert.ok(tags.every((tag) => tag.isActive && tag.version === 1))
     const categories = await database.select().from(schema.feedbackCategory)

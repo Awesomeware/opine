@@ -57,6 +57,13 @@
       "when": 1795265332199,
       "tag": "0007_post_moderation_events",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795425801638,
+      "tag": "0008_common_selene",
+      "breakpoints": true
     }
   ]
 }

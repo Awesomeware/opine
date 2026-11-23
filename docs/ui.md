@@ -105,7 +105,7 @@ The [approved visual direction](design/README.md) now drives the shared theme, a
 
 Root `app/assets/css/main.css` owns application page/form layout. Shared native form controls, field help/errors, and button foundations belong to the UI layer and load in both Nuxt and Storybook. Shell and feature presentation stays scoped to its owner. Do not load the application stylesheet in Storybook to hide an undeclared component dependency.
 
-`FeedbackTagPicker` uses native checkboxes with no default selection. It can retain disabled tags already assigned to a post and expose unavailable saved selections for removal. `FeedbackTags` renders non-interactive public labels; these are distinct from status badges and discussion filters. Both accept data through props and have isolated stories.
+`FeedbackTagPicker` uses native checkboxes with no default selection. It can retain disabled tags already assigned to a post and expose unavailable saved selections for removal. `FeedbackTags` renders non-interactive pill chips beneath list-row titles and on the proposal. Optional icons use `aria-hidden` so accessible names contain only the tag name; these are distinct from status badges and discussion filters. Both accept data through props and have isolated stories.
 
 ## Accessibility
 

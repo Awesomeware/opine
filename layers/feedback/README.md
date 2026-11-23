@@ -31,9 +31,9 @@ Additional endpoints:
 
 Tag endpoints (implemented in `server/posts/tags.ts`):
 
-- `GET /api/feedback/tags` returns `{ tags }`, including inactive entries for existing assignments. Tags have `id`, `name`, `isActive`, and `version`.
-- `POST /api/feedback/tags` requires current administrator access and `{ name }`.
-- `PATCH /api/feedback/tags/:id` requires current administrator access and `{ name, isActive, version }`. Tag writes require the configured origin and request-time authorization. Names remain unique and edits require the current version.
+- `GET /api/feedback/tags` returns `{ tags }`, including inactive entries for existing assignments. Tags have `id`, `name`, nullable `icon`, `isActive`, and `version`.
+- `POST /api/feedback/tags` requires current administrator access and `{ name, icon? }`.
+- `PATCH /api/feedback/tags/:id` requires current administrator access and `{ name, icon?, isActive, version }`. Omitted icons are preserved; blank or null clears them. Icons are plain text limited to 16 UTF-16 code units. Tag writes require the configured origin and request-time authorization. Names remain unique and edits require the current version.
 
 Post list/detail results include `tags` and nullable `lockedAt`. See [tag rules and administration](../../docs/feedback.md#tags) for assignment, disabled-tag, version, and omitted-field semantics.
 
